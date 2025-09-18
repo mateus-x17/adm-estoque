@@ -23,3 +23,13 @@ export async function loginController(req, res) {
     user: { id: user.id, nome: user.nome, email: user.email, role: user.role },
   });
 }
+
+export async function registerController(req, res) {
+  const { nome, email, senha, role } = req.body;
+  // verificar se o usuário existe
+  const userExists = await prisma.usuario.findUnique({ where: { email } });
+  if (userExists) return res.status(400).json({ error: "Usuário já cadastrado" });
+  const hashed = await bcrypt.hash(senha, 10);
+  const user = await prisma.usuario.create({ data: { nome, email, senha: hashed, role: role || "OPERADOR" } });
+  res.json({message: "Usuário cadastrado com sucesso", usuario:user});
+}
