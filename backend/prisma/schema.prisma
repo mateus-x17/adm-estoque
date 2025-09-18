@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id        Int       @id @default(autoincrement())
+  nome      String
+  email     String    @unique
+  senha     String
+  role      Role      @default(OPERADOR)
+  movimentos Movimento[] 
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Categoria {
+  id       Int      @id @default(autoincrement())
+  nome     String   @unique
+  produtos Produto[]
+}
+
+model Fornecedor {
+  id       Int      @id @default(autoincrement())
+  nome     String
+  contato  String?
+  endereco String?
+  produtos Produto[]
+}
+
+model Produto {
+  id          Int       @id @default(autoincrement())
+  nome        String
+  descricao   String?
+  preco       Float
+  quantidade  Int       @default(0)
+  imagem      String?   // caminho do arquivo
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+  categoriaId Int?
+  fornecedor  Fornecedor? @relation(fields: [fornecedorId], references: [id])
+  fornecedorId Int?
+  movimentos  Movimento[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Movimento {
+  id         Int       @id @default(autoincrement())
+  produto    Produto   @relation(fields: [produtoId], references: [id])
+  produtoId  Int
+  quantidade Int
+  tipo       MovimentoTipo
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id])
+  usuarioId  Int
+  data       DateTime  @default(now())
+  observacao String?
+}
+
+enum Role {
+  ADMIN
+  GERENTE
+  OPERADOR
+}
+
+enum MovimentoTipo {
+  ENTRADA
+  SAIDA
+}
