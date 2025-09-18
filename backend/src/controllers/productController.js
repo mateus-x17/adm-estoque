@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+// import { PrismaClient } from "@prisma/client";
 import fs from "fs";
-const prisma = new PrismaClient();
+import {prisma} from '../config/prismaClient.js';
 
 export async function listProducts(req, res) {
   const products = await prisma.produto.findMany({ include: { categoria: true, fornecedor: true } });
