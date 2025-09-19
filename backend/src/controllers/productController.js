@@ -69,6 +69,8 @@ export async function adjustQuantity(req, res) {
   if (!product) return res.status(404).json({ error: "Produto não encontrado" });
 
   const delta = tipo === "ENTRADA" ? Number(quantidade) : -Number(quantidade);
+  // se a quantidade desejada for maior que a disponível, retornar erro de quantidade insuficiente
+  if (quantidade > product.quantidade) return res.status(400).json({ error: "Quantidade insuficiente no estoque" });
   const newQuantity = product.quantidade + delta;
   if (newQuantity < 0) return res.status(400).json({ error: "Quantidade insuficiente no estoque" });
 
