@@ -6,8 +6,9 @@ import Sidebar from "./Sidebar";
 
 const Header = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarAnimation, setSidebarAnimation] = useState("slideInLeft");
+  const [sidebarOpen, setSidebarOpen] = useState(false); // controla se a sidebar está aberta
+  const [sidebarAnimation, setSidebarAnimation] = useState("slideInLeft"); // controla a animação
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false); // controla se está animando para fechar
 
   useEffect(() => {
     if (darkMode) {
@@ -21,12 +22,17 @@ const Header = () => {
   const openSidebar = () => {
     setSidebarAnimation("slideInLeft");
     setSidebarOpen(true);
+    setIsAnimatingOut(false);
   };
 
   // Função para fechar a sidebar com animação
   const closeSidebar = () => {
     setSidebarAnimation("slideOutLeft");
-    setSidebarOpen(false) // tempo igual ao da animação
+    setIsAnimatingOut(true);
+    setTimeout(() => {
+      setSidebarOpen(false);
+      setIsAnimatingOut(false);
+    }, 300); // tempo igual ao da animação (0.3s) para remover do DOM após a animação
   };
 
   return (
@@ -54,7 +60,7 @@ const Header = () => {
       </header>
 
       {/* Overlay e Sidebar */}
-      {sidebarOpen && (
+      {(sidebarOpen || isAnimatingOut) && (
         <div className="fixed inset-0 z-50 flex">
           {/* Overlay */}
           <div
@@ -63,9 +69,9 @@ const Header = () => {
           />
           {/* sideBar */}
           <div className="relative">
-            <div className={`h-full animate-${sidebarAnimation}`}>
+            <div className={`h-full ${sidebarAnimation === "slideInLeft" ? "animate-slideInLeft" : "animate-slideOutLeft"}`}>
               <Sidebar
-                closeSidebar={closeSidebar} // <-- Passe a função aqui!
+                closeSidebar={closeSidebar}
               />
             </div>
           </div>
