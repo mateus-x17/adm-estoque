@@ -1,8 +1,17 @@
-import React from "react";
+import { useEffect } from "react";
 import { useThemeStore } from "../store/useThemeStore";
 
 const Header = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
+
+  // Adiciona ou remove a classe 'dark' no body
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add("dark");
+    } else {
+      document.body.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   return (
     <header className="flex justify-between items-center p-4 bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white shadow sticky top-0 z-10">
