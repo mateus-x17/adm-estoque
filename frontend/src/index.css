@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* criar um background com linear gradiente */
+@layer utilities {
+  .bg-gradient-light {
+    background: linear-gradient(280deg, #8faaf5, #a1b7da, #74f1cc);
+  }
+  /* versão dark */
+    .dark .bg-gradient-dark {
+        background: linear-gradient(130deg, #2c333d, #2c295a, #3359a5);
+    }
+
+    /* fundo da pagina com background radial light */
+    .bg-radial-light {
+        background: radial-gradient(circle at top left, #cbcdd1, #99dad1, #7495f1);
+    }
+    /* versao dark */
+    .dark .bg-radial-dark {
+        background: linear-gradient(290deg, #000000, #6e6e6e85, #252035);
+    }
+}

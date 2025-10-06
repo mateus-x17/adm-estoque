@@ -10,7 +10,7 @@ const Layout = ({ children }) => {
       </div>
       <div className="flex flex-col flex-1">
         <Header /> {/* flex-1 aqui faz a coluna ocupar todo o espaço */}
-        <main className="p-4 flex-1 overflow-y-auto bg-gray-200">
+        <main className="w-full flex-1 overflow-y-auto bg-gray-200">
           {children}
         </main>
       </div>
