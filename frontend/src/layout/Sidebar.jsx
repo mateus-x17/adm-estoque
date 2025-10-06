@@ -28,6 +28,7 @@ const Sidebar = () => {
                   isActive ? "bg-gray-300 dark:bg-gray-700 font-semibold" : ""
                 }`
               }
+              onClick={() => setIsOpen(!isOpen)}
             >
               {link.icon}
               <span>{link.name}</span>
