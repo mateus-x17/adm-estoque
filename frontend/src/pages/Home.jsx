@@ -61,21 +61,20 @@ const Home = () => {
         className="
           relative w-full h-[60vh] flex flex-col items-center justify-center text-center text-white overflow-hidden 
           bg-gradient-to-r from-indigo-500 via-blue-500 to-green-400 
-          bg-[length:400%_400%] animate-gradientShift
-        "
-      >
-        <div className="absolute inset-0 bg-black/30" />
-        <h1 className="relative z-10 text-4xl md:text-5xl font-bold drop-shadow-lg animate-fadeInDown">
-          Bem-vindo ao <span className="text-yellow-300">Dashboard-ADM</span>
-        </h1>
-        <p className="relative z-10 text-lg md:text-xl mt-4 max-w-2xl px-4 animate-fadeInUp">
-          Gerencie produtos, fornecedores, categorias e usuários de forma moderna,
-          eficiente e segura.
-        </p>
+          bg-[length:400%_400%] animate-gradientShift">
+
+          <div className="absolute inset-0 bg-black/30" />
+          <h1 className="relative z-10 text-4xl md:text-5xl font-bold drop-shadow-lg animate-fadeInDown">
+            Bem-vindo ao <span className="text-yellow-300">Dashboard-ADM</span>
+          </h1>
+          <p className="relative z-10 text-lg md:text-xl mt-4 max-w-2xl px-4 animate-fadeInUp">
+            Gerencie produtos, fornecedores, categorias e usuários de forma moderna,
+            eficiente e segura.
+          </p>
       </section>
 
       {/* Sessão de Cards */}
-      <main className="w-full bg-gray-100 dark:bg-gray-900 py-16 px-6 min-h-screen">
+      <main className="w-full bg-gray-100 dark:bg-gray-900 py-16 px-6 min-h-screen transition-all duration-500">
         <h2 className="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white animate-fadeInDown">
           Funcionalidades Principais
         </h2>

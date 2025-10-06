@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import LoginForm from "../components/LoginForm.jsx";
 import RegisterForm from "../components/RegisterForm.jsx";
 import { useThemeStore } from "../store/useThemeStore.js";
@@ -33,11 +34,12 @@ const Auth = () => {
           <FiMoon className="h-6 w-6" />
         )}
       </button>
+
       {isLogin ? (
-        <h1 className="absolute top-4 left-4 text-2xl font-bold">Login</h1>
+        <h1 className="absolute top-4 left-4 text-2xl font-bold"><Link to={"/"}>Login</Link></h1>
       ) : (
         <h1 className="absolute top-4 left-4 text-2xl font-bold">
-          Registrar
+          <Link to={"/"}>Registrar</Link>
         </h1>
       )}
       
@@ -87,7 +89,7 @@ const Auth = () => {
           {isLogin ? (
             <>
               <h2 className="text-3xl font-bold mb-4">Bem-vindo de volta!</h2>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
+              <p className="text-gray-600 dark:text-gray-300 mb-6 transition-all duration-300">
                 Faça login para acessar sua conta.
               </p>
               <LoginForm />
@@ -95,7 +97,7 @@ const Auth = () => {
           ) : (
             <>
               <h2 className="text-3xl font-bold mb-4">Crie sua conta</h2>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
+              <p className="text-gray-600 dark:text-gray-300 mb-6 transition-all duration-300">
                 Preencha os dados abaixo para se registrar.
               </p>
               <RegisterForm />

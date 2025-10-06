@@ -25,7 +25,7 @@ function HeaderHome() {
   return (
     <>
       {/* cabeçalho com links */}
-      <header className="flex justify-between items-center p-4 bg-gray-200 dark:bg-gray-800 ">
+      <header className="flex justify-between items-center p-4 bg-gray-200 dark:bg-gray-800 transition-all duration-300 ">
 
         {/* nome sistema */}
         <h2 className="text-lg font-semibold dark:text-white">Dashboard-ADM</h2>
