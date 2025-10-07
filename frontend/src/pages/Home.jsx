@@ -60,7 +60,7 @@ const Home = () => {
       <section
         className="
           relative w-full h-[60vh] flex flex-col items-center justify-center text-center text-white overflow-hidden 
-          bg-gradient-to-r from-indigo-500 via-blue-500 to-green-400 
+          bg-gradient-to-r from-purple-800 via-blue-400 to-green-600 
           bg-[length:400%_400%] animate-gradientShift">
 
           <div className="absolute inset-0 bg-black/30" />

@@ -47,7 +47,7 @@ module.exports = {
         slideInLeft: 'slideInLeft 0.3s ease-out',
         slideOutLeft: 'slideOutLeft 0.3s ease-out',
         // animação personalizada home page
-        gradientShift: "gradientShift 10s ease infinite alternate",
+        gradientShift: "gradientShift 6s ease infinite alternate",
         fadeInUp: "fadeInUp 0.8s ease forwards",
         fadeInDown: "fadeInDown 0.8s ease forwards",
         fadeIn: "fadeIn 1s ease forwards",
