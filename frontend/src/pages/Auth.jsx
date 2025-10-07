@@ -23,31 +23,43 @@ const Auth = () => {
         darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
       }`}
     >
-      {/* botão de troca de tema */}
-      <button
-        onClick={toggleDarkMode}
-        className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-300"
-      >
-        {darkMode ? (
-          <FiSun className="h-6 w-6" />
+      {/* cabeçalho com botão de troca de tema */}
+      <div className="flex absolute top-0 w-full justify-between p-4">
+        {isLogin ? (
+          <h1 className="top-4 left-4 ml-8 text-2xl font-bold z-30">
+            <Link to={"/"}>Login</Link>
+          </h1>
         ) : (
-          <FiMoon className="h-6 w-6" />
+          <h1 className="top-4 left-4 text-2xl font-bold z-30">
+            <Link to={"/"}>Registrar</Link>
+          </h1>
         )}
-      </button>
 
-      {isLogin ? (
-        <h1 className="absolute top-4 left-4 text-2xl font-bold"><Link to={"/"}>Login</Link></h1>
-      ) : (
-        <h1 className="absolute top-4 left-4 text-2xl font-bold">
-          <Link to={"/"}>Registrar</Link>
-        </h1>
-      )}
-      
-      <div className="relative flex w-[800px] h-[500px] rounded-2xl overflow-hidden shadow-xl bg-white dark:bg-gray-800 transition-all duration-500">
+        <button
+          onClick={toggleDarkMode}
+          className=" rounded-full mr-8 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-300 z-30"
+        >
+          {darkMode ? (
+            <FiSun className="h-6 w-6" />
+          ) : (
+            <FiMoon className="h-6 w-6" />
+          )}
+        </button>
+      </div>
+
+      {/* painel de login e registro */}
+      <div className="relative flex flex-col md:flex-row w-full md:w-[800px] h-auto md:h-[500px] rounded-2xl overflow-hidden shadow-xl bg-white dark:bg-gray-800 transition-all duration-500 mt-20 mb-8 mx-5">
         {/* Painel de transição */}
         <div
-          className={`absolute top-0 w-1/2 h-full transition-all duration-700 ease-in-out bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex flex-col items-center justify-center p-10 z-20
-            ${isLogin ? "right-0 rounded-l-2xl" : "left-0 rounded-r-2xl"}
+          className={`
+            transition-all duration-700 ease-in-out bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex flex-col items-center justify-center p-10 z-20
+            md:absolute md:top-0 ${
+              isLogin
+                ? "md:right-0 md:rounded-l-2xl"
+                : "md:left-0 md:rounded-r-2xl"
+            }
+            w-full h-auto md:w-1/2 md:h-full
+            rounded-none
           `}
         >
           {isLogin ? (
@@ -81,9 +93,10 @@ const Auth = () => {
 
         {/* Formulário animado */}
         <div
-          className={`absolute top-0 w-1/2 h-full flex flex-col items-center justify-center p-10 animate-fadeIn z-10
-            transition-all duration-700 ease-in-out
-            ${isLogin ? "left-0" : "right-0"}
+          className={`
+            flex flex-col items-center justify-center p-10 animate-fadeIn z-10 transition-all duration-700 ease-in-out
+            md:absolute md:top-0 ${isLogin ? "md:left-0" : "md:right-0"}
+            w-full h-auto md:w-1/2 md:h-full
           `}
         >
           {isLogin ? (
@@ -104,6 +117,7 @@ const Auth = () => {
             </>
           )}
         </div>
+
       </div>
     </div>
   );
