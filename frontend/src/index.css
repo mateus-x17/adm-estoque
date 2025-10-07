@@ -20,4 +20,9 @@
     .dark .bg-radial-dark {
         background: linear-gradient(290deg, #000000, #6e6e6e85, #252035);
     }
+
+    /* box shadow Dark */
+    .dark .shadowDark-lg {
+        box-shadow: 0 10px 15px -3px rgba(194, 194, 194, 0.384), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
 }
