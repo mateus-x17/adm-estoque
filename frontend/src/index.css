@@ -4,23 +4,11 @@
 
 /* criar um background com linear gradiente */
 @layer utilities {
-  .bg-gradient-light {
-    background: linear-gradient(280deg, #8faaf5, #a1b7da, #74f1cc);
-  }
-  /* versão dark */
-    .dark .bg-gradient-dark {
-        background: linear-gradient(130deg, #2c333d, #2c295a, #3359a5);
-    }
 
-    /* fundo da pagina com background radial light */
-    .bg-radial-light {
-        background: radial-gradient(circle at top left, #cbcdd1, #99dad1, #7495f1);
+    /* box shadow Light */
+    .shadowLight-lg {
+        box-shadow: 0 10px 15px -3px rgba(51, 51, 51, 0.493), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
-    /* versao dark */
-    .dark .bg-radial-dark {
-        background: linear-gradient(290deg, #000000, #6e6e6e85, #252035);
-    }
-
     /* box shadow Dark */
     .dark .shadowDark-lg {
         box-shadow: 0 10px 15px -3px rgba(194, 194, 194, 0.384), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
