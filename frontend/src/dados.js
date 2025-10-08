@@ -108,3 +108,30 @@ const produtos = [
 ];
 
 export { usuarios, categorias, fornecedores, produtos }; 
+
+
+// rota base: http://localhost:5000
+
+// rotas autenticação:
+// login - http://localhost:5000/auth/login
+// registro - http://localhost:5000/auth/register
+
+// rotas usuarios:
+// listar usuarios - http://localhost:5000/users
+// obter usuario - http://localhost:5000/users/:id
+// criar usuario - http://localhost:5000/users (post)
+// ataulizar usuario - http://localhost:5000/users/:id (put)
+// deletar usuario - http://localhost:5000/users/:id (delete)
+
+// rotas produtos:
+// obter todos - http://localhost:5000/products
+// obter por id - http://localhost:5000/products/:id
+// criar - http://localhost:5000/products
+// editar - http://localhost:5000/products/:id
+// deletar - http://localhost:5000/products/:id
+
+// rotas categorias:
+// listar - http://localhost:5000/categories
+// criar - http://localhost:5000/categories
+// atualizar - http://localhost:5000/categories/:id
+// deletar - http://localhost:5000/categories/:id
