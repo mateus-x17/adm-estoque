@@ -16,78 +16,144 @@ const links = [
   { name: "Categorias", path: "/dashboard/categorias", icon: <HiTag size={20} /> },
 ];
 
-const Sidebar = ({closeSidebar}) => {
+// const Sidebar = ({closeSidebar}) => {
+//   const { darkMode, toggleDarkMode } = useThemeStore();
+
+//     // Adiciona ou remove a classe 'dark' no body
+//     useEffect(() => {
+//       if (darkMode) {
+//         document.documentElement.classList.add("dark");
+//       } else {
+//         document.documentElement.classList.remove("dark");
+//       }
+//     }, [darkMode]);
+
+//   return (
+//     <>
+//       <div className={`p-4 h-[100dvh] bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white transition-colors duration-200`}>
+//         <h1 className="text-lg font-bold">Estoque</h1>
+//         {/* links para pages */}
+//         <nav className="h-[70%] flex flex-col gap-3 mt-4">
+//           {links.map((link) => (
+//             <NavLink
+//               key={link.path}
+//               to={link.path}
+//               end={true}
+//               className={({ isActive }) =>
+//                 `flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 ${isActive ? "bg-gray-300 dark:bg-gray-700 font-semibold" : ""
+//                 }`
+//               }
+//               onClick={() => closeSidebar()} // Fecha a sidebar ao clicar em um link (apenas para mobile)
+//             >
+//               {link.icon}
+//               <span>{link.name}</span>
+//             </NavLink>
+//           ))}
+//         </nav>
+
+//         {/* config do sistema */}
+//         <div className="h-[30%] pt-4 border-t border-gray-400 dark:border-gray-300 ">
+//           <div className="flex items-center gap-3">
+//             <FaUser size={20} className="text-green-500 dark:text-blue-500" />
+//             {/* user infos */}
+//             <div>
+//               {/* nome usuario */}
+//               <p className="font-semibold">Mateus </p>
+//               {/* role do usuario */}
+//               <p className="text-sm text-gray-600 dark:text-gray-400">administrador</p>
+//             </div>
+//           </div>
+
+//           {/* Botão para alternar entre modos light/dark*/}
+//           <button
+//             onClick={toggleDarkMode}
+//             className="flex px-3 py-1 mt-1 rounded-xl bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors duration-200"
+//           >
+//             Tema: 
+//             {darkMode ? <FaSun className="mt-1 ml-2"/> : <FaMoon className="mt-1 ml-2"/>}
+//           </button>
+
+//           {/* configurações */}
+//           <div className="flex justify-start  hover:text-gray-500 dark:hover:text-blue-500 cursor-pointer">
+//             <FaGear size={20} className="mt-3 text-gray-600 dark:text-gray-400 cursor-pointer" />
+//             <p className="mt-3 ml-3">configurações</p>
+//           </div>
+
+//           {/* logout */}
+//           <div className="flex justify-start hover:text-red-700 dark:hover:text-red-500 cursor-pointer">
+//             <FiLogOut size={20} className="mt-3 text-gray-600 dark:text-gray-400 cursor-pointer" />
+//             <p className="mt-3 ml-3">sair</p>
+//           </div>
+
+//         </div>
+//       </div>
+//     </>
+//   );
+// };
+const Sidebar = ({ closeSidebar }) => {
   const { darkMode, toggleDarkMode } = useThemeStore();
 
-    // Adiciona ou remove a classe 'dark' no body
-    useEffect(() => {
-      if (darkMode) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    }, [darkMode]);
+  useEffect(() => {
+    if (darkMode) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
+  }, [darkMode]);
 
   return (
-    <>
-      <div className={`p-4 h-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white transition-colors duration-200`}>
+    <div className="flex flex-col justify-between h-full w-64 p-4 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white transition-colors duration-200">
+      {/* Topo */}
+      <div>
         <h1 className="text-lg font-bold">Estoque</h1>
-        {/* links para pages */}
-        <nav className="h-[70%] flex flex-col gap-3 mt-4">
+
+        <nav className="flex flex-col gap-3 mt-4">
           {links.map((link) => (
             <NavLink
               key={link.path}
               to={link.path}
-              end={true}
+              end
               className={({ isActive }) =>
-                `flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 ${isActive ? "bg-gray-300 dark:bg-gray-700 font-semibold" : ""
+                `flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 ${
+                  isActive ? "bg-gray-300 dark:bg-gray-700 font-semibold" : ""
                 }`
               }
-              onClick={() => closeSidebar()} // Fecha a sidebar ao clicar em um link (apenas para mobile)
+              onClick={() => closeSidebar()}
             >
               {link.icon}
               <span>{link.name}</span>
             </NavLink>
           ))}
         </nav>
+      </div>
 
-        {/* config do sistema */}
-        <div className="h-[30%] pt-4 border-t border-gray-400 dark:border-gray-300 ">
-          <div className="flex items-center gap-3">
-            <FaUser size={20} className="text-green-500 dark:text-blue-500" />
-            {/* user infos */}
-            <div>
-              {/* nome usuario */}
-              <p className="font-semibold">Mateus </p>
-              {/* role do usuario */}
-              <p className="text-sm text-gray-600 dark:text-gray-400">administrador</p>
-            </div>
+      {/* Rodapé da Sidebar */}
+      <div className="pt-4 border-t border-gray-400 dark:border-gray-600">
+        <div className="flex items-center gap-3">
+          <FaUser size={20} className="text-green-500 dark:text-blue-500" />
+          <div>
+            <p className="font-semibold">Mateus</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">administrador</p>
           </div>
+        </div>
 
-          {/* Botão para alternar entre modos light/dark*/}
-          <button
-            onClick={toggleDarkMode}
-            className="flex px-3 py-1 mt-1 rounded-xl bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors duration-200"
-          >
-            Tema: 
-            {darkMode ? <FaSun className="mt-1 ml-2"/> : <FaMoon className="mt-1 ml-2"/>}
-          </button>
+        <button
+          onClick={toggleDarkMode}
+          className="flex px-3 py-1 mt-2 rounded-xl bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors duration-200"
+        >
+          Tema:
+          {darkMode ? <FaSun className="mt-1 ml-2" /> : <FaMoon className="mt-1 ml-2" />}
+        </button>
 
-          {/* configurações */}
-          <div className="flex justify-start  hover:text-gray-500 dark:hover:text-blue-500 cursor-pointer">
-            <FaGear size={20} className="mt-3 text-gray-600 dark:text-gray-400 cursor-pointer" />
-            <p className="mt-3 ml-3">configurações</p>
-          </div>
+        <div className="flex items-center gap-3 mt-3 cursor-pointer hover:text-gray-500 dark:hover:text-blue-400">
+          <FaGear size={20} />
+          <p>Configurações</p>
+        </div>
 
-          {/* logout */}
-          <div className="flex justify-start hover:text-red-700 dark:hover:text-red-500 cursor-pointer">
-            <FiLogOut size={20} className="mt-3 text-gray-600 dark:text-gray-400 cursor-pointer" />
-            <p className="mt-3 ml-3">sair</p>
-          </div>
-
+        <div className="flex items-center gap-3 mt-3 cursor-pointer hover:text-red-700 dark:hover:text-red-500">
+          <FiLogOut size={20} />
+          <p>Sair</p>
         </div>
       </div>
-    </>
+    </div>
   );
 };
+
 export default Sidebar;
