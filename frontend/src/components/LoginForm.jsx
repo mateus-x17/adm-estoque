@@ -24,3 +24,9 @@ const LoginForm = () => {
 };
 
 export default LoginForm;
+
+// armazenar credenciais no estado
+// criar função de login com fetch para a rota /auth/login do backend
+// adc no evento onSubmit do form
+// redirecionar para dashboard na resposta positiva
+// mostrar mensagem de erro na resposta negativa como popup ou texto vermelho abaixo do form
