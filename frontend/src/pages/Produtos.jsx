@@ -17,7 +17,7 @@ const Produtos = () => {
       </section>
 
       {/* Tabela de produtos */}
-      <div className="w-full bg-gray-100 dark:bg-gray-900 py-16 px-6 min-h-screen transition-all duration-500">
+      <div className="w-full bg-gray-200 dark:bg-gray-900 py-10 px-6 min-h-screen transition-all duration-500">
         <h2 className="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white animate-fadeInDown">
           Lista de Produtos
         </h2>
