@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useThemeStore } from "../store/useThemeStore";
 import { NavLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { HiMenu, HiHome, HiCube, HiUsers, HiSwitchHorizontal, HiShoppingCart, HiTag } from "react-icons/hi";
 import { FaUser } from "react-icons/fa";
 import { FaGear } from "react-icons/fa6";
@@ -91,12 +92,22 @@ const links = [
 //   );
 // };
 const Sidebar = ({ closeSidebar }) => {
+  const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useThemeStore();
 
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
+
+  // Função de logout (simples - por hora)
+  const logout = () => {
+    // Lógica de logout aqui
+    console.log("Logout");
+    // Exemplo: redirecionar para a pággin home com hook useNavigate: navigate('/');
+    navigate('/');
+    // Limpar tokens ou dados do usuário, se necessário
+  }
 
   return (
     <div className="flex flex-col justify-between h-full w-64 p-4 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white transition-colors duration-200">
@@ -147,7 +158,8 @@ const Sidebar = ({ closeSidebar }) => {
           <p>Configurações</p>
         </div>
 
-        <div className="flex items-center gap-3 mt-3 cursor-pointer hover:text-red-700 dark:hover:text-red-500">
+        <div className="flex items-center gap-3 mt-3 cursor-pointer hover:text-red-700 dark:hover:text-red-500"
+          onClick={logout}>
           <FiLogOut size={20} />
           <p>Sair</p>
         </div>
