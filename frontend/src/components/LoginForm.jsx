@@ -1,11 +1,12 @@
 import React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {setUser} from '../store/userStore'
+import {useUserStore } from '../store/userStore'
 
 const LoginForm = () => {
   // http://localhost:5000/auth/login - rota de login do backend
   const url = "http://localhost:5000/auth/login";
+  const { setUser } = useUserStore();
 
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
