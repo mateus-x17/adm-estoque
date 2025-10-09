@@ -8,6 +8,7 @@ import Auth from './pages/Auth.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Produtos from './pages/Produtos.jsx'
 import Home from './pages/Home.jsx'
+import Usuarios from './pages/Usuarios.jsx'
 
 // cria as rotas
 const router = createBrowserRouter([
@@ -30,7 +31,11 @@ const router = createBrowserRouter([
       {
         path: 'produtos', // rota = /dashboard/produtos
         element: <Produtos />
-      }
+      },
+      {
+        path: 'usuarios', // rota = /dashboard/usuarios
+        element: <Usuarios />
+      },
     ]
   }
 ])
