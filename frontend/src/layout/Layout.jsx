@@ -2,6 +2,7 @@ import React from "react";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import { Outlet } from "react-router-dom";
+import { useUserStore } from "../store/userStore";
 
 // const Layout = ({ children }) => {
 //   return (
@@ -20,6 +21,17 @@ import { Outlet } from "react-router-dom";
 // };
 
 const Layout = () => {
+  // verificar se o store userStore tem dados do usuário
+  // se não tiver, redirecionar para a página de login antes de renderizar o layout com o dashboard
+    const {user } = useUserStore();
+    if (!user || !user.nome) {
+      // Se não houver dados do usuário, redirecionar para a página de login
+      alert("Por favor, efetue o login primeiro.");
+      window.location.replace("http://localhost:5173/auth");
+      return null; // Ou um componente de carregamento, se preferir
+    }
+
+
   return (
     <div className="h-screen flex md:flex-row flex-col overflow-hidden">
       {/* Sidebar fixa no desktop */}
