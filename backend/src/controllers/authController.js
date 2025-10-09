@@ -27,6 +27,8 @@ export async function loginController(req, res) {
 }
 
 export async function registerController(req, res) {
+  // verificar se não está vazio
+  if (!req.body.nome || !req.body.email || !req.body.senha) return res.status(400).json({ error: "Dados incompletos" });
   const { nome, email, senha, role } = req.body;
   // verificar se o usuário existe
   const userExists = await prisma.usuario.findUnique({ where: { email } });
