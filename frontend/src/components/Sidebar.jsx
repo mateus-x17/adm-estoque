@@ -2,20 +2,44 @@ import React, { useState, useEffect } from "react";
 import { useThemeStore } from "../store/useThemeStore";
 import { NavLink } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { HiMenu, HiHome, HiCube, HiUsers, HiSwitchHorizontal, HiShoppingCart, HiTag } from "react-icons/hi";
+import {
+  HiMenu,
+  HiHome,
+  HiCube,
+  HiUsers,
+  HiSwitchHorizontal,
+  HiShoppingCart,
+  HiTag,
+} from "react-icons/hi";
 import { FaUser } from "react-icons/fa";
 import { FaGear } from "react-icons/fa6";
 import { FiLogOut } from "react-icons/fi";
-import { FaMoon, FaSun} from "react-icons/fa";
+import { FaMoon, FaSun } from "react-icons/fa";
 import { useUserStore } from "../store/userStore";
 
 const links = [
   { name: "Dashboard", path: "/dashboard", icon: <HiHome size={20} /> },
   { name: "Produtos", path: "/dashboard/produtos", icon: <HiCube size={20} /> },
-  { name: "Usuários", path: "/dashboard/usuarios", icon: <HiUsers size={20} /> },
-  { name: "Movimentações", path: "/dashboard/movimentacoes", icon: <HiSwitchHorizontal size={20} /> },
-  { name: "Pedidos", path: "/dashboard/pedidos", icon: <HiShoppingCart size={20} /> },
-  { name: "Categorias", path: "/dashboard/categorias", icon: <HiTag size={20} /> },
+  {
+    name: "Usuários",
+    path: "/dashboard/usuarios",
+    icon: <HiUsers size={20} />,
+  },
+  {
+    name: "Movimentações",
+    path: "/dashboard/movimentacoes",
+    icon: <HiSwitchHorizontal size={20} />,
+  },
+  {
+    name: "Pedidos",
+    path: "/dashboard/pedidos",
+    icon: <HiShoppingCart size={20} />,
+  },
+  {
+    name: "Categorias",
+    path: "/dashboard/categorias",
+    icon: <HiTag size={20} />,
+  },
 ];
 
 // const Sidebar = ({closeSidebar}) => {
@@ -71,7 +95,7 @@ const links = [
 //             onClick={toggleDarkMode}
 //             className="flex px-3 py-1 mt-1 rounded-xl bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors duration-200"
 //           >
-//             Tema: 
+//             Tema:
 //             {darkMode ? <FaSun className="mt-1 ml-2"/> : <FaMoon className="mt-1 ml-2"/>}
 //           </button>
 
@@ -95,21 +119,21 @@ const links = [
 const Sidebar = ({ closeSidebar }) => {
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useThemeStore();
-
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
+  
+  const { clearUser, user } = useUserStore();
 
-  const {clearUser} = useUserStore();
   // Função de logout (simples - por hora)
   const logout = () => {
     // Lógica de logout aqui
     clearUser(); // Limpa os dados do usuário no Zustand
     alert("Logout de usuário realizado com sucesso!");
     // Exemplo: redirecionar para a pággin home com hook useNavigate: navigate('/');
-    navigate('/');
-  }
+    navigate("/");
+  };
 
   return (
     <div className="flex flex-col justify-between h-full w-64 p-4 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white transition-colors duration-200">
@@ -142,8 +166,10 @@ const Sidebar = ({ closeSidebar }) => {
         <div className="flex items-center gap-3">
           <FaUser size={20} className="text-green-500 dark:text-blue-500" />
           <div>
-            <p className="font-semibold">Mateus</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">administrador</p>
+            <p className="font-semibold">{user.nome}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {user.role}
+            </p>
           </div>
         </div>
 
@@ -152,7 +178,11 @@ const Sidebar = ({ closeSidebar }) => {
           className="flex px-3 py-1 mt-2 rounded-xl bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors duration-200"
         >
           Tema:
-          {darkMode ? <FaSun className="mt-1 ml-2" /> : <FaMoon className="mt-1 ml-2" />}
+          {darkMode ? (
+            <FaSun className="mt-1 ml-2" />
+          ) : (
+            <FaMoon className="mt-1 ml-2" />
+          )}
         </button>
 
         <div className="flex items-center gap-3 mt-3 cursor-pointer hover:text-gray-500 dark:hover:text-blue-400">
@@ -160,8 +190,10 @@ const Sidebar = ({ closeSidebar }) => {
           <p>Configurações</p>
         </div>
 
-        <div className="flex items-center gap-3 mt-3 cursor-pointer hover:text-red-700 dark:hover:text-red-500"
-          onClick={logout}>
+        <div
+          className="flex items-center gap-3 mt-3 cursor-pointer hover:text-red-700 dark:hover:text-red-500"
+          onClick={logout}
+        >
           <FiLogOut size={20} />
           <p>Sair</p>
         </div>
