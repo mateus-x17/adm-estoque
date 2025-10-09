@@ -22,12 +22,12 @@ const Produtos = () => {
 
       {/* Container da tabela com rolagem */}
       <div className="flex-1 overflow-auto overflow-x-auto overflow-y-auto bg-gray-300 dark:bg-gray-800 p-4 rounded-xl shadow-inner animate-fadeInUp transition-all duration-500">
-        <table className="w-full min-w-[600px] bg-white dark:bg-gray-700 rounded-xl shadow-md animate-fadeInUp">
+        <table className="w-full min-w-[600px] bg-white dark:bg-gray-600 rounded-xl shadow-md animate-fadeInUp">
           <thead className="sticky top-0 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200">
             <tr>
               <th className="px-4 py-3 text-left">Imagem</th>
               <th className="px-4 py-3 text-left">Nome</th>
-              <th className="px-4 py-3 text-center">Categoria</th>
+              <th className="px-4 py-3 text-left">Categoria</th>
               <th className="px-4 py-3 text-center">detalhes</th>
             </tr>
           </thead>
