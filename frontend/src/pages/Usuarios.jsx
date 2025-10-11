@@ -4,6 +4,7 @@ import { useUserStore } from "../store/userStore";
 import { useThemeStore } from "../store/useThemeStore.js";
 import ModalMensagem from "../components/ModalMensagem.jsx";
 import EditarItem from "../components/EditarItem.jsx";
+import { useNavigate } from "react-router-dom";
 
 const getRoleColor = (role) => {
   switch (role) {
@@ -26,6 +27,8 @@ const getInitials = (name) => {
 
 const Usuarios = () => {
   const url = "http://localhost:5000/users";
+  const navigate = useNavigate();
+  // estado dos usuários
   const [usuarios, setUsuarios] = useState([]);
   const { token } = useUserStore();
 
@@ -71,7 +74,10 @@ const Usuarios = () => {
         setUsuarios(data);
       } else {
         console.error("Erro ao carregar usuarios:", data.error);
-        setModal({ visible: true, mensagem: data.error, tipo: "erro" });
+        setModal({ visible: true, mensagem: `${data.error} você será redirecionado para home`, tipo: "erro" });
+        // redirecionar para home do dashboard se acesso negado apos 3s
+        setTimeout(() => navigate("/dashboard"), 5000);
+        
       }
     } catch (error) {
       console.error("Erro ao carregar usuarios:", error);
