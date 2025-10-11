@@ -4,7 +4,7 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
   return (
     <tr
       style={{ animationDelay: `${index * 0.1}s` }}
-      className="border-b border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all transform animate-fadeInUp"
+      className="border-b border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all transform animate-slideInLeft"
     >
       <td className="px-4 py-3">
         <img
