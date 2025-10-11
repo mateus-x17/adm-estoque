@@ -20,7 +20,7 @@ export async function createUser(req, res) {
 }
 
 export async function listUsers(req, res) {
-  const users = await prisma.usuario.findMany({ select: { id: true, nome: true, email: true, role: true } });
+  const users = await prisma.usuario.findMany({ select: { id: true, nome: true, email: true, role: true, createdAt:true, updatedAt: true } });
   res.json(users);
 }
 
