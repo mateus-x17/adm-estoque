@@ -26,6 +26,7 @@ const Produtos = () => {
       const data = await response.json();
       if (response.ok) {
         setProdutos(data);
+        console.log("Produtos carregados:", data);
         setTimeout(() => setLoaded(true), 50); // delay para animação
       } else {
         console.error("Erro ao carregar produtos:", data.message);
@@ -34,6 +35,13 @@ const Produtos = () => {
       console.error("Erro ao carregar produtos:", error);
     }
   };
+  const buscarProdutosNovamente = async () => {
+  const response = await fetch("http://localhost:5000/products", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await response.json();
+  setProdutos(data); // ✅ isso faz a tabela atualizar
+};
 
   useEffect(() => {
     carregarProdutos();
@@ -56,6 +64,7 @@ const Produtos = () => {
         <ModalProduto
           produtoSelecionado={produtoSelecionado}
           fecharModal={fecharModal}
+          buscarProdutosNovamente={buscarProdutosNovamente} 
         />
       )}
     </div>

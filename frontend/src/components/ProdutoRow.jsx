@@ -13,12 +13,16 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
           className="w-14 h-14 object-cover rounded-md"
         />
       </td>
+
       <td className="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">
         {produto.nome}
       </td>
+
       <td className="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">
-        {produto.categoria.nome}
+        {/* optional chaining para evitar erro quando produto.categoria ainda não estiver disponível */}
+        {produto?.categoria?.nome || "—"}
       </td>
+
       <td className="px-4 py-3 text-center">
         <button
           onClick={() => abrirModal(produto)}
