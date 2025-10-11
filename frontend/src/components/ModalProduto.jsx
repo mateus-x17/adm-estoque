@@ -26,7 +26,8 @@ function ModalProduto({ produtoSelecionado, fecharModal }) {
             {produtoSelecionado.nome}
           </h2>
           <p className="text-gray-500 dark:text-gray-400 mb-4">
-            Categoria: {produtoSelecionado.categoriaId}
+            {/* Categoria: {produtoSelecionado.categoriaId} */}
+            Categoria: {produtoSelecionado.categoria.nome}
           </p>
 
           <div className="text-gray-700 dark:text-gray-300 text-sm text-left w-full space-y-1 mb-5">
@@ -40,7 +41,8 @@ function ModalProduto({ produtoSelecionado, fecharModal }) {
               <strong>Quantidade:</strong> {produtoSelecionado.quantidade}
             </p>
             <p>
-              <strong>Fornecedor:</strong> {produtoSelecionado.fornecedorId}
+              {/* <strong>Fornecedor:</strong> {produtoSelecionado.fornecedorId} */}
+              <strong>Fornecedor:</strong> {produtoSelecionado.fornecedor.nome}
             </p>
           </div>
 
