@@ -1,12 +1,43 @@
-import React, { useState } from "react";
-import { produtos } from "../dados.js";
+import React, { useState, useEffect } from "react";
+// import { produtos } from "../dados.js";
 import ModalProduto from "../components/ModalProduto.jsx";
+import { useUserStore } from "../store/userStore.js";
 
 const Produtos = () => {
+ // http://localhost:5000/products - rota para obter produtos do backend
+ const url = "http://localhost:5000/products";
+  const [produtos, setProdutos] = useState([]); // Iniciar com array vazio ou dados de exemplo
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
-
   const abrirModal = (produto) => setProdutoSelecionado(produto);
   const fecharModal = () => setProdutoSelecionado(null);
+  const { token } = useUserStore(); // Obter o token do Zustand
+  console.log("Token do Zustand:", token);
+
+// Função para carregar produtos do backend
+  const carregarProdutos = async () => {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${token}`, // Adiciona o token do Zustand
+        },
+      });
+      const data = await response.json();
+      console.log("Produtos carregados:", data);
+      if (response.ok) {
+        setProdutos(data);
+      } else {
+        console.error("Erro ao carregar produtos:", data.message);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar produtos:", error);
+    }
+  };
+
+  useEffect(() => {
+    carregarProdutos();
+  }, []); // fetch de produtos e Recarrega sempre a página for recarregada
 
   return (
     <div className="flex flex-col h-full w-full p-6 overflow-hidden  bg-gray-200 dark:bg-gray-900 transition-all duration-500">
@@ -48,7 +79,8 @@ const Produtos = () => {
                   {produto.nome}
                 </td>
                 <td className="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">
-                  {produto.categoriaId}
+                  {/* {produto.categoriaId} */}
+                  {produto.categoria.nome}
                 </td>
                 <td className="px-4 py-3 text-center">
                   <button
