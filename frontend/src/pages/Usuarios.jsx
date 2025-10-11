@@ -3,7 +3,7 @@ import { FaUser } from "react-icons/fa";
 import { useUserStore } from "../store/userStore";
 import { useThemeStore } from "../store/useThemeStore.js";
 import ModalMensagem from "../components/ModalMensagem.jsx";
-import EditarUsuario from "../components/EditarUsuario.jsx";
+import EditarItem from "../components/EditarItem.jsx";
 
 const getRoleColor = (role) => {
   switch (role) {
@@ -37,7 +37,21 @@ const Usuarios = () => {
   }, [darkMode]);
 
   // ESTADO DO MODAL - mensagem e tipo (sucesso/erro)
-  const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
+  const [modal, setModal] = useState({
+    visible: false,
+    mensagem: "",
+    tipo: "",
+  });
+
+  // estado para controlar edição
+  const [editarUser, setEditarUser] = useState({
+    visible: false,
+    userData: null,
+  });
+  
+  const abrirEditarUsuario = (user) => {
+    setEditarUser({ visible: true, userData: user });
+  };
 
   // função para carregar usuários da API
   const carregarUsuarios = async () => {
@@ -61,7 +75,11 @@ const Usuarios = () => {
       }
     } catch (error) {
       console.error("Erro ao carregar usuarios:", error);
-      setModal({ visible: true, mensagem: "Erro de conexão com o servidor", tipo: "erro" });
+      setModal({
+        visible: true,
+        mensagem: "Erro de conexão com o servidor",
+        tipo: "erro",
+      });
     }
   };
 
@@ -69,12 +87,7 @@ const Usuarios = () => {
     carregarUsuarios();
   }, []);
 
-  // estado para controlar edição
-  const [editarUser, setEditarUser] = useState({ visible: false, userData: null });
 
-  const abrirEditarUsuario = (user) => {
-    setEditarUser({ visible: true, userData: user });
-  };
 
   return (
     <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 pb-6 pt-2 px-6 transition-all duration-500 relative">
@@ -170,10 +183,11 @@ const Usuarios = () => {
 
       {/* Overlay do formulário de edição */}
       {editarUser.visible && editarUser.userData && (
-        <EditarUsuario
-          userData={editarUser.userData}
+        <EditarItem
+          type="usuario" // tipo de formulário: usuario, produto, categoria, fornecedor
+          itemData={editarUser.userData}
           onClose={() => setEditarUser({ visible: false, userData: null })}
-          onUserUpdated={carregarUsuarios}
+          onItemUpdated={carregarUsuarios} // recarrega a lista de usuários
         />
       )}
     </div>
