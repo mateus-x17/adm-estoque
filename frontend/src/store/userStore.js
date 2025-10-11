@@ -1,11 +1,20 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-export const useUserStore = create((set) => ({
-  user: null,
-  token: null,
-  setUser: (user, token) => set({ user, token }),
-  clearUser: () => set({ user: null, token: null }),
-}));
+export const useUserStore = create(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      setUser: (user, token) => set({ user, token }),
+      clearUser: () => set({ user: null, token: null }),
+    }),
+    {
+      name: "auth-storage", // Nome da chave no localStorage
+    }
+  )
+);
+
 
 // resposta do login:  
 // token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzU5OTkzMjAyLCJleHAiOjE3NjAwMjIwMDJ9.TXkm5vhKsvVLmCVh1ulZ5LukKLtT-4wWLJ0ZNCVCe84"
