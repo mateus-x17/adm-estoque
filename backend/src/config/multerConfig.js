@@ -19,9 +19,9 @@ const storage = multer.diskStorage({
 });
 
 function fileFilter(req, file, cb) {
-  const allowed = /jpeg|jpg|png/;
+  const extensoesPermitidas = /jpeg|jpg|webp|png/;
   const ext = path.extname(file.originalname).toLowerCase();
-  if (allowed.test(ext)) cb(null, true);
+  if (extensoesPermitidas.test(ext)) cb(null, true);
   else cb(new Error("Tipo de arquivo inválido. Apenas jpg, jpeg, png."));
 }
 
