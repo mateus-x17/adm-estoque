@@ -8,7 +8,7 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
     >
       <td className="px-4 py-3">
         <img
-          src={produto.imagem}
+          src={`http://localhost:5000${produto.imagem}`} // ✅ prefixo do backend
           alt={produto.nome}
           className="w-14 h-14 object-cover rounded-md"
         />

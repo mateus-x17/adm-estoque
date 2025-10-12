@@ -3,12 +3,14 @@ import { useThemeStore } from "../store/useThemeStore";
 import { useUserStore } from "../store/userStore";
 import ModalMensagem from "./ModalMensagem.jsx";
 
+// 🔧 Configurações dos formulários para cada tipo de item editável
 const formConfigs = {
-  usuario: {
+usuario: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
-      { name: "role", label: "Função", type: "select", options: ["ADMIN","GERENTE","OPERADOR"], required: true },
+      { name: "role", label: "Função", type: "select", options: ["ADMIN", "GERENTE", "OPERADOR"], required: true },
+      { name: "imagem", label: "Foto do Usuário", type: "file", required: false }, // ✅ Novo campo
     ],
     route: (id) => `http://localhost:5000/users/${id}`,
   },
@@ -20,6 +22,7 @@ const formConfigs = {
       { name: "descricao", label: "Descrição", type: "text", required: false, multiline: true },
       { name: "categoriaId", label: "Categoria", type: "select", endpoint: "/categories", required: false },
       { name: "fornecedorId", label: "Fornecedor", type: "select", endpoint: "/suppliers", required: false },
+      { name: "imagem", label: "Imagem do Produto", type: "file", required: false },
     ],
     route: (id) => `http://localhost:5000/products/${id}`,
   },
@@ -46,14 +49,12 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
   const [form, setForm] = useState(
     config.fields.reduce((acc, field) => {
-      if (field.name === "categoriaId" && itemData?.categoria?.id) acc[field.name] = itemData.categoria.id;
-      else if (field.name === "fornecedorId" && itemData?.fornecedor?.id) acc[field.name] = itemData.fornecedor.id;
-      else acc[field.name] = itemData?.[field.name] || "";
+      acc[field.name] = itemData?.[field.name] || "";
       return acc;
     }, {})
   );
 
-  const [options, setOptions] = useState({});
+  const [file, setFile] = useState(null);
   const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
   const [closing, setClosing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -62,52 +63,6 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
     const openTimer = setTimeout(() => setOpen(true), 10);
     return () => clearTimeout(openTimer);
   }, []);
-
-  // Fetch de opções para selects (categorias e fornecedores)
-  useEffect(() => {
-    const fetchOptions = async () => {
-      const opts = {};
-      for (let field of config.fields) {
-        if (field.type === "select" && field.endpoint) {
-          try {
-            const res = await fetch(`http://localhost:5000${field.endpoint}`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
-
-            // Ler como texto e tentar parsear JSON
-            const text = await res.text();
-            let data;
-            try {
-              data = JSON.parse(text);
-            } catch (err) {
-              console.error(`Erro ao interpretar JSON de ${field.name}:`, text);
-              opts[field.name] = [];
-              continue;
-            }
-
-            // Diferencia categorias x fornecedores
-            if (field.endpoint === "/categories") {
-              opts[field.name] = Array.isArray(data) ? data : [];
-            } else {
-              // fornecedores retorna { fornecedores: [...] }
-              opts[field.name] = data.fornecedores || [];
-            }
-
-            // Define valor inicial caso ainda não tenha
-            if (!form[field.name] && itemData?.[field.name]) {
-              setForm(prev => ({ ...prev, [field.name]: itemData[field.name] }));
-            }
-          } catch (err) {
-            console.error(`Erro ao buscar ${field.name}:`, err);
-            opts[field.name] = [];
-          }
-        }
-      }
-      setOptions(opts);
-    };
-
-    fetchOptions();
-  }, [config.fields, itemData, token]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -118,66 +73,53 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
     e.preventDefault();
     let timer;
     try {
+      const formData = new FormData();
+      Object.keys(form).forEach(key => formData.append(key, form[key]));
+      if (file) formData.append("imagem", file);
+
       const response = await fetch(config.route(itemData.id), {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
       });
 
-      const data = await response.json();
+      // Tenta ler JSON; se falhar, pega texto
+      let data;
+      try { data = await response.json(); } catch { data = null; }
 
       if (response.ok) {
         setModal({ visible: true, mensagem: `${type[0].toUpperCase() + type.slice(1)} atualizado com sucesso!`, tipo: "sucesso" });
-        timer = setTimeout(() => {
-          setModal({ visible: false });
-          handleClose();
-          if (onItemUpdated) onItemUpdated();
-        }, 2500);
+        timer = setTimeout(() => { setModal({ visible: false }); handleClose(); if (onItemUpdated) onItemUpdated(); }, 2500);
       } else {
-        setModal({ visible: true, mensagem: data.error || "Erro ao atualizar", tipo: "erro" });
+        console.error("Erro ao atualizar:", data?.error || response.statusText);
+        setModal({ visible: true, mensagem: data?.error || "Erro ao atualizar", tipo: "erro" });
         timer = setTimeout(() => setModal({ visible: false }), 2500);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Erro de conexão:", err);
       setModal({ visible: true, mensagem: "Erro de conexão com o servidor", tipo: "erro" });
       timer = setTimeout(() => setModal({ visible: false }), 2500);
     }
-
     return () => clearTimeout(timer);
   };
 
   return (
-    <div className={`fixed inset-0 flex justify-end items-start transition-opacity duration-300 ${closing ? "opacity-0" : "opacity-100"} bg-black bg-opacity-50`}
-         onClick={handleClose} onTransitionEnd={handleTransitionEnd}>
-      <div className={`w-full max-w-md h-full p-6 shadow-lg border-l rounded-tl-2xl rounded-bl-2xl transform transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"} ${darkMode ? "bg-gray-900 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200"}`}
-           onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 flex justify-end items-start transition-opacity duration-300 ${closing ? "opacity-0" : "opacity-100"} bg-black bg-opacity-50`} onClick={handleClose} onTransitionEnd={handleTransitionEnd}>
+      <div className={`w-full max-w-md h-full p-6 shadow-lg border-l rounded-tl-2xl rounded-bl-2xl transform transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"} ${darkMode ? "bg-gray-900 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200"}`} onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-bold mb-4">Editar {type[0].toUpperCase() + type.slice(1)}</h2>
         <form className="space-y-4" onSubmit={handleSubmit}>
           {config.fields.map(field => (
             <div key={field.name}>
               <label className="block mb-1">{field.label}</label>
               {field.type === "select" ? (
-                <select
-                  name={field.name}
-                  value={form[field.name] || ""}
-                  onChange={handleChange}
-                  required={field.required}
-                  className={`w-full p-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`}
-                >
+                <select name={field.name} value={form[field.name]} onChange={handleChange} required={field.required} className={`w-full p-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`}>
                   <option value="">Selecione</option>
-                  {(options[field.name] || []).map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.nome}</option>
-                  ))}
+                  {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
+              ) : field.type === "file" ? (
+                <input type="file" name={field.name} accept="image/*" onChange={e => setFile(e.target.files[0])} className={`w-full p-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`} />
               ) : (
-                <input
-                  type={field.type}
-                  name={field.name}
-                  value={form[field.name]}
-                  onChange={handleChange}
-                  required={field.required}
-                  className={`w-full p-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`}
-                />
+                <input type={field.type} name={field.name} value={form[field.name]} onChange={handleChange} required={field.required} className={`w-full p-2 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-200"}`} />
               )}
             </div>
           ))}

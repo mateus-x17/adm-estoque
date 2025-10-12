@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import EditarItem from "./EditarItem.jsx";
 
-function ModalProduto({ produtoSelecionado, fecharModal, buscarProdutosNovamente }) {
+function ModalProduto({
+  produtoSelecionado,
+  fecharModal,
+  buscarProdutosNovamente,
+}) {
   // ✅ Estado para controlar a exibição do componente lateral de edição
   const [editando, setEditando] = useState(false);
 
@@ -25,7 +29,7 @@ function ModalProduto({ produtoSelecionado, fecharModal, buscarProdutosNovamente
         {/* Conteúdo do modal */}
         <div className="flex flex-col items-center text-center">
           <img
-            src={produtoSelecionado.imagem}
+            src={`http://localhost:5000${produtoSelecionado.imagem}`}
             alt={produtoSelecionado.nome}
             className="w-32 h-32 object-cover rounded-lg mb-4 shadow"
           />
@@ -35,16 +39,24 @@ function ModalProduto({ produtoSelecionado, fecharModal, buscarProdutosNovamente
           </h2>
 
           <p className="text-gray-500 dark:text-gray-400 mb-4">
-  Categoria: {produtoSelecionado?.categoria?.nome || "—"}
-</p>
-{/* informações adicionais */}
-<div className="text-gray-700 dark:text-gray-300 text-sm text-left w-full space-y-1 mb-5">
-  <p><strong>Descrição:</strong> {produtoSelecionado.descricao}</p>
-  <p><strong>Preço:</strong> R$ {produtoSelecionado.preco}</p>
-  <p><strong>Quantidade:</strong> {produtoSelecionado.quantidade}</p>
-  <p><strong>Fornecedor:</strong> {produtoSelecionado?.fornecedor?.nome || "—"}</p>
-</div>
-
+            Categoria: {produtoSelecionado?.categoria?.nome || "—"}
+          </p>
+          {/* informações adicionais */}
+          <div className="text-gray-700 dark:text-gray-300 text-sm text-left w-full space-y-1 mb-5">
+            <p>
+              <strong>Descrição:</strong> {produtoSelecionado.descricao}
+            </p>
+            <p>
+              <strong>Preço:</strong> R$ {produtoSelecionado.preco}
+            </p>
+            <p>
+              <strong>Quantidade:</strong> {produtoSelecionado.quantidade}
+            </p>
+            <p>
+              <strong>Fornecedor:</strong>{" "}
+              {produtoSelecionado?.fornecedor?.nome || "—"}
+            </p>
+          </div>
 
           {/* Botões de ação */}
           <div className="flex gap-4">
@@ -59,7 +71,9 @@ function ModalProduto({ produtoSelecionado, fecharModal, buscarProdutosNovamente
                 Você tentou renderizar <EditarItem /> DENTRO do onClick,
                 o que é inválido no React. Agora ele só dispara uma ação. */}
             <button
-              onClick={() => alert(`Excluir produto: ${produtoSelecionado.nome}`)}
+              onClick={() =>
+                alert(`Excluir produto: ${produtoSelecionado.nome}`)
+              }
               className="bg-red-600 hover:bg-red-700 text-white font-medium px-5 py-2 rounded-lg transition"
             >
               Excluir
@@ -71,11 +85,11 @@ function ModalProduto({ produtoSelecionado, fecharModal, buscarProdutosNovamente
       {/* ✅ Renderização correta do componente lateral de edição */}
       {editando && (
         <EditarItem
-  type="produto"
-  itemData={produtoSelecionado}
-  onClose={() => setEditando(false)}
-  onItemUpdated={buscarProdutosNovamente} // ✅ ISSO PRECISA EXISTIR
-/>
+          type="produto"
+          itemData={produtoSelecionado}
+          onClose={() => setEditando(false)}
+          onItemUpdated={buscarProdutosNovamente} // ✅ ISSO PRECISA EXISTIR
+        />
       )}
     </div>
   );
