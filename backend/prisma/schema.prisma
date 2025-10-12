@@ -8,14 +8,15 @@ datasource db {
 }
 
 model Usuario {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   nome      String
-  email     String    @unique
+  email     String   @unique
   senha     String
-  role      Role      @default(OPERADOR)
-  movimentos Movimento[] 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  role      Role     @default(OPERADOR)
+  imagem    String?  // ✅ Adicione isso
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  movimentos Movimento[]
 }
 
 model Categoria {

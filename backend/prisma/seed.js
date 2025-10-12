@@ -1,36 +1,39 @@
-// 🔹 SIMULAÇÃO: dados iniciais. Substitua quando for customizar para um cliente.
+// 🔹 Seed inicial do banco de dados
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
 
 async function main() {
-  // criar admin
-  const password = await bcrypt.hash("senha123", 10);
+  // 🔹 Criar usuário ADMIN
+  const passwordAdmin = await bcrypt.hash("senha123", 10);
   await prisma.usuario.upsert({
     where: { email: "admin@empresa.com" },
     update: {},
     create: {
       nome: "Admin Inicial",
       email: "admin@empresa.com",
-      senha: password,
+      senha: passwordAdmin,
       role: "ADMIN",
+      imagem: null, // ✅ campo imagem vazio
     },
   });
 
-  // criar gerente
-  const senhaGerente = await bcrypt.hash("senha123", 10);
+  // 🔹 Criar usuário GERENTE
+  const passwordGerente = await bcrypt.hash("senha123", 10);
   await prisma.usuario.upsert({
     where: { email: "gerente@empresa.com" },
     update: {},
     create: {
       nome: "Gerente",
       email: "gerente@empresa.com",
-      senha: senhaGerente,
+      senha: passwordGerente,
       role: "GERENTE",
+      imagem: null, // ✅ campo imagem vazio
     },
   });
 
-  // categorias
+  // 🔹 Categorias
   const cat1 = await prisma.categoria.upsert({
     where: { nome: "Eletrônicos" },
     update: {},
@@ -42,49 +45,49 @@ async function main() {
     create: { nome: "Vestuário" },
   });
 
-  // fornecedores
-    const f1 = await prisma.fornecedor.create({
+  // 🔹 Fornecedores
+  const f1 = await prisma.fornecedor.create({
     data: {
-        nome: "Fornecedor A",
-        contato: "contato@a.com",
-        endereco: "Rua A, 100",
+      nome: "Fornecedor A",
+      contato: "contato@a.com",
+      endereco: "Rua A, 100",
     },
-    });
+  });
 
-    const f2 = await prisma.fornecedor.create({
+  const f2 = await prisma.fornecedor.create({
     data: {
-        nome: "Fornecedor B",
-        contato: "contato@b.com",
-        endereco: "Rua B, 200",
+      nome: "Fornecedor B",
+      contato: "contato@b.com",
+      endereco: "Rua B, 200",
     },
-    });
+  });
 
-  // produtos exemplo
-    await prisma.produto.create({
+  // 🔹 Produtos exemplo
+  await prisma.produto.create({
     data: {
-        nome: "Notebook Dell",
-        descricao: "Notebook de alto desempenho - SIMULAÇÃO",
-        preco: 3500,
-        quantidade: 10,
-        imagem: "/uploads/notebook.png",
-        categoriaId: cat1.id,
-        fornecedorId: f1.id,
+      nome: "Notebook Dell",
+      descricao: "Notebook de alto desempenho - SIMULAÇÃO",
+      preco: 3500,
+      quantidade: 10,
+      imagem: "/uploads/notebook.png", // caminho de exemplo
+      categoriaId: cat1.id,
+      fornecedorId: f1.id,
     },
-    });
+  });
 
-    await prisma.produto.create({
+  await prisma.produto.create({
     data: {
-        nome: "Camiseta Azul",
-        descricao: "Camiseta de algodão - SIMULAÇÃO",
-        preco: 50,
-        quantidade: 30,
-        imagem: "/uploads/camiseta.png",
-        categoriaId: cat2.id,
-        fornecedorId: f2.id,
+      nome: "Camiseta Azul",
+      descricao: "Camiseta de algodão - SIMULAÇÃO",
+      preco: 50,
+      quantidade: 30,
+      imagem: "/uploads/camiseta.png", // caminho de exemplo
+      categoriaId: cat2.id,
+      fornecedorId: f2.id,
     },
-    });
+  });
 
-  console.log("✅ Seed executado com dados simulados");
+  console.log("✅ Seed executado com sucesso!");
 }
 
 main()
