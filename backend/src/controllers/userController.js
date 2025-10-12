@@ -20,7 +20,7 @@ export async function createUser(req, res) {
 }
 
 export async function listUsers(req, res) {
-  const users = await prisma.usuario.findMany({ select: { id: true, nome: true, email: true, role: true, createdAt:true, updatedAt: true } });
+  const users = await prisma.usuario.findMany({ select: { id: true, nome: true, email: true, role: true, imagem: true, createdAt:true, updatedAt: true } });
   res.json(users);
 }
 
@@ -34,15 +34,28 @@ export async function getUser(req, res) {
 export async function updateUser(req, res) {
   const id = Number(req.params.id);
   const { nome, email, senha, role } = req.body;
+
+  // monta o objeto de atualização
   const data = { nome, email, role };
+
+  // se senha fornecida, hash
   if (senha) data.senha = await bcrypt.hash(senha, 10);
+
+  // se arquivo enviado pelo multer, adiciona o caminho da imagem
+  if (req.file) data.imagem = `/uploads/${req.file.filename}`;
+
   try {
-    const user = await prisma.usuario.update({ where: { id }, data, select: { id: true, nome: true, email: true, role: true } });
+    const user = await prisma.usuario.update({
+      where: { id },
+      data,
+      select: { id: true, nome: true, email: true, role: true, imagem: true },
+    });
     res.json(user);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 }
+
 
 export async function deleteUser(req, res) {
   const id = Number(req.params.id);

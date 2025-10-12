@@ -8,6 +8,7 @@ import {
   updateUser,
   deleteUser,
 } from "../controllers/userController.js";
+import { upload } from "../config/multerConfig.js";
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ router.use(permit("ADMIN")); //todas rotas usam o middleware permit que verifica
 router.post("/", createUser);
 router.get("/", listUsers);
 router.get("/:id", getUser);
-router.put("/:id", updateUser);
+router.put("/:id", upload.single("imagem"), updateUser);
 router.delete("/:id", deleteUser);
 
 export default router;
