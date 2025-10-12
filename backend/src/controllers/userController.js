@@ -2,6 +2,7 @@
 // const prisma = new PrismaClient();
 import bcrypt from "bcryptjs";
 import { prisma } from "../config/prismaClient.js";
+import fs from "fs";
 
 export async function createUser(req, res) {
   const { nome, email, senha, role } = req.body;
@@ -41,16 +42,34 @@ export async function updateUser(req, res) {
   // se senha fornecida, hash
   if (senha) data.senha = await bcrypt.hash(senha, 10);
 
-  // se arquivo enviado pelo multer, adiciona o caminho da imagem
-  if (req.file) data.imagem = `/uploads/${req.file.filename}`;
+  // se arquivo enviado pelo multer, atualiza a imagem e remove a antiga
+  if (req.file) {
+    // buscar usuário atual
+    const user = await prisma.usuario.findUnique({ where: { id } });
+
+    // remover imagem antiga, se existir
+    if (user && user.imagem) {
+      const caminhoImagemAntiga = `.${user.imagem}`; // ./uploads/nome.jpg
+      if (fs.existsSync(caminhoImagemAntiga)) {
+        try {
+          fs.unlinkSync(caminhoImagemAntiga);
+        } catch (err) {
+          console.error("Erro ao remover imagem antiga:", err);
+        }
+      }
+    }
+
+    // adicionar nova imagem ao objeto de atualização
+    data.imagem = `/uploads/${req.file.filename}`;
+  }
 
   try {
-    const user = await prisma.usuario.update({
+    const userAtualizado = await prisma.usuario.update({
       where: { id },
       data,
       select: { id: true, nome: true, email: true, role: true, imagem: true },
     });
-    res.json(user);
+    res.json(userAtualizado);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
