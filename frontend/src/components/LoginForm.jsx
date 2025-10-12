@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../store/userStore";
-import ModalMensagem from "./ModalMensagem.jsx"; // seu modal para mostrar mensagens
+// import ModalMensagem from "./ModalMensagem.jsx"; // seu modal para mostrar mensagens
 
 const LoginForm = () => {
   const url = "http://localhost:5000/auth/login"; // backend
@@ -24,14 +24,7 @@ const submitForm = async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, senha }),
     });
-
-    const text = await response.text(); // lê o corpo apenas uma vez
-    let data;
-    try {
-      data = JSON.parse(text); // tenta interpretar como JSON
-    } catch {
-      data = null; // não era JSON
-    }
+    const data = await response.json();
 
     if (!response.ok) {
       const mensagemErro = data?.error || "Erro no servidor";
@@ -41,6 +34,8 @@ const submitForm = async (e) => {
 
     // login OK
     setUser(data.user, data.token);
+    console.log("Login bem-sucedido:", data);
+    alert("Login bem-sucedido!");
     navigate("/dashboard");
   } catch (error) {
     console.error("Erro ao fazer login:", error);
@@ -83,7 +78,12 @@ const submitForm = async (e) => {
       </form>
 
       {/* Modal ou mensagem de erro */}
-      {erro && <ModalMensagem mensagem={erro} onClose={() => setErro("")} />}
+      {/*{erro && <ModalMensagem mensagem={erro} onClose={() => setErro("")} />}*/}
+      {erro && (
+        <div className="mt-4 p-3 bg-red-100 text-red-700 border border-red-400 rounded-md">
+          {erro}
+        </div>
+      )}
     </>
   );
 };
