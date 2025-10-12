@@ -51,7 +51,7 @@ const Usuarios = () => {
     visible: false,
     userData: null,
   });
-  
+
   const abrirEditarUsuario = (user) => {
     setEditarUser({ visible: true, userData: user });
   };
@@ -74,10 +74,13 @@ const Usuarios = () => {
         setUsuarios(data);
       } else {
         console.error("Erro ao carregar usuarios:", data.error);
-        setModal({ visible: true, mensagem: `${data.error} você será redirecionado para home`, tipo: "erro" });
+        setModal({
+          visible: true,
+          mensagem: `${data.error} você será redirecionado para home`,
+          tipo: "erro",
+        });
         // redirecionar para home do dashboard se acesso negado apos 3s
         setTimeout(() => navigate("/dashboard"), 5000);
-        
       }
     } catch (error) {
       console.error("Erro ao carregar usuarios:", error);
@@ -92,8 +95,6 @@ const Usuarios = () => {
   useEffect(() => {
     carregarUsuarios();
   }, []);
-
-
 
   return (
     <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 pb-6 pt-2 px-6 transition-all duration-500 relative">
@@ -136,9 +137,9 @@ const Usuarios = () => {
             {/* Avatar */}
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 flex-shrink-0 rounded-full overflow-hidden border-2 border-white relative">
-                {user.avatar ? (
+                {user.imagem ? (
                   <img
-                    src={user.avatar}
+                    src={`http://localhost:5000${user.imagem}`} // host + caminho do banco
                     alt={user.nome}
                     className="w-full h-full object-cover transform transition-transform duration-300 hover:scale-110"
                   />
