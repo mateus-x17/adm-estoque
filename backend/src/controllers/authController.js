@@ -27,7 +27,7 @@ export async function loginController(req, res) {
 
     res.json({
       token,
-      user: { id: user.id, nome: user.nome, email: user.email, role: user.role },
+      user: { id: user.id, nome: user.nome, email: user.email, imagem: user.imagem, role: user.role },
     });
   } catch (err) {
     console.error("Erro no loginController:", err);
