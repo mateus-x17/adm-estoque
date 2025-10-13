@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ModalProduto from "../components/ModalProduto.jsx";
-import TabelaProdutos from "../components/TabelaProdutos.jsx";
+import ProdutoRow from "../components/ProdutoRow.jsx";
 import { useUserStore } from "../store/userStore.js";
 
 const Produtos = () => {
@@ -8,7 +8,6 @@ const Produtos = () => {
   const [produtos, setProdutos] = useState([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
   const [loaded, setLoaded] = useState(false);
-
   const { token } = useUserStore();
 
   const abrirModal = (produto) => setProdutoSelecionado(produto);
@@ -23,11 +22,20 @@ const Produtos = () => {
           authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.json();
+
+      // Evita erro de JSON caso seja HTML (ex.: login redirecionado)
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error("Resposta não é JSON:", text);
+        return;
+      }
+
       if (response.ok) {
         setProdutos(data);
-        console.log("Produtos carregados:", data);
-        setTimeout(() => setLoaded(true), 50); // delay para animação
+        setTimeout(() => setLoaded(true), 50);
       } else {
         console.error("Erro ao carregar produtos:", data.message);
       }
@@ -35,13 +43,19 @@ const Produtos = () => {
       console.error("Erro ao carregar produtos:", error);
     }
   };
-  const buscarProdutosNovamente = async () => {
-  const response = await fetch("http://localhost:5000/products", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const data = await response.json();
-  setProdutos(data); // ✅ isso faz a tabela atualizar
-};
+
+  // Atualiza produto no array e no modal
+  const atualizarProduto = (produtoAtualizado) => {
+    if (!produtoAtualizado) return;
+
+    setProdutos((prev) =>
+      prev.map((p) => (p.id === produtoAtualizado.id ? produtoAtualizado : p))
+    );
+
+    setProdutoSelecionado((prev) =>
+      prev?.id === produtoAtualizado.id ? produtoAtualizado : prev
+    );
+  };
 
   useEffect(() => {
     carregarProdutos();
@@ -58,22 +72,40 @@ const Produtos = () => {
         </p>
       </header>
 
-      {
-        loaded ? (
-          <TabelaProdutos produtos={produtos} abrirModal={abrirModal} />
-        ) : (
-          <div className="flex-grow flex items-center justify-center">
-            <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16">
-            </div>
-          </div>
-        )
-      }
+      {loaded ? (
+        <div className="flex-1 overflow-auto overflow-x-auto overflow-y-auto bg-gray-300 dark:bg-gray-800 p-4 rounded-xl shadow-inner animate-fadeInUp transition-all duration-500">
+          <table className="w-full min-w-[600px] bg-white dark:bg-gray-600 rounded-xl shadow-md">
+            <thead className="sticky top-0 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left">Imagem</th>
+                <th className="px-4 py-3 text-left">Nome</th>
+                <th className="px-4 py-3 text-left">Categoria</th>
+                <th className="px-4 py-3 text-center">Detalhes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {produtos.map((produto, index) => (
+                <ProdutoRow
+                  key={produto.id}
+                  produto={produto}
+                  index={index}
+                  abrirModal={abrirModal}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="flex-grow flex items-center justify-center">
+          <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
+        </div>
+      )}
 
       {produtoSelecionado && (
         <ModalProduto
           produtoSelecionado={produtoSelecionado}
           fecharModal={fecharModal}
-          buscarProdutosNovamente={buscarProdutosNovamente} 
+          onItemUpdated={atualizarProduto}
         />
       )}
     </div>

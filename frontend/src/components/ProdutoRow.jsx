@@ -8,7 +8,7 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
     >
       <td className="px-4 py-3">
         <img
-          src={`http://localhost:5000${produto.imagem}`} // ✅ prefixo do backend
+          src={`http://localhost:5000${produto.imagem.startsWith('/') ? '' : '/'}${produto.imagem}`}
           alt={produto.nome}
           className="w-14 h-14 object-cover rounded-md"
         />
@@ -19,7 +19,6 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
       </td>
 
       <td className="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">
-        {/* optional chaining para evitar erro quando produto.categoria ainda não estiver disponível */}
         {produto?.categoria?.nome || "—"}
       </td>
 
