@@ -44,3 +44,8 @@ app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
   console.log(`🌐 http://localhost:${PORT}`);
 });
+
+// lembrese de adc as variaveis de ambiente no arquivo .env
+// ex: DATABASE_URL="postgresql://usuario:senha@endereco:porta/banco?schema=public"
+// ex: JWT_SECRET="sua_chave_secreta"
+// ex: PORT=5000
