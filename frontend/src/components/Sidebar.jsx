@@ -164,7 +164,17 @@ const Sidebar = ({ closeSidebar }) => {
       {/* Rodapé da Sidebar */}
       <div className="pt-4 border-t border-gray-400 dark:border-gray-600">
         <div className="flex items-center gap-3">
+          {/* exibir imagem do usuario aredondada ao lado do nome e se não houver exibir o incone */}
+          {user.imagem ? (
+            <img
+              src={`http://localhost:5000${user.imagem}`}
+              alt="User"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
           <FaUser size={20} className="text-green-500 dark:text-blue-500" />
+          )}
+          {/* user infos */}
           <div>
             <p className="font-semibold">{user.nome}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">
