@@ -192,14 +192,14 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
   return (
     <div
-      className={`fixed inset-0 flex justify-end items-start transition-opacity duration-300 ${
+      className={`fixed inset-0 z-[9999] flex justify-end items-start transition-opacity duration-300 ${
         closing ? "opacity-0" : "opacity-100"
       } bg-black bg-opacity-50`}
       onClick={handleClose}
       onTransitionEnd={handleTransitionEnd}
     >
       <div
-        className={`w-full max-w-md h-full p-6 shadow-lg border-l rounded-tl-2xl rounded-bl-2xl transform transition-transform duration-300 ${
+        className={`w-[70%] max-w-md h-full p-6 shadow-lg border-l rounded-tl-2xl rounded-bl-2xl transform transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         } ${
           darkMode
