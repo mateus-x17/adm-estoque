@@ -21,42 +21,28 @@ const getRoleColor = (role) => {
 
 const getInitials = (name) => {
   const names = name.split(" ");
-  const initials = names.map((n) => n[0]).join("");
-  return initials.toUpperCase();
+  return names.map((n) => n[0]).join("").toUpperCase();
 };
 
 const Usuarios = () => {
   const url = "http://localhost:5000/users";
   const navigate = useNavigate();
-  // estado dos usuários
-  const [usuarios, setUsuarios] = useState([]);
   const { token } = useUserStore();
-
-  // tema dark/light
   const { darkMode } = useThemeStore();
+
+  const [usuarios, setUsuarios] = useState([]);
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState("todos");
+  const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
+  const [editarUser, setEditarUser] = useState({ visible: false, userData: null });
+
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
 
-  // ESTADO DO MODAL - mensagem e tipo (sucesso/erro)
-  const [modal, setModal] = useState({
-    visible: false,
-    mensagem: "",
-    tipo: "",
-  });
+  const abrirEditarUsuario = (user) => setEditarUser({ visible: true, userData: user });
 
-  // estado para controlar edição
-  const [editarUser, setEditarUser] = useState({
-    visible: false,
-    userData: null,
-  });
-
-  const abrirEditarUsuario = (user) => {
-    setEditarUser({ visible: true, userData: user });
-  };
-
-  // função para carregar usuários da API
   const carregarUsuarios = async () => {
     try {
       const response = await fetch(url, {
@@ -68,7 +54,6 @@ const Usuarios = () => {
       });
 
       const data = await response.json();
-      console.log(data);
 
       if (response.ok) {
         setUsuarios(data);
@@ -79,22 +64,22 @@ const Usuarios = () => {
           mensagem: `${data.error} você será redirecionado para home`,
           tipo: "erro",
         });
-        // redirecionar para home do dashboard se acesso negado apos 3s
         setTimeout(() => navigate("/dashboard"), 5000);
       }
     } catch (error) {
       console.error("Erro ao carregar usuarios:", error);
-      setModal({
-        visible: true,
-        mensagem: "Erro de conexão com o servidor",
-        tipo: "erro",
-      });
+      setModal({ visible: true, mensagem: "Erro de conexão com o servidor", tipo: "erro" });
     }
   };
 
   useEffect(() => {
     carregarUsuarios();
   }, []);
+
+  // Filtragem de usuários por pesquisa e role
+  const usuariosFiltrados = usuarios
+    .filter((u) => u.nome.toLowerCase().includes(search.toLowerCase()))
+    .filter((u) => filterRole === "todos" || u.role.toLowerCase() === filterRole);
 
   return (
     <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 p-6 transition-all duration-500 relative">
@@ -104,42 +89,39 @@ const Usuarios = () => {
           Gerenciamento de <span className="text-yellow-300">Usuários</span>
         </h1>
         <p className="text-gray-600 dark:text-gray-400 animate-fadeInUp">
-          Visualize, edite e gerencie todos os usuários cadastrados no sistema.
+          Visualize, filtre e gerencie todos os usuários cadastrados no sistema.
         </p>
       </header>
 
-      {/* div com inputs para cadatrar usuários, filtrar baseado no role e pesquisar */}
-      <div className="w-full flex sm:flex-row items-center justify-between gap-4 px-4 mt-6 bg-gray-200 dark:bg-gray-800 p-4 rounded-lg transition-colors duration-500">
-        {/* Botão */}
-        {/* Botão ÍCONE (apenas +) → aparece SOMENTE em telas menores que md */}
+      {/* Barra de filtro e pesquisa */}
+      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 px-4 mt-6 bg-gray-200 dark:bg-gray-800 p-4 rounded-lg transition-colors duration-500">
+        {/* Botão Cadastrar */}
         <button
-          className="w-[20%] block md:hidden px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
-          onClick={() => abrirEditarUsuario(null)}
-        >
-          <FaUser className="inline mr-2" />+
-        </button>
-
-        {/* Botão TEXTO (Cadastrar) → aparece SOMENTE em md ou maior */}
-        <button
-          className="w-[30%] hidden md:block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
+          className="w-full sm:w-[20%] px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
           onClick={() => abrirEditarUsuario(null)}
         >
           <FaUser className="inline mr-2" />
           Cadastrar
         </button>
 
-        {/* Input com ícone */}
-        <div className="relative w-[50%] max-w-30">
+        {/* Pesquisa */}
+        <div className="relative w-full sm:w-[40%]">
           <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="Pesquisar usuário"
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-400 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600 outline-none"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-400 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600 outline-none truncate"
           />
         </div>
 
-        {/* Select compacto */}
-        <select className="w-[20%] px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600 outline-none flex-shrink-0">
+        {/* Select role */}
+        <select
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+          className="w-full sm:w-[20%] px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600 outline-none truncate"
+        >
           <option value="todos">Todos</option>
           <option value="admin">Admin</option>
           <option value="gerente">Gerente</option>
@@ -158,27 +140,23 @@ const Usuarios = () => {
 
       {/* Grid de usuários */}
       <div className="max-w-6xl mx-auto grid gap-8 sm:grid-cols-2 lg:grid-cols-3 pt-6">
-        {usuarios.map((user, index) => (
+        {usuariosFiltrados.map((user, index) => (
           <div
             key={user.id}
             className={`
               relative rounded-2xl shadow-lg p-6 text-white transform transition-all duration-[700ms]
               bg-gradient-to-r from-green-900 via-green-700 to-green-500
               dark:from-gray-800 dark:via-gray-700 dark:to-gray-600
-              dark:hover:shadowLight-lg
-              hover:scale-110
-              hover:-translate-y-1 hover:shadow-2xl animate-fadeIn`}
-            style={{
-              animationDelay: `${index * 0.1}s`,
-              animationFillMode: "both",
-            }}
+              hover:scale-110 hover:-translate-y-1 hover:shadow-2xl animate-fadeIn
+            `}
+            style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "both" }}
           >
             {/* Avatar */}
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 flex-shrink-0 rounded-full overflow-hidden border-2 border-white relative">
                 {user.imagem ? (
                   <img
-                    src={`http://localhost:5000${user.imagem}`} // host + caminho do banco
+                    src={`http://localhost:5000${user.imagem}`}
                     alt={user.nome}
                     className="w-full h-full object-cover transform transition-transform duration-300 hover:scale-110"
                   />
@@ -228,12 +206,12 @@ const Usuarios = () => {
       </div>
 
       {/* Overlay do formulário de edição */}
-      {editarUser.visible && editarUser.userData && (
+      {editarUser.visible && (
         <EditarItem
-          type="usuario" // tipo de formulário: usuario, produto, categoria, fornecedor
+          type="usuario"
           itemData={editarUser.userData}
           onClose={() => setEditarUser({ visible: false, userData: null })}
-          onItemUpdated={carregarUsuarios} // recarrega a lista de usuários
+          onItemUpdated={carregarUsuarios}
         />
       )}
     </div>
