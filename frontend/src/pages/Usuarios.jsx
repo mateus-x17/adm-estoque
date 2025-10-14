@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaUser } from "react-icons/fa";
+import { FaUser, FaSearch } from "react-icons/fa";
 import { useUserStore } from "../store/userStore";
 import { useThemeStore } from "../store/useThemeStore.js";
 import ModalMensagem from "../components/ModalMensagem.jsx";
@@ -97,9 +97,9 @@ const Usuarios = () => {
   }, []);
 
   return (
-    <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 pb-6 pt-2 px-6 transition-all duration-500 relative">
+    <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 p-6 transition-all duration-500 relative">
       {/* Cabeçalho */}
-      <header className="w-full h-[20%] pt-10 pb-3 text-center bg-gray-100 dark:bg-gray-900 transition-colors duration-500">
+      <header className="w-full h-[20%] mb-6 pb-3 text-center bg-gray-100 dark:bg-gray-900 transition-colors duration-500">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 animate-fadeInDown">
           Gerenciamento de <span className="text-yellow-300">Usuários</span>
         </h1>
@@ -107,6 +107,45 @@ const Usuarios = () => {
           Visualize, edite e gerencie todos os usuários cadastrados no sistema.
         </p>
       </header>
+
+      {/* div com inputs para cadatrar usuários, filtrar baseado no role e pesquisar */}
+      <div className="w-full flex sm:flex-row items-center justify-between gap-4 px-4 mt-6 bg-gray-200 dark:bg-gray-800 p-4 rounded-lg transition-colors duration-500">
+        {/* Botão */}
+        {/* Botão ÍCONE (apenas +) → aparece SOMENTE em telas menores que md */}
+        <button
+          className="w-[20%] block md:hidden px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
+          onClick={() => abrirEditarUsuario(null)}
+        >
+          <FaUser className="inline mr-2" />+
+        </button>
+
+        {/* Botão TEXTO (Cadastrar) → aparece SOMENTE em md ou maior */}
+        <button
+          className="w-[30%] hidden md:block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
+          onClick={() => abrirEditarUsuario(null)}
+        >
+          <FaUser className="inline mr-2" />
+          Cadastrar
+        </button>
+
+        {/* Input com ícone */}
+        <div className="relative w-[50%] max-w-30">
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Pesquisar usuário"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-400 rounded-xl focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600 outline-none"
+          />
+        </div>
+
+        {/* Select compacto */}
+        <select className="w-[20%] px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600 outline-none flex-shrink-0">
+          <option value="todos">Todos</option>
+          <option value="admin">Admin</option>
+          <option value="gerente">Gerente</option>
+          <option value="operador">Operador</option>
+        </select>
+      </div>
 
       {/* Modal de erro */}
       {modal.visible && (
