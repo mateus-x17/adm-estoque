@@ -21,11 +21,13 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
         </button>
 
         <div className="flex flex-col items-center text-center">
-          <img
-            src={`http://localhost:5000${produtoSelecionado.imagem.startsWith('/') ? '' : '/'}${produtoSelecionado.imagem}`}
-            alt={produtoSelecionado.nome}
-            className="w-32 h-32 object-cover rounded-lg mb-4 shadow"
-          />
+          {produtoSelecionado.imagem && (
+            <img
+              src={`http://localhost:5000${produtoSelecionado.imagem.startsWith('/') ? '' : '/'}${produtoSelecionado.imagem}`}
+              alt={produtoSelecionado.nome}
+              className="w-32 h-32 object-cover rounded-lg mb-4 shadow"
+            />
+          )}
 
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
             {produtoSelecionado.nome}
@@ -36,9 +38,9 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
           </p>
 
           <div className="text-gray-700 dark:text-gray-300 text-sm text-left w-full space-y-1 mb-5">
-            <p><strong>Descrição:</strong> {produtoSelecionado.descricao}</p>
-            <p><strong>Preço:</strong> R$ {produtoSelecionado.preco}</p>
-            <p><strong>Quantidade:</strong> {produtoSelecionado.quantidade}</p>
+            <p><strong>Descrição:</strong> {produtoSelecionado.descricao || "—"}</p>
+            <p><strong>Preço:</strong> R$ {produtoSelecionado.preco || "—"}</p>
+            <p><strong>Quantidade:</strong> {produtoSelecionado.quantidade || "—"}</p>
             <p><strong>Fornecedor:</strong> {produtoSelecionado?.fornecedor?.nome || "—"}</p>
           </div>
 
@@ -59,7 +61,6 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
         </div>
       </div>
 
-      {/* Modal lateral de edição */}
       {editando && (
         <EditarItem
           type="produto"
@@ -67,7 +68,7 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
           onClose={() => setEditando(false)}
           onItemUpdated={(produtoAtualizado) => {
             if (onItemUpdated) onItemUpdated(produtoAtualizado);
-            setEditando(false); // fecha edição automaticamente
+            setEditando(false);
           }}
         />
       )}

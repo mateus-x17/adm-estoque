@@ -10,13 +10,12 @@ const Produtos = () => {
 
   const [produtos, setProdutos] = useState([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
+  const [editandoProduto, setEditandoProduto] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [sortPrice, setSortPrice] = useState(null); // "asc" | "desc"
 
-  const abrirModal = (produto) => setProdutoSelecionado(produto);
-  const fecharModal = () => setProdutoSelecionado(null);
-
+  // Carregar produtos
   const carregarProdutos = async () => {
     try {
       const response = await fetch(url, {
@@ -27,14 +26,7 @@ const Produtos = () => {
         },
       });
 
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.error("Resposta não é JSON:", text);
-        return;
-      }
+      const data = await response.json();
 
       if (response.ok) {
         setProdutos(data);
@@ -47,6 +39,11 @@ const Produtos = () => {
     }
   };
 
+  useEffect(() => {
+    carregarProdutos();
+  }, []);
+
+  // Atualizar produto na tabela
   const atualizarProduto = (produtoAtualizado) => {
     if (!produtoAtualizado) return;
 
@@ -54,23 +51,30 @@ const Produtos = () => {
       prev.map((p) => (p.id === produtoAtualizado.id ? produtoAtualizado : p))
     );
 
+    // Atualiza também o produto selecionado se o modal estiver aberto
     setProdutoSelecionado((prev) =>
       prev?.id === produtoAtualizado.id ? produtoAtualizado : prev
     );
   };
 
-  useEffect(() => {
-    carregarProdutos();
-  }, []);
+  // Abrir modal de informações
+  const abrirModalProduto = (produto) => {
+    setProdutoSelecionado({ ...produto, type: "produto" });
+    setEditandoProduto(false);
+  };
+
+  // Abrir modal de criação ou edição
+  const abrirEditarProduto = (produto = null) => {
+    setProdutoSelecionado(produto ? { ...produto, type: "produto" } : null);
+    setEditandoProduto(true);
+  };
 
   // Filtro e ordenação
   const produtosFiltrados = produtos
     .filter((p) => p.nome.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (!sortPrice) return 0;
-      if (sortPrice === "asc") return a.preco - b.preco;
-      if (sortPrice === "desc") return b.preco - a.preco;
-      return 0;
+      return sortPrice === "asc" ? a.preco - b.preco : b.preco - a.preco;
     });
 
   return (
@@ -86,15 +90,13 @@ const Produtos = () => {
 
       {/* Filtro e pesquisa */}
       <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 px-4 mt-6 bg-gray-200 dark:bg-gray-800 p-4 rounded-lg transition-colors duration-500">
-        {/* Botão de cadastro */}
         <button
           className="w-full sm:w-[20%] px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
-          onClick={() => setProdutoSelecionado({ type: "CriarProduto" })}
+          onClick={() => abrirEditarProduto()}
         >
-          Cadastrar
+          Cadastrar Produto
         </button>
 
-        {/* Pesquisa */}
         <input
           type="text"
           placeholder="Pesquisar produto"
@@ -103,7 +105,6 @@ const Produtos = () => {
           className="w-full sm:w-[40%] px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600"
         />
 
-        {/* Ordenação por preço */}
         <select
           value={sortPrice || ""}
           onChange={(e) => setSortPrice(e.target.value || null)}
@@ -133,7 +134,8 @@ const Produtos = () => {
                   key={produto.id}
                   produto={produto}
                   index={index}
-                  abrirModal={abrirModal}
+                  abrirModal={abrirModalProduto}
+                  abrirEditar={abrirEditarProduto} // caso queira editar direto da tabela
                 />
               ))}
             </tbody>
@@ -145,15 +147,27 @@ const Produtos = () => {
         </div>
       )}
 
-      {/* Modal de detalhes */}
-      {produtoSelecionado && (
-  <EditarItem
-    type={produtoSelecionado.type || "produto"}
-    itemData={produtoSelecionado.type ? null : produtoSelecionado}
-    onClose={() => setProdutoSelecionado(null)}
-    onItemUpdated={atualizarProduto}
-  />
-)}
+      {/* Modal de informações */}
+      {produtoSelecionado && !editandoProduto && (
+        <ModalProduto
+          produtoSelecionado={produtoSelecionado}
+          fecharModal={() => setProdutoSelecionado(null)}
+          onItemUpdated={atualizarProduto}
+        />
+      )}
+
+      {/* Modal lateral de criação/edição */}
+      {editandoProduto && (
+        <EditarItem
+          type={produtoSelecionado ? "produto" : "CriarProduto"}
+          itemData={produtoSelecionado || null}
+          onClose={() => setEditandoProduto(false)}
+          onItemUpdated={(produtoAtualizado) => {
+            atualizarProduto(produtoAtualizado);
+            setEditandoProduto(false);
+          }}
+        />
+      )}
     </div>
   );
 };
