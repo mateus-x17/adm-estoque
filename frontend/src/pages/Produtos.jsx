@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import ModalProduto from "../components/ModalProduto.jsx";
 import ProdutoRow from "../components/ProdutoRow.jsx";
 import { useUserStore } from "../store/userStore.js";
+import EditarItem from "../components/EditarItem.jsx";
 
 const Produtos = () => {
   const url = "http://localhost:5000/products";
@@ -88,7 +89,7 @@ const Produtos = () => {
         {/* Botão de cadastro */}
         <button
           className="w-full sm:w-[20%] px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
-          onClick={() => alert("Abrir formulário de cadastro")}
+          onClick={() => setProdutoSelecionado({ type: "CriarProduto" })}
         >
           Cadastrar
         </button>
@@ -146,12 +147,13 @@ const Produtos = () => {
 
       {/* Modal de detalhes */}
       {produtoSelecionado && (
-        <ModalProduto
-          produtoSelecionado={produtoSelecionado}
-          fecharModal={fecharModal}
-          onItemUpdated={atualizarProduto}
-        />
-      )}
+  <EditarItem
+    type={produtoSelecionado.type || "produto"}
+    itemData={produtoSelecionado.type ? null : produtoSelecionado}
+    onClose={() => setProdutoSelecionado(null)}
+    onItemUpdated={atualizarProduto}
+  />
+)}
     </div>
   );
 };

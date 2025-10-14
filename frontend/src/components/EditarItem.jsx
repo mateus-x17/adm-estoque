@@ -24,6 +24,27 @@ const formConfigs = {
     ],
     route: (id) => `http://localhost:5000/users/${id}`,
   },
+  CriarUsuario: {
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "email", label: "Email", type: "email", required: true },
+      { name: "senha", label: "Senha", type: "password", required: true },
+      {
+        name: "role",
+        label: "Função",
+        type: "select",
+        options: ["ADMIN", "GERENTE", "OPERADOR"],
+        required: true,
+      },
+      {
+        name: "imagem",
+        label: "Foto do Usuário",
+        type: "file",
+        required: false,
+      },
+    ],
+    route: "http://localhost:5000/users",
+  },
   produto: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
@@ -65,12 +86,40 @@ const formConfigs = {
     ],
     route: (id) => `http://localhost:5000/products/${id}`,
   },
+   CriarProduto: {
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "preco", label: "Preço", type: "number", required: true },
+      { name: "quantidade", label: "Quantidade", type: "number", required: true },
+      { name: "descricao", label: "Descrição", type: "textarea", required: false },
+      {
+        name: "categoriaId",
+        label: "Categoria",
+        type: "select",
+        endpoint: "/categories",
+        keyName: "categoria",
+        required: false,
+      },
+      {
+        name: "fornecedorId",
+        label: "Fornecedor",
+        type: "select",
+        endpoint: "/suppliers",
+        keyName: "fornecedores",
+        required: false,
+      },
+      { name: "imagem", label: "Imagem do Produto", type: "file", required: false },
+    ],
+    route: "http://localhost:5000/products",
+  }
 };
 
 function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
   const { darkMode } = useThemeStore();
   const { token } = useUserStore();
   const config = formConfigs[type];
+
+  const isCreating = type.startsWith("Criar");
 
   const [form, setForm] = useState(
     config.fields.reduce((acc, field) => {
@@ -79,11 +128,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
     }, {})
   );
   const [file, setFile] = useState(null);
-  const [modal, setModal] = useState({
-    visible: false,
-    mensagem: "",
-    tipo: "",
-  });
+  const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
   const [closing, setClosing] = useState(false);
   const [open, setOpen] = useState(false);
   const [selectOptions, setSelectOptions] = useState({});
@@ -138,51 +183,46 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       Object.keys(form).forEach((key) => formData.append(key, form[key]));
       if (file) formData.append("imagem", file);
 
-      // 1️⃣ Envia atualização
-      const response = await fetch(config.route(itemData.id), {
-        method: "PUT",
+      const method = isCreating ? "POST" : "PUT";
+      const url = isCreating ? config.route : config.route(itemData.id);
+
+      const response = await fetch(url, {
+        method,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        setModal({
-          visible: true,
-          mensagem: errorData?.error || "Erro ao atualizar",
-          tipo: "erro",
-        });
+        setModal({ visible: true, mensagem: errorData?.error || "Erro ao atualizar", tipo: "erro" });
         timer = setTimeout(() => setModal({ visible: false }), 2500);
         return;
       }
 
-      // 2️⃣ Busca o item atualizado completo da API
-      const itemResponse = await fetch(config.route(itemData.id), {
-        method: "GET",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      let updatedItem;
+      if (isCreating) {
+        updatedItem = await response.json();
+      } else {
+        const itemResponse = await fetch(config.route(itemData.id), {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        updatedItem = await itemResponse.json();
+      }
 
-      const updatedItem = await itemResponse.json();
-
-      // 3️⃣ Atualiza modal e tabela
       setModal({
         visible: true,
-        mensagem: `${
-          type[0].toUpperCase() + type.slice(1)
-        } atualizado com sucesso!`,
+        mensagem: `${type.replace(/^Criar/, "")} ${isCreating ? "criado" : "atualizado"} com sucesso!`,
         tipo: "sucesso",
       });
+
       timer = setTimeout(() => {
         setModal({ visible: false });
         handleClose();
-        if (onItemUpdated) onItemUpdated(updatedItem); // ✅ envia item atualizado para tabela
+        if (onItemUpdated) onItemUpdated(updatedItem);
       }, 2500);
     } catch (err) {
-      setModal({
-        visible: true,
-        mensagem: "Erro de conexão com o servidor",
-        tipo: "erro",
-      });
+      setModal({ visible: true, mensagem: "Erro de conexão com o servidor", tipo: "erro" });
       console.error("Erro ao atualizar item:", err);
       timer = setTimeout(() => setModal({ visible: false }), 2500);
     }
@@ -201,22 +241,14 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       <div
         className={`w-[70%] max-w-md h-full p-6 shadow-lg border-l rounded-tl-2xl rounded-bl-2xl transform transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
-        } ${
-          darkMode
-            ? "bg-gray-900 text-white border-gray-700"
-            : "bg-white text-gray-800 border-gray-200"
-        } flex flex-col`}
+        } ${darkMode ? "bg-gray-900 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200"} flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-bold mb-4 flex-shrink-0">
-          Editar {type[0].toUpperCase() + type.slice(1)}
+          {isCreating ? `Criar ${type.replace("Criar", "")}` : `Editar ${type}`}
         </h2>
 
-        {/* Scroll interno */}
-        <form
-          className="space-y-4 flex-1 overflow-auto pr-2"
-          onSubmit={handleSubmit}
-        >
+        <form className="space-y-4 flex-1 overflow-auto pr-2" onSubmit={handleSubmit}>
           {config.fields.map((field) => (
             <div key={field.name}>
               <label className="block mb-1">{field.label}</label>
@@ -227,9 +259,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   onChange={handleChange}
                   required={field.required}
                   className={`w-full px-3 py-2 rounded-md border ${
-                    darkMode
-                      ? "bg-gray-800 border-gray-700 text-white"
-                      : "bg-gray-100 border-gray-200 text-gray-800"
+                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
                   }`}
                 >
                   <option value="">Selecione</option>
@@ -246,9 +276,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   accept="image/*"
                   onChange={(e) => setFile(e.target.files[0])}
                   className={`w-full px-3 py-2 rounded-md border ${
-                    darkMode
-                      ? "bg-gray-800 border-gray-700 text-white"
-                      : "bg-gray-100 border-gray-200 text-gray-800"
+                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
                   }`}
                 />
               ) : field.type === "textarea" ? (
@@ -257,11 +285,9 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   value={form[field.name]}
                   onChange={handleChange}
                   required={field.required}
-                  rows={3} // menos altura
+                  rows={3}
                   className={`w-full px-3 py-2 rounded-md border resize-none ${
-                    darkMode
-                      ? "bg-gray-800 border-gray-700 text-white"
-                      : "bg-gray-100 border-gray-200 text-gray-800"
+                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
                   }`}
                 />
               ) : (
@@ -272,35 +298,24 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   onChange={handleChange}
                   required={field.required}
                   className={`w-full px-3 py-2 rounded-md border ${
-                    darkMode
-                      ? "bg-gray-800 border-gray-700 text-white"
-                      : "bg-gray-100 border-gray-200 text-gray-800"
+                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
                   }`}
                 />
               )}
             </div>
           ))}
 
-          {/* Espaço inferior para os botões */}
           <div className="flex justify-between mt-6 flex-shrink-0">
             <button
               type="button"
               onClick={handleClose}
-              className={`px-4 py-2 rounded ${
-                darkMode
-                  ? "bg-gray-700 hover:bg-gray-600"
-                  : "bg-gray-300 hover:bg-gray-200"
-              }`}
+              className={`px-4 py-2 rounded ${darkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-300 hover:bg-gray-200"}`}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className={`px-4 py-2 rounded ${
-                darkMode
-                  ? "bg-blue-600 hover:bg-blue-500 text-white"
-                  : "bg-blue-500 hover:bg-blue-400 text-white"
-              }`}
+              className={`px-4 py-2 rounded ${darkMode ? "bg-blue-600 hover:bg-blue-500 text-white" : "bg-blue-500 hover:bg-blue-400 text-white"}`}
             >
               Salvar
             </button>

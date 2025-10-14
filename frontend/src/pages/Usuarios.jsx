@@ -34,15 +34,19 @@ const Usuarios = () => {
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("todos");
   const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
-  const [editarUser, setEditarUser] = useState({ visible: false, userData: null });
+  const [editarUser, setEditarUser] = useState({ visible: false, userData: null, type: "usuario" });
 
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
 
-  const abrirEditarUsuario = (user) => setEditarUser({ visible: true, userData: user });
+  // Função para abrir o modal
+  const abrirEditarUsuario = (user = null, tipo = "usuario") => {
+    setEditarUser({ visible: true, userData: user, type: tipo });
+  };
 
+  // Função para carregar usuários
   const carregarUsuarios = async () => {
     try {
       const response = await fetch(url, {
@@ -57,6 +61,7 @@ const Usuarios = () => {
 
       if (response.ok) {
         setUsuarios(data);
+        console.log("Usuários carregados:", data);
       } else {
         console.error("Erro ao carregar usuarios:", data.error);
         setModal({
@@ -98,7 +103,7 @@ const Usuarios = () => {
         {/* Botão Cadastrar */}
         <button
           className="w-full sm:w-[20%] px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
-          onClick={() => abrirEditarUsuario(null)}
+          onClick={() => abrirEditarUsuario(null, "CriarUsuario")}
         >
           <FaUser className="inline mr-2" />
           Cadastrar
@@ -193,7 +198,7 @@ const Usuarios = () => {
             <div className="mt-4 flex gap-2">
               <button
                 className="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded transition-colors"
-                onClick={() => abrirEditarUsuario(user)}
+                onClick={() => abrirEditarUsuario(user, "usuario")}
               >
                 Editar
               </button>
@@ -205,10 +210,10 @@ const Usuarios = () => {
         ))}
       </div>
 
-      {/* Overlay do formulário de edição */}
+      {/* Overlay do formulário de edição/criação */}
       {editarUser.visible && (
         <EditarItem
-          type="usuario"
+          type={editarUser.type} // ✅ pode ser "usuario" ou "CriarUsuario"
           itemData={editarUser.userData}
           onClose={() => setEditarUser({ visible: false, userData: null })}
           onItemUpdated={carregarUsuarios}
