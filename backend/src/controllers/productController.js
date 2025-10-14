@@ -7,6 +7,18 @@ export async function listProducts(req, res) {
   res.json(products);
 }
 
+export async function countProducts(req, res) {
+  try {
+    const count = await prisma.produto.count();
+    console.log("Contagem de produtos:", count);
+    res.json({ count });
+  } catch (err) {
+    console.error("Erro ao contar produtos:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+
 export async function getProduct(req, res) {
   const id = Number(req.params.id);
   const product = await prisma.produto.findUnique({ where: { id }, include: { categoria: true, fornecedor: true } });

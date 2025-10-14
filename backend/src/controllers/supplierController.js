@@ -26,6 +26,16 @@ export async function listarFornecedores(req, res) {
   }
 }
 
+// contagem de fornecedores
+export async function countFornecedores(req, res) {
+  try {
+    const count = await prisma.fornecedor.count();
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // 🔹 Atualizar fornecedor
 export async function atualizarFornecedor(req, res) {
   try {

@@ -6,6 +6,7 @@ import {
   listarFornecedores,
   atualizarFornecedor,
   deletarFornecedor,
+  countFornecedores
 } from "../controllers/supplierController.js";
 
 const router = express.Router();
@@ -17,5 +18,7 @@ router.delete("/:id", authMiddleware, permit("ADMIN", "GERENTE"), deletarFornece
 
 // 🔹 Todos podem listar fornecedores
 router.get("/", authMiddleware, listarFornecedores);
+// contagem de fornecedores
+router.get("/count", authMiddleware, countFornecedores);
 
 export default router;

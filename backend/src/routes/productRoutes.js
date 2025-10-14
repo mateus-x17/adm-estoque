@@ -7,7 +7,8 @@ import {
   getProduct,
   updateProduct,
   deleteProduct,
-  adjustQuantity
+  adjustQuantity,
+  countProducts
 } from "../controllers/productController.js";
 import { upload } from "../config/multerConfig.js";
 
@@ -15,9 +16,13 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// listagem para todos os autenticados
+// obter numero de produtos
+// - deve ficar acima das rotas de listagem de produtos para ser executada primeiro e evitar problemas de concorrencia
+router.get("/count", countProducts);
+// listagem e obtençaõ de produtos especificos
 router.get("/", listProducts);
 router.get("/:id", getProduct);
+
 
 // criar/editar/delete -> gerentes e admins
 router.post("/", permit("ADMIN","GERENTE"), upload.single("imagem"), createProduct);
