@@ -16,7 +16,7 @@ const router = express.Router();
 router.use(authMiddleware); //todas rotas usam esse middleware de autenticacao
 router.use(permit("ADMIN")); //todas rotas usam o middleware permit que verifica o role
 
-router.post("/", createUser);
+router.post("/", upload.single("imagem"), createUser);
 router.get("/", listUsers);
 router.get("/:id", getUser);
 router.put("/:id", upload.single("imagem"), updateUser);

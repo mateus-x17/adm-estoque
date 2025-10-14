@@ -5,13 +5,15 @@ import { prisma } from "../config/prismaClient.js";
 import fs from "fs";
 
 export async function createUser(req, res) {
-  const { nome, email, senha, role } = req.body;
+  const { nome, email, senha, role } = req.body; // agora funciona
+  const imagem = req.file?.path; // caminho do arquivo, se houver
+
   if (!nome || !email || !senha) return res.status(400).json({ error: "Dados incompletos" });
 
   const hashed = await bcrypt.hash(senha, 10);
   try {
     const user = await prisma.usuario.create({
-      data: { nome, email, senha: hashed, role: role || "OPERADOR" },
+      data: { nome, email, senha: hashed, role: role || "OPERADOR", imagem },
       select: { id: true, nome: true, email: true, role: true, createdAt: true },
     });
     res.status(201).json(user);
