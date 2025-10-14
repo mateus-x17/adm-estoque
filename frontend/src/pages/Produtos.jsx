@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { FaBoxOpen } from "react-icons/fa";
 import ModalProduto from "../components/ModalProduto.jsx";
 import ProdutoRow from "../components/ProdutoRow.jsx";
 import { useUserStore } from "../store/userStore.js";
@@ -94,7 +95,8 @@ const Produtos = () => {
           className="w-full sm:w-[20%] px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
           onClick={() => abrirEditarProduto()}
         >
-          Cadastrar Produto
+          <FaBoxOpen className="inline-block mr-2" />
+          Cadastrar 
         </button>
 
         <input
