@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Produtos from './pages/Produtos.jsx'
 import Home from './pages/Home.jsx'
 import Usuarios from './pages/Usuarios.jsx'
+import NotFound from './components/NotFound.jsx'
 
 // cria as rotas
 const router = createBrowserRouter([
@@ -37,6 +38,11 @@ const router = createBrowserRouter([
         element: <Usuarios />
       },
     ]
+  },
+  // pagina não encontrada 
+  {
+    path: '*',
+    element: <NotFound />
   }
 ])
 
