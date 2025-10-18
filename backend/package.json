@@ -9,7 +9,8 @@
     "start": "node src/index.js",
     "prisma:migrate": "npx prisma migrate dev --name init",
     "prisma:generate": "npx prisma generate",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "seedMovements": "node prisma/seedMovements.js"
   },
   "keywords": [],
   "author": "",
