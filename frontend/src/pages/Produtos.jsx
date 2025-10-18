@@ -144,8 +144,12 @@ const Produtos = () => {
           </table>
         </div>
       ) : (
-        <div className="flex-grow flex items-center justify-center mt-6">
-          <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
+        // Loader aprimorado
+        <div className="flex-grow flex flex-col items-center justify-center mt-6 gap-4">
+          <div className="w-16 h-16 border-4 border-t-4 border-blue-500 dark:border-yellow-400 rounded-full animate-spin"></div>
+          <p className="text-gray-700 dark:text-gray-200 font-medium animate-pulse">
+            Carregando produtos...
+          </p>
         </div>
       )}
 
