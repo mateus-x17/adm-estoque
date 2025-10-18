@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Produtos from './pages/Produtos.jsx'
 import Home from './pages/Home.jsx'
 import Usuarios from './pages/Usuarios.jsx'
+import Movimentacoes from './pages/Movimentacoes.jsx'
 import NotFound from './components/NotFound.jsx'
 
 // cria as rotas
@@ -37,6 +38,10 @@ const router = createBrowserRouter([
         path: 'usuarios', // rota = /dashboard/usuarios
         element: <Usuarios />
       },
+      {
+        path: 'movimentacoes', // rota = /dashboard/movimentacoes
+        element: <Movimentacoes />
+      }
     ]
   },
   // pagina não encontrada 
