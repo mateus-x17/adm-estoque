@@ -15,6 +15,7 @@ const Produtos = () => {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [sortPrice, setSortPrice] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
   const carregarProdutos = async () => {
     try {
@@ -75,35 +76,47 @@ const Produtos = () => {
       </header>
 
       {/* Filtros */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl p-6 flex flex-col lg:flex-row gap-4 items-center justify-between shadow-sm">
-        <button
-          onClick={() => abrirEditarProduto()}
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl font-semibold hover:bg-indigo-700 transition"
-        >
-          <FaBoxOpen />
-          Novo Produto
-        </button>
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+          <div className="flex justify-between w-full lg:w-auto">
+            <button
+              onClick={() => abrirEditarProduto()}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl font-semibold hover:bg-indigo-700 transition whitespace-nowrap"
+            >
+              <FaBoxOpen />
+              Novo Produto
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="lg:hidden p-2 text-slate-500 hover:text-indigo-600 transition-colors"
+            >
+              <FaSearch size={20} />
+            </button>
+          </div>
 
-        <div className="relative w-full lg:w-1/3">
-          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Pesquisar por nome"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
+          <div className={`${showFilters ? 'flex' : 'hidden'} lg:flex flex-col md:flex-row gap-4 w-full lg:w-auto`}>
+            <div className="relative w-full lg:w-80">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Pesquisar por nome"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+
+            <select
+              value={sortPrice}
+              onChange={(e) => setSortPrice(e.target.value)}
+              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value="" className="bg-white dark:bg-slate-800">Ordenar por preço</option>
+              <option value="asc" className="bg-white dark:bg-slate-800">Menor → Maior</option>
+              <option value="desc" className="bg-white dark:bg-slate-800">Maior → Menor</option>
+            </select>
+          </div>
         </div>
-
-        <select
-          value={sortPrice}
-          onChange={(e) => setSortPrice(e.target.value)}
-          className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-        >
-          <option value="" className="bg-white dark:bg-slate-800">Ordenar por preço</option>
-          <option value="asc" className="bg-white dark:bg-slate-800">Menor → Maior</option>
-          <option value="desc" className="bg-white dark:bg-slate-800">Maior → Menor</option>
-        </select>
       </section>
 
       {/* Tabela */}

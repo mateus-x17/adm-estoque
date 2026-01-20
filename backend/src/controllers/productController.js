@@ -10,10 +10,31 @@ export async function listProducts(req, res) {
 export async function countProducts(req, res) {
   try {
     const count = await prisma.produto.count();
-    console.log("Contagem de produtos:", count);
     res.json({ count });
   } catch (err) {
-    console.error("Erro ao contar produtos:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+export async function getProductStats(req, res) {
+  try {
+    const total = await prisma.produto.count();
+    const lowStockCount = await prisma.produto.count({
+      where: { quantidade: { lt: 10 } }
+    });
+
+    // Obter lista de produtos com baixo estoque
+    const lowStockList = await prisma.produto.findMany({
+      where: { quantidade: { lt: 10 } },
+      select: { id: true, nome: true, quantidade: true },
+      take: 5 // Limitar a 5 para exibir no dashboard
+    });
+
+    const products = await prisma.produto.findMany({ select: { preco: true, quantidade: true } });
+    const totalValue = products.reduce((acc, p) => acc + (p.preco * p.quantidade), 0);
+
+    res.json({ total, lowStock: lowStockCount, totalValue, lowStockList });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }

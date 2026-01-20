@@ -1,10 +1,19 @@
 // import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
-import {prisma} from '../config/prismaClient.js';
+import { prisma } from '../config/prismaClient.js';
 
 export async function listCategories(req, res) {
   const cats = await prisma.categoria.findMany();
   res.json(cats);
+}
+
+export async function countCategories(req, res) {
+  try {
+    const count = await prisma.categoria.count();
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 }
 
 export async function createCategory(req, res) {

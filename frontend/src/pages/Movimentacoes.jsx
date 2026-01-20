@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import { useUserStore } from "../store/userStore"
 import MovimentacaoRow from "../components/MovimentacaoRow"
 import ModalMovimentacao from "../components/ModalMovimentacao"
+import { FiFilter } from "react-icons/fi"
 import {
   LineChart,
   Line,
@@ -126,7 +127,7 @@ const Movimentacoes = () => {
           onClick={() => setFiltrosAbertos(!filtrosAbertos)}
           className="w-full px-6 py-4 flex items-center justify-between font-semibold"
         >
-          Filtros
+          <span className="text-sm text-slate-900 dark:text-white"> Filtros</span>
           <span className="text-sm text-slate-500">
             {filtrosAbertos ? "Ocultar" : "Mostrar"}
           </span>

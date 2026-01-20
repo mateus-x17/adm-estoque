@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import {
+  AlertCircle,
   Package,
   Truck,
   ListTree,
   Clock,
   ArrowUpRight,
+  ArrowDownRight,
   TrendingUp,
   MoreHorizontal,
   ChevronRight
@@ -22,15 +24,18 @@ import {
 import { useUserStore } from "../store/userStore";
 
 const Dashboard = () => {
-  const urlProdutos = "http://localhost:5000/products/count";
+  const urlProdutosStats = "http://localhost:5000/products/stats";
   const urlFornecedores = "http://localhost:5000/suppliers/count";
-  const urlMovements = "http://localhost:5000/movements";
+  const urlCategories = "http://localhost:5000/categories/count";
+  const urlUserStats = "http://localhost:5000/movements/user-stats";
 
   const [loading, setLoading] = useState(true);
-  const [totalProdutos, setTotalProdutos] = useState(null);
-  const [totalFornecedores, setTotalFornecedores] = useState(null);
+  const [stats, setStats] = useState({ totalProdutos: 0, lowStock: 0, totalValue: 0, lowStockList: [] });
+  const [totalFornecedores, setTotalFornecedores] = useState(0);
+  const [totalCategorias, setTotalCategorias] = useState(0);
   const [movementsData, setMovementsData] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [userStats, setUserStats] = useState([]);
 
   const { token } = useUserStore();
 
@@ -38,32 +43,40 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const resProdutos = await fetch(urlProdutos, {
-          headers: {
-            "Content-Type": "application/json",
-            authorization: `Bearer ${token}`,
-          },
+        const resStats = await fetch(urlProdutosStats, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        const produtosData = await resProdutos.json();
-        setTotalProdutos(produtosData.count);
+        const statsData = await resStats.json();
+        setStats({
+          totalProdutos: statsData.total,
+          lowStock: statsData.lowStock,
+          totalValue: statsData.totalValue,
+          lowStockList: statsData.lowStockList
+        });
 
         const resFornec = await fetch(urlFornecedores, {
-          headers: {
-            "Content-Type": "application/json",
-            authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const fornecedoresData = await resFornec.json();
         setTotalFornecedores(fornecedoresData.count);
 
+        const resCats = await fetch(urlCategories, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const catsData = await resCats.json();
+        setTotalCategorias(catsData.count);
+
         const resMov = await fetch(urlMovements, {
-          headers: {
-            "Content-Type": "application/json",
-            authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const movements = await resMov.json();
         setMovementsData(movements);
+
+        const resUserStats = await fetch(urlUserStats, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const userData = await resUserStats.json();
+        setUserStats(userData);
 
         const products = [...new Set(movements.map(m => m.produto.nome))];
 
@@ -93,31 +106,31 @@ const Dashboard = () => {
   const kpis = [
     {
       title: "Produtos em Estoque",
-      value: totalProdutos,
+      value: stats.totalProdutos,
       icon: Package,
       color: "from-blue-500 to-indigo-600",
-      trend: "+12.5% vs mês anterior"
+      trend: "Total itens"
     },
     {
-      title: "Pedidos Pendentes",
-      value: 15,
-      icon: Clock,
+      title: "Baixo Estoque",
+      value: stats.lowStock,
+      icon: AlertCircle,
       color: "from-amber-400 to-orange-500",
-      trend: "Estável"
+      trend: "Requer atenção"
     },
     {
       title: "Fornecedores Ativos",
       value: totalFornecedores,
       icon: Truck,
       color: "from-emerald-500 to-teal-600",
-      trend: "+2 novos este mês"
+      trend: "Parceiros"
     },
     {
       title: "Categorias",
-      value: 5,
+      value: totalCategorias,
       icon: ListTree,
       color: "from-fuchsia-500 to-pink-600",
-      trend: "Mapeadas"
+      trend: "Segmentos"
     },
   ];
 
@@ -234,31 +247,102 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <aside className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6">
-            Movimentações Recentes
-          </h2>
-          <div className="space-y-4">
-            {movementsData.slice(0, 5).map(mov => (
-              <div key={mov.id} className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-indigo-500/10 text-indigo-500">
-                  <ArrowUpRight className="w-5 h-5" />
+        <aside className="flex flex-col gap-6">
+          {/* Alerta de Baixo Estoque */}
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              Alerta de Baixo Estoque
+            </h2>
+            <div className="space-y-4">
+              {stats.lowStockList && stats.lowStockList.length > 0 ? (
+                stats.lowStockList.map((prod) => (
+                  <div key={prod.id} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold text-xs">
+                        {prod.quantidade}
+                      </div>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={prod.nome}>
+                        {prod.nome}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum produto com baixo estoque.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Movimentações Recentes */}
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6">
+              Movimentações Recentes
+            </h2>
+            <div className="space-y-4">
+              {movementsData.slice(0, 5).map(mov => (
+                <div key={mov.id} className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-indigo-500/10 text-indigo-500">
+                    {mov.tipo === "ENTRADA" ? <ArrowUpRight className="w-5 h-5 text-green-500" /> : <ArrowDownRight className="w-5 h-5 text-red-500" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {mov.produto.nome}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {mov.tipo} • {mov.quantidade}
+                    </p>
+                  </div>
+                  <span className="text-xs text-slate-400">
+                    {new Date(mov.data).toLocaleDateString("pt-BR")}
+                  </span>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    {mov.produto.nome}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {mov.tipo} • {mov.quantidade}
-                  </p>
-                </div>
-                <span className="text-xs text-slate-400">
-                  {new Date(mov.data).toLocaleDateString("pt-BR")}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </aside>
+      </div>
+
+      {/* User Stats Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm h-[400px]">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Movimentações por Usuário</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={userStats}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
+                  itemStyle={{ color: '#fff' }}
+                  cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                />
+                <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Movimentações" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm h-[400px]">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Valor Movimentado por Usuário (Saídas)</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={userStats}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
+                  itemStyle={{ color: '#fff' }}
+                  cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                  formatter={(value) => `R$ ${value.toFixed(2)}`}
+                />
+                <Bar dataKey="totalValue" fill="#ec4899" radius={[4, 4, 0, 0]} name="Valor Total" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );

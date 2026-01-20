@@ -100,13 +100,18 @@ const Fornecedores = () => {
                         Gerencie parceiros e visualize métricas de desempenho
                     </p>
                 </div>
+            </header>
+
+            {/* Button */}
+            <div className="flex justify-end">
                 <button
                     onClick={openNewModal}
                     className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
                 >
                     <FiPlus /> Novo Fornecedor
                 </button>
-            </header>
+
+            </div>
 
             {/* Dashboard Section */}
             {!loading && stats.length > 0 && (

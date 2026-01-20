@@ -101,16 +101,20 @@ const Categorias = () => {
                         Gerencie as categorias dos produtos
                     </p>
                 </div>
+            </header>
+
+            {/* Button */}
+            <div className="flex justify-end">
                 <button
                     onClick={openModal}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
                 >
                     <FiPlus /> Nova Categoria
                 </button>
-            </header>
+            </div>
 
             {/* Lista */}
-            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 mt-8">
                 <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
                     <thead className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white uppercase font-bold">
                         <tr>
@@ -164,7 +168,9 @@ const Categorias = () => {
 
             {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={() => setModalOpen(false)}
+                >
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100 p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
