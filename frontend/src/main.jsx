@@ -10,6 +10,9 @@ import Produtos from './pages/Produtos.jsx'
 import Home from './pages/Home.jsx'
 import Usuarios from './pages/Usuarios.jsx'
 import Movimentacoes from './pages/Movimentacoes.jsx'
+import Categorias from './pages/Categorias.jsx'
+import Pedidos from './pages/Pedidos.jsx'
+import Fornecedores from './pages/Fornecedores.jsx'
 import NotFound from './components/NotFound.jsx'
 
 // cria as rotas
@@ -24,8 +27,8 @@ const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
-    element: <Layout/>,
-    children:[
+    element: <Layout />,
+    children: [
       {
         index: true,
         element: <Dashboard />
@@ -41,6 +44,18 @@ const router = createBrowserRouter([
       {
         path: 'movimentacoes', // rota = /dashboard/movimentacoes
         element: <Movimentacoes />
+      },
+      {
+        path: 'categorias', // rota = /dashboard/categorias
+        element: <Categorias />
+      },
+      {
+        path: 'pedidos', // rota = /dashboard/pedidos
+        element: <Pedidos />
+      },
+      {
+        path: 'fornecedores', // rota = /dashboard/fornecedores
+        element: <Fornecedores />
       }
     ]
   },

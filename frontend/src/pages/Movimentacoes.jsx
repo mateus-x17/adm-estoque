@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useUserStore } from "../store/userStore.js";
+import React, { useEffect, useState } from "react"
+import { useUserStore } from "../store/userStore"
+import MovimentacaoRow from "../components/MovimentacaoRow"
+import ModalMovimentacao from "../components/ModalMovimentacao"
 import {
   LineChart,
   Line,
@@ -11,338 +13,265 @@ import {
   PieChart,
   Pie,
   Cell,
-} from "recharts";
+} from "recharts"
 
 const Movimentacoes = () => {
-  const url = "http://localhost:5000/movements";
-  const { token } = useUserStore();
+  const url = "http://localhost:5000/movements"
+  const { token } = useUserStore()
 
-  const [movimentacoes, setMovimentacoes] = useState([]);
-  const [loaded, setLoaded] = useState(false);
-  const [search, setSearch] = useState("");
-  const [tipoFiltro, setTipoFiltro] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [sortDate, setSortDate] = useState("desc");
-  const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 10;
+  const [movimentacoes, setMovimentacoes] = useState([])
+  const [loaded, setLoaded] = useState(false)
 
-  // Dados dos gráficos
-  const [movementsData, setMovementsData] = useState([]);
-  const [lineChartData, setLineChartData] = useState([]);
-  const [pieChartData, setPieChartData] = useState([]);
-  const pieColors = ["#4BC0C0", "#FF6384"];
+  // filtros
+  const [search, setSearch] = useState("")
+  const [tipoFiltro, setTipoFiltro] = useState("")
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
+  const [filtrosAbertos, setFiltrosAbertos] = useState(true)
 
-  // -----------------------
-  // Fetch movimentações
-  // -----------------------
-  const carregarMovimentacoes = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (fromDate) params.append("from", fromDate);
-      if (toDate) params.append("to", toDate);
-      params.append("order", sortDate);
+  // paginação
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const itensPorPagina = 8
 
-      const response = await fetch(`${url}?${params.toString()}`, {
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${token}`,
-        },
-      });
+  // modal
+  const [modalAberto, setModalAberto] = useState(false)
+  const [movSelecionada, setMovSelecionada] = useState(null)
 
-      const data = await response.json();
+  // gráficos
+  const [lineChartData, setLineChartData] = useState([])
+  const [pieChartData, setPieChartData] = useState([])
 
-      if (response.ok) {
-        setMovimentacoes(data);
-        setTimeout(() => setLoaded(true), 50);
-      } else {
-        console.error("Erro ao carregar movimentações:", data.message);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar movimentações:", error);
+  const pieColors = ["#22c55e", "#ef4444"]
+
+  const abrirModal = (mov) => {
+    setMovSelecionada(mov)
+    setModalAberto(true)
+  }
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      const res = await fetch(url, {
+        headers: { authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+
+      setMovimentacoes(data)
+      setLoaded(true)
+
+      const grouped = {}
+      let entradas = 0
+      let saidas = 0
+
+      data.forEach((m) => {
+        const date = new Date(m.data).toLocaleDateString("pt-BR")
+
+        if (!grouped[date]) {
+          grouped[date] = { date, Entradas: 0, Saidas: 0 }
+        }
+
+        if (m.tipo === "ENTRADA") {
+          grouped[date].Entradas += m.quantidade
+          entradas += m.quantidade
+        } else {
+          grouped[date].Saidas += m.quantidade
+          saidas += m.quantidade
+        }
+      })
+
+      setLineChartData(Object.values(grouped))
+      setPieChartData([
+        { name: "Entradas", value: entradas },
+        { name: "Saídas", value: saidas },
+      ])
     }
-  };
 
-  useEffect(() => {
-    carregarMovimentacoes();
-  }, [sortDate, fromDate, toDate]);
+    fetchAll()
+  }, [token])
 
-  // -----------------------
-  // Processar dados para gráfico de linhas e pizza
-  // -----------------------
-  useEffect(() => {
-    const fetchMovements = async () => {
-      try {
-        const res = await fetch(url, {
-          headers: {
-            authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        setMovementsData(data);
-
-        // Gráfico de linhas
-        const groupedByDate = {};
-        let totalEntradas = 0;
-        let totalSaidas = 0;
-
-        data.forEach((m) => {
-          const date = new Date(m.data).toLocaleDateString("pt-BR");
-          if (!groupedByDate[date])
-            groupedByDate[date] = { date, Entradas: 0, Saidas: 0 };
-          if (m.tipo === "ENTRADA") {
-            groupedByDate[date].Entradas += m.quantidade;
-            totalEntradas += m.quantidade;
-          }
-          if (m.tipo === "SAIDA") {
-            groupedByDate[date].Saidas += m.quantidade;
-            totalSaidas += m.quantidade;
-          }
-        });
-
-        const formattedLineData = Object.values(groupedByDate).sort(
-          (a, b) => new Date(a.date) - new Date(b.date)
-        );
-        setLineChartData(formattedLineData);
-
-        // Gráfico de pizza
-        setPieChartData([
-          { name: "Entradas", value: totalEntradas },
-          { name: "Saídas", value: totalSaidas },
-        ]);
-      } catch (err) {
-        console.error("Erro ao buscar movimentos:", err);
-      }
-    };
-
-    fetchMovements();
-  }, []);
-
-  // -----------------------
-  // Filtrar e paginar
-  // -----------------------
-  const movimentacoesFiltradas = movimentacoes
-    .filter((m) => m.produto.nome.toLowerCase().includes(search.toLowerCase()))
+  // filtros aplicados
+  const filtradas = movimentacoes
+    .filter((m) =>
+      m.produto.nome.toLowerCase().includes(search.toLowerCase())
+    )
     .filter((m) => (tipoFiltro ? m.tipo === tipoFiltro : true))
-    .sort((a, b) => {
-      if (sortDate === "asc") return new Date(a.data) - new Date(b.data);
-      return new Date(b.data) - new Date(a.data);
-    });
+    .filter((m) => {
+      const data = new Date(m.data)
+      if (fromDate && data < new Date(fromDate)) return false
+      if (toDate && data > new Date(toDate)) return false
+      return true
+    })
 
-  const totalPaginas = Math.ceil(
-    movimentacoesFiltradas.length / itensPorPagina
-  );
-  const movimentacoesPaginadas = movimentacoesFiltradas.slice(
+  const totalPaginas = Math.ceil(filtradas.length / itensPorPagina)
+
+  const paginadas = filtradas.slice(
     (paginaAtual - 1) * itensPorPagina,
     paginaAtual * itensPorPagina
-  );
+  )
 
   return (
-    <div className="flex flex-col w-full min-h-full bg-gray-100 dark:bg-gray-900 transition-colors duration-500 p-8">
-      {/* Cabeçalho */}
-      <header className="mb-6 text-center animate-fadeInDown">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white break-words">
-          Movimentações de <span className="text-yellow-400">Produtos</span>
+    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-8">
+      {/* header */}
+      <header>
+        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
+          Movimentações
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-          Veja todas as entradas, saídas e ajustes de estoque.
+        <p className="text-slate-500 dark:text-slate-400">
+          Controle de entradas e saídas de produtos
         </p>
       </header>
 
-      {/* Filtros */}
-      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 px-4 mt-6 bg-gray-200 dark:bg-gray-800 p-4 rounded-lg transition-colors duration-500">
-        <input
-          type="text"
-          placeholder="Pesquisar produto"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-[30%] px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600"
-        />
-        <select
-          value={tipoFiltro}
-          onChange={(e) => setTipoFiltro(e.target.value)}
-          className="w-full sm:w-[20%] px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600"
+      {/* filtros colapsáveis */}
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl">
+        <button
+          onClick={() => setFiltrosAbertos(!filtrosAbertos)}
+          className="w-full px-6 py-4 flex items-center justify-between font-semibold"
         >
-          <option value="">Todos os tipos</option>
-          <option value="ENTRADA">ENTRADA</option>
-          <option value="SAIDA">SAIDA</option>
-        </select>
-        <div className="flex gap-2 w-full sm:w-[30%]">
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="w-1/2 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600"
-          />
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="w-1/2 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600"
-          />
-        </div>
-        <select
-          value={sortDate}
-          onChange={(e) => setSortDate(e.target.value)}
-          className="w-full sm:w-[15%] px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600"
-        >
-          <option value="desc">Mais recentes → antigos</option>
-          <option value="asc">Mais antigos → recentes</option>
-        </select>
+          Filtros
+          <span className="text-sm text-slate-500">
+            {filtrosAbertos ? "Ocultar" : "Mostrar"}
+          </span>
+        </button>
+
+        {filtrosAbertos && (
+          <div className="p-6 pt-0 flex flex-col lg:flex-row gap-4">
+            <input
+              type="text"
+              placeholder="Buscar produto"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full lg:w-1/3 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            <select
+              value={tipoFiltro}
+              onChange={(e) => setTipoFiltro(e.target.value)}
+              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Todos</option>
+              <option value="ENTRADA">Entrada</option>
+              <option value="SAIDA">Saída</option>
+            </select>
+
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white"
+            />
+          </div>
+        )}
+      </section>
+
+      {/* tabela */}
+      <div className="bg-white dark:bg-slate-900 border rounded-3xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+            <tr>
+              <th className="px-4 py-3 text-left">Produto</th>
+              <th className="hidden md:table-cell px-4 py-3 text-center">
+                Tipo
+              </th>
+              <th className="hidden md:table-cell px-4 py-3 text-center">
+                Qtd
+              </th>
+              <th className="hidden md:table-cell px-4 py-3">Usuário</th>
+              <th className="hidden md:table-cell px-4 py-3">Data</th>
+              <th className="md:hidden px-4 py-3 text-center">Ações</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loaded &&
+              paginadas.map((mov, i) => (
+                <MovimentacaoRow
+                  key={mov.id}
+                  movimentacao={mov}
+                  index={i}
+                  abrirModal={abrirModal}
+                />
+              ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Tabela */}
-      {loaded ? (
-        <div className="overflow-x-auto bg-gray-300 dark:bg-gray-800 p-4 rounded-xl shadow-inner mt-6">
-          <div className="max-h-[400px] overflow-y-auto">
-            <table className="w-full min-w-[800px] bg-white dark:bg-gray-600 rounded-xl shadow-md">
-              <thead className="sticky top-0 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200 z-10">
-                <tr>
-                  <th className="px-4 py-3 text-left">Produto</th>
-                  <th className="px-4 py-3 text-center">Tipo</th>
-                  <th className="px-4 py-3 text-center">Quantidade</th>
-                  <th className="px-4 py-3 text-left">Usuário</th>
-                  <th className="px-4 py-3 text-left">Data</th>
-                  <th className="px-4 py-3 text-left">Observação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movimentacoesPaginadas.map((mov) => (
-                  <tr
-                    key={mov.id}
-                    className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <td className="px-4 py-2">{mov.produto.nome}</td>
-                    <td className="px-4 py-2 text-center">
-                      <span
-                        className={`px-2 py-1 rounded-full text-white text-xs font-bold ${
-                          mov.tipo === "ENTRADA"
-                            ? "bg-green-500"
-                            : mov.tipo === "SAIDA"
-                            ? "bg-red-500"
-                            : "bg-gray-400"
-                        }`}
-                      >
-                        {mov.tipo}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-center">{mov.quantidade}</td>
-                    <td className="px-4 py-2">{mov.usuario.nome}</td>
-                    <td className="px-4 py-2">
-                      {new Date(mov.data).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2">{mov.observacao || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* paginação */}
+      {totalPaginas > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <button
+            disabled={paginaAtual === 1}
+            onClick={() => setPaginaAtual(p => p - 1)}
+            className="px-4 py-2 rounded-xl text-sm bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-40"
+          >
+            Anterior
+          </button>
 
-          {/* Paginação */}
-          <div className="flex justify-center gap-2 mt-4">
-            <button
-              onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              className="px-3 py-1 bg-gray-400 dark:bg-gray-600 text-white rounded-lg disabled:opacity-50"
-            >
-              {"<"}
-            </button>
-            <span className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200">
-              {paginaAtual} / {totalPaginas}
-            </span>
-            <button
-              onClick={() =>
-                setPaginaAtual((p) => Math.min(totalPaginas, p + 1))
-              }
-              disabled={paginaAtual === totalPaginas}
-              className="px-3 py-1 bg-gray-400 dark:bg-gray-600 text-white rounded-lg disabled:opacity-50"
-            >
-              {">"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 mt-6">
-          <div className="w-16 h-16 border-4 border-t-4 border-blue-500 dark:border-yellow-400 rounded-full animate-spin"></div>
-          <p className="text-gray-700 dark:text-gray-200 font-medium animate-pulse">
-            Carregando movimentações...
-          </p>
+          <span className="text-sm text-slate-600 dark:text-slate-400">
+            Página {paginaAtual} de {totalPaginas}
+          </span>
+
+          <button
+            disabled={paginaAtual === totalPaginas}
+            onClick={() => setPaginaAtual(p => p + 1)}
+            className="px-4 py-2 rounded-xl text-sm bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-40"
+          >
+            Próximo
+          </button>
         </div>
       )}
 
-      {/* Gráfico */}
-      <div className="mt-6">
-        <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">
-            Entradas e Saídas por Dia
-          </h2>
-
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Gráfico de Linhas */}
-            {lineChartData.length > 0 && (
-              <div className="w-full lg:w-3/5 h-72 lg:h-80 p-2 bg-white dark:bg-gray-700 rounded-xl shadow-inner">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineChartData}>
-                    <XAxis dataKey="date" stroke="#8884d8" />
-                    <YAxis stroke="#8884d8" />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="Entradas"
-                      stroke="rgba(75,192,192,0.7)"
-                      strokeWidth={3}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="Saidas"
-                      stroke="rgba(255,99,132,0.7)"
-                      strokeWidth={3}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Gráfico de Pizza */}
-            {pieChartData.length > 0 && (
-              <div className="w-full lg:w-2/5 h-72 lg:h-80 p-2 bg-white dark:bg-gray-700 rounded-xl shadow-inner">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieChartData.map((item) => ({
-                        ...item,
-                        name: `${item.name} (${(
-                          (item.value /
-                            pieChartData.reduce((a, b) => a + b.value, 0)) *
-                          100
-                        ).toFixed(1)}%)`,
-                      }))}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label
-                    >
-                      {pieChartData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={pieColors[index % pieColors.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [value, "Quantidade"]} />
-                    <Legend verticalAlign="bottom" height={36} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+      {/* gráficos */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border rounded-3xl p-6">
+          <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">Entradas x Saídas</h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={lineChartData}>
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="Entradas" stroke="#22c55e" />
+              <Line type="monotone" dataKey="Saidas" stroke="#ef4444" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-      </div>
+
+        <div className="bg-white dark:bg-slate-900 border rounded-3xl p-6">
+          <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">Resumo geral</h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={pieChartData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={90}
+                label
+              >
+                {pieChartData.map((_, i) => (
+                  <Cell key={i} fill={pieColors[i]} />
+                ))}
+              </Pie>
+              <Legend />
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+
+      <ModalMovimentacao
+        isOpen={modalAberto}
+        onClose={() => setModalAberto(false)}
+        movimentacao={movSelecionada}
+      />
     </div>
-  );
-};
+  )
+}
 
 export default Movimentacoes;

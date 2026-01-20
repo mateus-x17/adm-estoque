@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaBoxOpen } from "react-icons/fa";
+import { FaBoxOpen, FaSearch } from "react-icons/fa";
 import ModalProduto from "../components/ModalProduto.jsx";
 import ProdutoRow from "../components/ProdutoRow.jsx";
 import { useUserStore } from "../store/userStore.js";
@@ -14,29 +14,20 @@ const Produtos = () => {
   const [editandoProduto, setEditandoProduto] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
-  const [sortPrice, setSortPrice] = useState(null); // "asc" | "desc"
+  const [sortPrice, setSortPrice] = useState("");
 
-  // Carregar produtos
   const carregarProdutos = async () => {
     try {
       const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${token}`,
-        },
+        headers: { authorization: `Bearer ${token}` },
       });
-
       const data = await response.json();
-
       if (response.ok) {
         setProdutos(data);
         setTimeout(() => setLoaded(true), 50);
-      } else {
-        console.error("Erro ao carregar produtos:", data.message);
       }
     } catch (error) {
-      console.error("Erro ao carregar produtos:", error);
+      console.error(error);
     }
   };
 
@@ -44,33 +35,26 @@ const Produtos = () => {
     carregarProdutos();
   }, []);
 
-  // Atualizar produto na tabela
   const atualizarProduto = (produtoAtualizado) => {
     if (!produtoAtualizado) return;
-
     setProdutos((prev) =>
       prev.map((p) => (p.id === produtoAtualizado.id ? produtoAtualizado : p))
     );
-
-    // Atualiza também o produto selecionado se o modal estiver aberto
     setProdutoSelecionado((prev) =>
       prev?.id === produtoAtualizado.id ? produtoAtualizado : prev
     );
   };
 
-  // Abrir modal de informações
   const abrirModalProduto = (produto) => {
     setProdutoSelecionado({ ...produto, type: "produto" });
     setEditandoProduto(false);
   };
 
-  // Abrir modal de criação ou edição
   const abrirEditarProduto = (produto = null) => {
     setProdutoSelecionado(produto ? { ...produto, type: "produto" } : null);
     setEditandoProduto(true);
   };
 
-  // Filtro e ordenação
   const produtosFiltrados = produtos
     .filter((p) => p.nome.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
@@ -79,81 +63,92 @@ const Produtos = () => {
     });
 
   return (
-    <div className="flex flex-col h-full w-full p-6 overflow-hidden bg-gray-200 dark:bg-gray-900 transition-all duration-500">
-      <header className="mb-6 text-center animate-fadeInDown">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white break-words">
-          Gerenciamento de <span className="text-yellow-400">Produtos</span>
+    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <header className="flex flex-col gap-2">
+        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
+          Produtos
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-          Visualize, filtre e gerencie os produtos cadastrados.
+        <p className="text-slate-500 dark:text-slate-400">
+          Gerencie o catálogo, visualize informações e edite produtos.
         </p>
       </header>
 
-      {/* Filtro e pesquisa */}
-      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 px-4 mt-6 bg-gray-200 dark:bg-gray-800 p-4 rounded-lg transition-colors duration-500">
+      {/* Filtros */}
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl p-6 flex flex-col lg:flex-row gap-4 items-center justify-between shadow-sm">
         <button
-          className="w-full sm:w-[20%] px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-2xl transition-colors"
           onClick={() => abrirEditarProduto()}
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl font-semibold hover:bg-indigo-700 transition"
         >
-          <FaBoxOpen className="inline-block mr-2" />
-          Cadastrar 
+          <FaBoxOpen />
+          Novo Produto
         </button>
 
-        <input
-          type="text"
-          placeholder="Pesquisar produto"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-[40%] px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600"
-        />
+        <div className="relative w-full lg:w-1/3">
+          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Pesquisar por nome"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+        </div>
 
         <select
-          value={sortPrice || ""}
-          onChange={(e) => setSortPrice(e.target.value || null)}
-          className="w-full sm:w-[20%] px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-blue-600 truncate"
+          value={sortPrice}
+          onChange={(e) => setSortPrice(e.target.value)}
+          className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
         >
-          <option value="">Ordenar por preço</option>
-          <option value="asc">Menor → Maior</option>
-          <option value="desc">Maior → Menor</option>
+          <option value="" className="bg-white dark:bg-slate-800">Ordenar por preço</option>
+          <option value="asc" className="bg-white dark:bg-slate-800">Menor → Maior</option>
+          <option value="desc" className="bg-white dark:bg-slate-800">Maior → Menor</option>
         </select>
-      </div>
+      </section>
 
       {/* Tabela */}
       {loaded ? (
-        <div className="flex-1 overflow-auto overflow-x-auto overflow-y-auto bg-gray-300 dark:bg-gray-800 p-4 rounded-xl shadow-inner animate-fadeInUp transition-all duration-500 mt-6">
-          <table className="w-full min-w-[600px] bg-white dark:bg-gray-600 rounded-xl shadow-md">
-            <thead className="sticky top-0 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left">Imagem</th>
-                <th className="px-4 py-3 text-left">Nome</th>
-                <th className="px-4 py-3 text-left">Categoria</th>
-                <th className="px-4 py-3 text-center">Detalhes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {produtosFiltrados.map((produto, index) => (
-                <ProdutoRow
-                  key={produto.id}
-                  produto={produto}
-                  index={index}
-                  abrirModal={abrirModalProduto}
-                  abrirEditar={abrirEditarProduto} // caso queira editar direto da tabela
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-slate-100 dark:bg-slate-800/60 rounded-3xl shadow-inner overflow-hidden">
+          <div className="h-full overflow-y-auto overflow-x-hidden">
+            <table className="w-full bg-white dark:bg-slate-900 rounded-3xl md:table">
+              <thead className="hidden md:table-header-group sticky top-0 bg-slate-100 dark:bg-slate-800 z-10">
+                <tr>
+                  <th className="px-5 py-4 text-left text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    Produto
+                  </th>
+                  <th className="px-5 py-4 text-left text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    Nome
+                  </th>
+                  <th className="px-5 py-4 text-left text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    Categoria
+                  </th>
+                  <th className="px-5 py-4 text-center text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {produtosFiltrados.map((produto, index) => (
+                  <ProdutoRow
+                    key={produto.id}
+                    produto={produto}
+                    index={index}
+                    abrirModal={abrirModalProduto}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
-        // Loader aprimorado
-        <div className="flex-grow flex flex-col items-center justify-center mt-6 gap-4">
-          <div className="w-16 h-16 border-4 border-t-4 border-blue-500 dark:border-yellow-400 rounded-full animate-spin"></div>
-          <p className="text-gray-700 dark:text-gray-200 font-medium animate-pulse">
+        <div className="flex items-center justify-center gap-4 py-20">
+          <div className="w-12 h-12 border-4 border-t-indigo-600 rounded-full animate-spin" />
+          <span className="text-slate-600 dark:text-slate-300">
             Carregando produtos...
-          </p>
+          </span>
         </div>
       )}
 
-      {/* Modal de informações */}
       {produtoSelecionado && !editandoProduto && (
         <ModalProduto
           produtoSelecionado={produtoSelecionado}
@@ -162,11 +157,10 @@ const Produtos = () => {
         />
       )}
 
-      {/* Modal lateral de criação/edição */}
       {editandoProduto && (
         <EditarItem
           type={produtoSelecionado ? "produto" : "CriarProduto"}
-          itemData={produtoSelecionado || null}
+          itemData={produtoSelecionado}
           onClose={() => setEditandoProduto(false)}
           onItemUpdated={(produtoAtualizado) => {
             atualizarProduto(produtoAtualizado);

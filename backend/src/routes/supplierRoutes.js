@@ -6,10 +6,14 @@ import {
   listarFornecedores,
   atualizarFornecedor,
   deletarFornecedor,
-  countFornecedores
+  countFornecedores,
+  getSupplierStats
 } from "../controllers/supplierController.js";
 
 const router = express.Router();
+
+// 🔹 Estatísticas (Deve vir antes das rotas com :id)
+router.get("/stats", authMiddleware, getSupplierStats);
 
 // 🔹 Apenas ADMIN e GERENTE podem criar/editar/deletar fornecedores
 router.post("/", authMiddleware, permit("ADMIN", "GERENTE"), criarFornecedor);

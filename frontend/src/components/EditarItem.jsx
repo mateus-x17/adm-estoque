@@ -1,26 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { useThemeStore } from "../store/useThemeStore";
-import { useUserStore } from "../store/userStore";
-import ModalMensagem from "./ModalMensagem.jsx";
+import React, { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
+import { useThemeStore } from "../store/useThemeStore"
+import { useUserStore } from "../store/userStore"
+import ModalMensagem from "./ModalMensagem.jsx"
 
 const formConfigs = {
   usuario: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
-      {
-        name: "role",
-        label: "Função",
-        type: "select",
-        options: ["ADMIN", "GERENTE", "OPERADOR"],
-        required: true,
-      },
-      {
-        name: "imagem",
-        label: "Foto do Usuário",
-        type: "file",
-        required: false,
-      },
+      { name: "role", label: "Função", type: "select", options: ["ADMIN", "GERENTE", "OPERADOR"], required: true },
+      { name: "imagem", label: "Foto do Usuário", type: "file" },
     ],
     route: (id) => `http://localhost:5000/users/${id}`,
   },
@@ -29,19 +19,8 @@ const formConfigs = {
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
       { name: "senha", label: "Senha", type: "password", required: true },
-      {
-        name: "role",
-        label: "Função",
-        type: "select",
-        options: ["ADMIN", "GERENTE", "OPERADOR"],
-        required: true,
-      },
-      {
-        name: "imagem",
-        label: "Foto do Usuário",
-        type: "file",
-        required: false,
-      },
+      { name: "role", label: "Função", type: "select", options: ["ADMIN", "GERENTE", "OPERADOR"], required: true },
+      { name: "imagem", label: "Foto do Usuário", type: "file" },
     ],
     route: "http://localhost:5000/users",
   },
@@ -49,218 +28,204 @@ const formConfigs = {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "preco", label: "Preço", type: "number", required: true },
-      {
-        name: "quantidade",
-        label: "Quantidade",
-        type: "number",
-        required: true,
-      },
-      {
-        name: "descricao",
-        label: "Descrição",
-        type: "textarea",
-        required: false,
-      },
-      {
-        name: "categoriaId",
-        label: "Categoria",
-        type: "select",
-        endpoint: "/categories",
-        keyName: "categoria",
-        required: false,
-      },
-      {
-        name: "fornecedorId",
-        label: "Fornecedor",
-        type: "select",
-        endpoint: "/suppliers",
-        keyName: "fornecedores",
-        required: false,
-      },
-      {
-        name: "imagem",
-        label: "Imagem do Produto",
-        type: "file",
-        required: false,
-      },
+      { name: "quantidade", label: "Quantidade", type: "number", required: true },
+      { name: "descricao", label: "Descrição", type: "textarea" },
+      { name: "categoriaId", label: "Categoria", type: "select", endpoint: "/categories", keyName: "categoria" },
+      { name: "fornecedorId", label: "Fornecedor", type: "select", endpoint: "/suppliers", keyName: "fornecedores" },
+      { name: "imagem", label: "Imagem do Produto", type: "file" },
     ],
     route: (id) => `http://localhost:5000/products/${id}`,
   },
-   CriarProduto: {
+  CriarProduto: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "preco", label: "Preço", type: "number", required: true },
       { name: "quantidade", label: "Quantidade", type: "number", required: true },
-      { name: "descricao", label: "Descrição", type: "textarea", required: false },
-      {
-        name: "categoriaId",
-        label: "Categoria",
-        type: "select",
-        endpoint: "/categories",
-        keyName: "categoria",
-        required: false,
-      },
-      {
-        name: "fornecedorId",
-        label: "Fornecedor",
-        type: "select",
-        endpoint: "/suppliers",
-        keyName: "fornecedores",
-        required: false,
-      },
-      { name: "imagem", label: "Imagem do Produto", type: "file", required: false },
+      { name: "descricao", label: "Descrição", type: "textarea" },
+      { name: "categoriaId", label: "Categoria", type: "select", endpoint: "/categories", keyName: "categoria" },
+      { name: "fornecedorId", label: "Fornecedor", type: "select", endpoint: "/suppliers", keyName: "fornecedores" },
+      { name: "imagem", label: "Imagem do Produto", type: "file" },
     ],
     route: "http://localhost:5000/products",
+  },
+  fornecedor: {
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "contato", label: "Contato", type: "text", required: true },
+      { name: "endereco", label: "Endereço", type: "text", required: true },
+    ],
+    route: (id) => `http://localhost:5000/suppliers/${id}`,
+  },
+  CriarFornecedor: {
+    fields: [
+      { name: "nome", label: "Nome", type: "text", required: true },
+      { name: "contato", label: "Contato", type: "text", required: true },
+      { name: "endereco", label: "Endereço", type: "text", required: true },
+    ],
+    route: "http://localhost:5000/suppliers",
+  },
+  CriarPedido: {
+    fields: [
+      { name: "produtoId", label: "Produto", type: "select", endpoint: "/products", keyName: "produto", required: true },
+      { name: "quantidade", label: "Quantidade", type: "number", required: true },
+      { name: "tipo", label: "Tipo", type: "select", options: ["SAIDA", "ENTRADA"], required: true },
+      { name: "observacao", label: "Observação", type: "textarea" },
+    ],
+    // Special route handling for this one
+    dynamicRoute: (formData) => `http://localhost:5000/products/${formData.produtoId}/adjust`,
   }
-};
+}
 
 function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
-  const { darkMode } = useThemeStore();
-  const { token } = useUserStore();
-  const config = formConfigs[type];
-
-  const isCreating = type.startsWith("Criar");
+  const { darkMode } = useThemeStore()
+  const { token } = useUserStore()
+  const config = formConfigs[type]
+  const isCreating = type.startsWith("Criar")
 
   const [form, setForm] = useState(
     config.fields.reduce((acc, field) => {
-      acc[field.name] = itemData?.[field.name] || "";
-      return acc;
+      acc[field.name] = itemData?.[field.name] || ""
+      return acc
     }, {})
-  );
-  const [file, setFile] = useState(null);
-  const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
-  const [closing, setClosing] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [selectOptions, setSelectOptions] = useState({});
+  )
 
-  // Carregar opções de selects
+  const [file, setFile] = useState(null)
+  const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" })
+  const [open, setOpen] = useState(false)
+  const [closing, setClosing] = useState(false)
+  const [selectOptions, setSelectOptions] = useState({})
+
   useEffect(() => {
     config.fields.forEach(async (field) => {
-      if (field.type === "select") {
-        if (field.endpoint) {
-          try {
-            const res = await fetch(`http://localhost:5000${field.endpoint}`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            const list = Array.isArray(data) ? data : data[field.keyName] || [];
-            if (Array.isArray(list)) {
-              setSelectOptions((prev) => ({ ...prev, [field.name]: list }));
-            }
-          } catch (err) {
-            console.error(`Erro ao carregar ${field.name}:`, err);
-          }
-        } else if (field.options) {
-          const list = field.options.map((opt) => ({ id: opt, nome: opt }));
-          setSelectOptions((prev) => ({ ...prev, [field.name]: list }));
-        }
+      if (field.type !== "select") return
+
+      if (field.endpoint) {
+        const res = await fetch(`http://localhost:5000${field.endpoint}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const list = Array.isArray(data) ? data : data[field.keyName] || []
+        setSelectOptions((prev) => ({ ...prev, [field.name]: list }))
+      } else if (field.options) {
+        setSelectOptions((prev) => ({
+          ...prev,
+          [field.name]: field.options.map((opt) => ({ id: opt, nome: opt })),
+        }))
       }
-    });
-  }, [token]);
+    })
+  }, [token])
 
   useEffect(() => {
-    const openTimer = setTimeout(() => setOpen(true), 10);
-    return () => clearTimeout(openTimer);
-  }, []);
+    setTimeout(() => setOpen(true), 10)
+  }, [])
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
   const handleClose = () => {
-    setOpen(false);
-    setClosing(true);
-  };
-  const handleTransitionEnd = () => {
-    if (closing) onClose();
-  };
+    setOpen(false)
+    setClosing(true)
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    let timer;
+    e.preventDefault()
 
     try {
-      const formData = new FormData();
-      Object.keys(form).forEach((key) => formData.append(key, form[key]));
-      if (file) formData.append("imagem", file);
+      const formData = new FormData()
+      Object.entries(form).forEach(([key, value]) => formData.append(key, value))
+      if (file) formData.append("imagem", file)
 
-      const method = isCreating ? "POST" : "PUT";
-      const url = isCreating ? config.route : config.route(itemData.id);
+      const method = isCreating ? "POST" : "PUT"
+      let url = isCreating ? config.route : config.route(itemData.id)
 
-      const response = await fetch(url, {
-        method,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        setModal({ visible: true, mensagem: errorData?.error || "Erro ao atualizar", tipo: "erro" });
-        timer = setTimeout(() => setModal({ visible: false }), 2500);
-        return;
+      if (config.dynamicRoute) {
+        url = config.dynamicRoute(form)
       }
 
-      let updatedItem;
-      if (isCreating) {
-        updatedItem = await response.json();
+      // Special body handling for adjust-quantity which expects JSON, not FormData usually, 
+      // but the original code used FormData for everything. 
+      // The original Pedidos.jsx used JSON. Let's send JSON if it's adjust-quantity or if no file is present? 
+      // Actually, existing backend likely handles FormData for products/users (w/ images). 
+      // adjust-quantity might expect JSON. Let's check Pedidos.jsx again in thought. 
+      // Pedidos.jsx uses JSON.stringify.
+      // Let's force JSON for CriarPedido or if no file.
+
+      let body
+      let headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+      if (type === 'CriarPedido') {
+        headers["Content-Type"] = "application/json"
+
+        const payload = { ...form }
+        if (payload.quantidade) payload.quantidade = Number(payload.quantidade)
+
+        body = JSON.stringify(payload)
       } else {
-        const itemResponse = await fetch(config.route(itemData.id), {
-          method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        updatedItem = await itemResponse.json();
+        body = formData
       }
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body,
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setModal({ visible: true, mensagem: err.error || "Erro ao salvar", tipo: "erro" })
+        return
+      }
+
+      const updatedItem = isCreating
+        ? await res.json()
+        : await fetch(config.route(itemData.id), {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }).then((r) => r.json())
 
       setModal({
         visible: true,
-        mensagem: `${type.replace(/^Criar/, "")} ${isCreating ? "criado" : "atualizado"} com sucesso!`,
+        mensagem: `${type.replace("Criar", "")} ${isCreating ? "criado" : "atualizado"} com sucesso`,
         tipo: "sucesso",
-      });
+      })
 
-      timer = setTimeout(() => {
-        setModal({ visible: false });
-        handleClose();
-        if (onItemUpdated) onItemUpdated(updatedItem);
-      }, 2500);
-    } catch (err) {
-      setModal({ visible: true, mensagem: "Erro de conexão com o servidor", tipo: "erro" });
-      console.error("Erro ao atualizar item:", err);
-      timer = setTimeout(() => setModal({ visible: false }), 2500);
+      setTimeout(() => {
+        setModal({ visible: false })
+        handleClose()
+        onItemUpdated && onItemUpdated(updatedItem)
+      }, 2000)
+    } catch {
+      setModal({ visible: true, mensagem: "Erro de conexão", tipo: "erro" })
     }
+  }
 
-    return () => clearTimeout(timer);
-  };
-
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 z-[9999] flex justify-end items-start transition-opacity duration-300 ${
-        closing ? "opacity-0" : "opacity-100"
-      } bg-black bg-opacity-50`}
+      className={`fixed inset-0 z-50 bg-black/60 transition-opacity ${closing ? "opacity-0" : "opacity-100"}`}
       onClick={handleClose}
-      onTransitionEnd={handleTransitionEnd}
+      onTransitionEnd={() => closing && onClose()}
     >
       <div
-        className={`w-[70%] max-w-md h-full p-6 shadow-lg border-l rounded-tl-2xl rounded-bl-2xl transform transition-transform duration-300 ${
-          open ? "translate-x-0" : "translate-x-full"
-        } ${darkMode ? "bg-gray-900 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200"} flex flex-col`}
+        className={`absolute right-0 top-0 h-screen w-full max-w-md transform transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"
+          } bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col rounded-l-3xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold mb-4 flex-shrink-0">
-          {isCreating ? `Criar ${type.replace("Criar", "")}` : `Editar ${type}`}
-        </h2>
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {isCreating ? `Criar ${type.replace("Criar", "")}` : `Editar ${type}`}
+          </h2>
+        </div>
 
-        <form className="space-y-4 flex-1 overflow-auto pr-2" onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6 space-y-4">
           {config.fields.map((field) => (
             <div key={field.name}>
-              <label className="block mb-1">{field.label}</label>
+              <label className="block text-sm mb-1 text-gray-600 dark:text-gray-400">
+                {field.label}
+              </label>
+
               {field.type === "select" ? (
                 <select
                   name={field.name}
                   value={form[field.name]}
-                  onChange={handleChange}
-                  required={field.required}
-                  className={`w-full px-3 py-2 rounded-md border ${
-                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
-                  }`}
+                  onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                 >
                   <option value="">Selecione</option>
                   {selectOptions[field.name]?.map((opt) => (
@@ -269,58 +234,49 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                     </option>
                   ))}
                 </select>
-              ) : field.type === "file" ? (
-                <input
-                  type="file"
-                  name={field.name}
-                  accept="image/*"
-                  onChange={(e) => setFile(e.target.files[0])}
-                  className={`w-full px-3 py-2 rounded-md border ${
-                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
-                  }`}
-                />
               ) : field.type === "textarea" ? (
                 <textarea
                   name={field.name}
-                  value={form[field.name]}
-                  onChange={handleChange}
-                  required={field.required}
                   rows={3}
-                  className={`w-full px-3 py-2 rounded-md border resize-none ${
-                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
-                  }`}
+                  value={form[field.name]}
+                  onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm resize-none text-gray-900 dark:text-gray-100"
+                />
+              ) : field.type === "file" ? (
+                <input
+                  type="file"
+                  onChange={(e) => setFile(e.target.files[0])}
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                 />
               ) : (
                 <input
                   type={field.type}
                   name={field.name}
                   value={form[field.name]}
-                  onChange={handleChange}
-                  required={field.required}
-                  className={`w-full px-3 py-2 rounded-md border ${
-                    darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-100 border-gray-200 text-gray-800"
-                  }`}
+                  onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
+                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                 />
               )}
             </div>
           ))}
-
-          <div className="flex justify-between mt-6 flex-shrink-0">
-            <button
-              type="button"
-              onClick={handleClose}
-              className={`px-4 py-2 rounded ${darkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-300 hover:bg-gray-200"}`}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={`px-4 py-2 rounded ${darkMode ? "bg-blue-600 hover:bg-blue-500 text-white" : "bg-blue-500 hover:bg-blue-400 text-white"}`}
-            >
-              Salvar
-            </button>
-          </div>
         </form>
+
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="px-4 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-700"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Salvar
+          </button>
+        </div>
 
         {modal.visible && (
           <ModalMensagem
@@ -330,8 +286,9 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
           />
         )}
       </div>
-    </div>
-  );
+    </div>,
+    document.body
+  )
 }
 
-export default EditarItem;
+export default EditarItem

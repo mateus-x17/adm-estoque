@@ -63,3 +63,66 @@ export async function deletarFornecedor(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
+// 🔹 Estatísticas do fornecedor
+export async function getSupplierStats(req, res) {
+  try {
+    // Buscar fornecedores com seus produtos e movimentos
+    const suppliers = await prisma.fornecedor.findMany({
+      include: {
+        produtos: {
+          include: {
+            movimentos: true,
+          },
+        },
+      },
+    });
+
+    // Processar dados
+    const stats = suppliers.map((sup) => {
+      let totalEntradas = 0;
+      let totalSaidas = 0;
+      const productMovements = {};
+
+      sup.produtos.forEach((prod) => {
+        prod.movimentos.forEach((mov) => {
+          if (mov.tipo === "ENTRADA") {
+            totalEntradas += mov.quantidade;
+          } else {
+            totalSaidas += mov.quantidade;
+          }
+
+          // Contar movimentos por produto
+          if (!productMovements[prod.nome]) {
+            productMovements[prod.nome] = 0;
+          }
+          productMovements[prod.nome] += mov.quantidade;
+        });
+      });
+
+      // Encontrar produto mais movimentado
+      let topProduct = null;
+      let maxMov = 0;
+      for (const [prodName, qtd] of Object.entries(productMovements)) {
+        if (qtd > maxMov) {
+          maxMov = qtd;
+          topProduct = prodName;
+        }
+      }
+
+      return {
+        id: sup.id,
+        nome: sup.nome,
+        totalEntradas,
+        totalSaidas,
+        totalMovimentacoes: totalEntradas + totalSaidas,
+        produtoMaisMovimentado: topProduct || "Nenhum",
+      };
+    });
+
+    res.json(stats);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}

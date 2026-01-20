@@ -11,7 +11,7 @@ import {
   HiShoppingCart,
   HiTag,
 } from "react-icons/hi";
-import { FaUser } from "react-icons/fa";
+import { FaUser, FaTruck } from "react-icons/fa";
 import { FaGear } from "react-icons/fa6";
 import { FiLogOut } from "react-icons/fi";
 import { FaMoon, FaSun } from "react-icons/fa";
@@ -39,6 +39,11 @@ const links = [
     name: "Categorias",
     path: "/dashboard/categorias",
     icon: <HiTag size={20} />,
+  },
+  {
+    name: "Fornecedores",
+    path: "/dashboard/fornecedores",
+    icon: <FaTruck size={20} />,
   },
 ];
 
@@ -123,7 +128,7 @@ const Sidebar = ({ closeSidebar }) => {
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
   }, [darkMode]);
-  
+
   const { clearUser, user } = useUserStore();
 
   // Função de logout (simples - por hora)
@@ -148,8 +153,7 @@ const Sidebar = ({ closeSidebar }) => {
               to={link.path}
               end
               className={({ isActive }) =>
-                `flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 ${
-                  isActive ? "bg-gray-300 dark:bg-gray-700 font-semibold" : ""
+                `flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 ${isActive ? "bg-gray-300 dark:bg-gray-700 font-semibold" : ""
                 }`
               }
               onClick={() => closeSidebar()}
@@ -172,7 +176,7 @@ const Sidebar = ({ closeSidebar }) => {
               className="w-10 h-10 rounded-full object-cover"
             />
           ) : (
-          <FaUser size={20} className="text-green-500 dark:text-blue-500" />
+            <FaUser size={20} className="text-green-500 dark:text-blue-500" />
           )}
           {/* user infos */}
           <div>

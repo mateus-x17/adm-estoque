@@ -13,37 +13,37 @@ const LoginForm = () => {
   const [erro, setErro] = useState(""); // mensagem de erro
   const [loading, setLoading] = useState(false);
 
-const submitForm = async (e) => {
-  e.preventDefault();
-  setErro("");
-  setLoading(true);
+  const submitForm = async (e) => {
+    e.preventDefault();
+    setErro("");
+    setLoading(true);
 
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, senha }),
-    });
-    const data = await response.json();
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, senha }),
+      });
+      const data = await response.json();
 
-    if (!response.ok) {
-      const mensagemErro = data?.error || "Erro no servidor";
-      setErro(mensagemErro);
-      return;
+      if (!response.ok) {
+        const mensagemErro = data?.error || "Erro no servidor";
+        setErro(mensagemErro);
+        return;
+      }
+
+      // login OK
+      setUser(data.user, data.token);
+      console.log("Login bem-sucedido:", data);
+      alert("Login bem-sucedido!");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Erro ao fazer login:", error);
+      setErro("Não foi possível conectar ao servidor.");
+    } finally {
+      setLoading(false);
     }
-
-    // login OK
-    setUser(data.user, data.token);
-    console.log("Login bem-sucedido:", data);
-    alert("Login bem-sucedido!");
-    navigate("/dashboard");
-  } catch (error) {
-    console.error("Erro ao fazer login:", error);
-    setErro("Não foi possível conectar ao servidor.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
   return (
@@ -58,7 +58,7 @@ const submitForm = async (e) => {
           value={email}
           required
           onChange={(e) => setEmail(e.target.value)}
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-blue-500 outline-none"
+          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
         />
         <input
           type="password"
@@ -66,7 +66,7 @@ const submitForm = async (e) => {
           value={senha}
           required
           onChange={(e) => setSenha(e.target.value)}
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-blue-500 outline-none"
+          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
         />
         <button
           type="submit"

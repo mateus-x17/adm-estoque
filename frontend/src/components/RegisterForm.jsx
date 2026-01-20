@@ -75,7 +75,7 @@ const RegisterForm = () => {
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none"
+          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
         />
         <input
           type="email"
@@ -83,7 +83,7 @@ const RegisterForm = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none"
+          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
         />
         <input
           type="email"
@@ -91,7 +91,7 @@ const RegisterForm = () => {
           value={confirmEmail}
           onChange={(e) => setConfirmEmail(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none"
+          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
         />
         <input
           type="password"
@@ -99,7 +99,7 @@ const RegisterForm = () => {
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none"
+          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
         />
         <button
           type="submit"

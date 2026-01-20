@@ -12,9 +12,9 @@ const Header = () => {
 
   useEffect(() => {
     if (darkMode) {
-      document.body.classList.add("dark");
+      document.documentElement.classList.add("dark");
     } else {
-      document.body.classList.remove("dark");
+      document.documentElement.classList.remove("dark");
     }
   }, [darkMode]);
 

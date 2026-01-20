@@ -26,12 +26,12 @@ const Layout = () => {
   return (
     <div className="h-screen flex md:flex-row flex-col overflow-hidden">
       <aside className="hidden md:flex h-full">
-        <Sidebar closeSidebar={() => {}} />
+        <Sidebar closeSidebar={() => { }} />
       </aside>
 
       <div className="flex flex-col flex-1 h-full">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-gray-200">
+        <main className="flex-1 overflow-y-auto bg-gray-200 dark:bg-gray-900 transition-colors duration-200">
           <Outlet />
         </main>
       </div>
