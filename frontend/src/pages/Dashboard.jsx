@@ -28,6 +28,8 @@ const Dashboard = () => {
   const urlFornecedores = "http://localhost:5000/suppliers/count";
   const urlCategories = "http://localhost:5000/categories/count";
   const urlUserStats = "http://localhost:5000/movements/user-stats";
+  const urlMovements = "http://localhost:5000/movements";
+
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalProdutos: 0, lowStock: 0, totalValue: 0, lowStockList: [] });
