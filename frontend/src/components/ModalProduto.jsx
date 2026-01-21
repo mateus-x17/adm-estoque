@@ -1,8 +1,13 @@
 import React, { useState } from "react";
 import EditarItem from "./EditarItem.jsx";
 
+import ModalMensagem from "./ModalMensagem.jsx";
+
+
 function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
   const [editando, setEditando] = useState(false);
+  const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
+
 
   return (
     <div
@@ -79,13 +84,19 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
           </button>
 
           <button
-            onClick={() =>
-              alert(`Excluir produto: ${produtoSelecionado.nome}`)
-            }
+            onClick={() => {
+              // Em um sistema real, aqui chamaria o productsApi.deleteProduct(id)
+              setModalMsg({
+                visible: true,
+                mensagem: `Funcionalidade de excluir ${produtoSelecionado.nome} (Simulada)`,
+                tipo: "sucesso"
+              });
+            }}
             className="w-full sm:w-auto px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition"
           >
             Excluir
           </button>
+
         </footer>
       </div>
 
@@ -100,7 +111,20 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
           }}
         />
       )}
+
+
+      {modalMsg.visible && (
+        <ModalMensagem
+          mensagem={modalMsg.mensagem}
+          tipo={modalMsg.tipo}
+          onClose={() => {
+            setModalMsg({ visible: false });
+            if (modalMsg.tipo === "sucesso") fecharModal();
+          }}
+        />
+      )}
     </div>
+
   );
 }
 

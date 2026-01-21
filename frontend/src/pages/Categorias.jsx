@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { FiPlus, FiEdit, FiTrash, FiX } from "react-icons/fi";
 import { categoriesApi } from "../services/api";
+import ModalMensagem from "../components/ModalMensagem.jsx";
+
+
 
 const Categorias = () => {
     const [categorias, setCategorias] = useState([]);
@@ -8,6 +11,8 @@ const Categorias = () => {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [nome, setNome] = useState("");
+    const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
+
 
     const fetchCategorias = async () => {
         try {
@@ -40,12 +45,14 @@ const Categorias = () => {
             setModalOpen(false);
             setNome("");
             setEditingId(null);
+            setModalMsg({ visible: true, mensagem: `Categoria ${editingId ? "atualizada" : "criada"} com sucesso!`, tipo: "sucesso" });
             fetchCategorias();
         } catch (err) {
             console.error(err);
-            alert("Erro ao salvar categoria");
+            setModalMsg({ visible: true, mensagem: "Erro ao salvar categoria", tipo: "erro" });
         }
     };
+
 
     const handleEdit = (cat) => {
         setEditingId(cat.id);
@@ -58,12 +65,14 @@ const Categorias = () => {
 
         try {
             await categoriesApi.deleteCategory(id);
+            setModalMsg({ visible: true, mensagem: "Categoria excluída com sucesso!", tipo: "sucesso" });
             fetchCategorias();
         } catch (err) {
             console.error(err);
-            alert("Erro ao excluir categoria");
+            setModalMsg({ visible: true, mensagem: "Erro ao excluir categoria", tipo: "erro" });
         }
     };
+
 
     const openModal = () => {
         setEditingId(null);
@@ -199,7 +208,16 @@ const Categorias = () => {
                     </div>
                 </div>
             )}
+
+            {modalMsg.visible && (
+                <ModalMensagem
+                    mensagem={modalMsg.mensagem}
+                    tipo={modalMsg.tipo}
+                    onClose={() => setModalMsg({ visible: false })}
+                />
+            )}
         </div>
+
     );
 };
 

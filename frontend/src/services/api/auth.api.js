@@ -8,11 +8,13 @@ export const authApi = {
      * Login user
      * @param {Object} credentials - { email, password }
      */
-    login: (credentials) => apiClient.post("/auth/login", credentials),
+    login: (credentials) =>
+        apiClient.post("/auth/login", credentials, { skipAuth: true }),
 
     /**
      * Register new user
      * @param {Object} userData - { nome, email, password, cargo }
      */
-    register: (userData) => apiClient.post("/auth/register", userData),
+    register: (userData) =>
+        apiClient.post("/auth/register", userData, { skipAuth: true }),
 };

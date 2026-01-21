@@ -120,7 +120,7 @@ const Usuarios = () => {
         {usuariosFiltrados.map(user => (
           <div
             key={user.id}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm hover:shadow-xl transition"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm hover:shadow-xl transition animate-fadeInUp"
           >
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 rounded-2xl overflow-hidden bg-indigo-500 text-white flex items-center justify-center font-bold">
@@ -149,6 +149,7 @@ const Usuarios = () => {
             </span>
 
             <div className="mt-4 text-xs text-slate-500 space-y-1">
+              <p>Id: #{user.id}</p>
               <p>Criado em {new Date(user.createdAt).toLocaleDateString()}</p>
               <p>Atualizado em {new Date(user.updatedAt).toLocaleDateString()}</p>
             </div>
@@ -160,9 +161,19 @@ const Usuarios = () => {
               >
                 Editar
               </button>
-              <button className="flex-1 py-2 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition">
+              <button
+                onClick={() => {
+                  setModal({
+                    visible: true,
+                    mensagem: `Exclusão de ${user.nome} (Simulada pelo sistema)`,
+                    tipo: "sucesso"
+                  });
+                }}
+                className="flex-1 py-2 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition"
+              >
                 Excluir
               </button>
+
             </div>
           </div>
         ))}

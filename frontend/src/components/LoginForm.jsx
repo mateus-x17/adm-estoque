@@ -22,9 +22,9 @@ const LoginForm = () => {
 
       // login OK
       setUser(data.user, data.token);
-      console.log("Login bem-sucedido:", data);
-      alert("Login bem-sucedido!");
+      console.log("Login bem-sucedido. Usuário:", data.user.email);
       navigate("/dashboard");
+
     } catch (error) {
       console.error("Erro ao fazer login:", error);
       setErro(error.message || "Não foi possível conectar ao servidor.");

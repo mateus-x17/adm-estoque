@@ -12,7 +12,9 @@ const RegisterForm = () => {
   const [confirmEmail, setConfirmEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState(""); // mensagem de erro
+  const [sucesso, setSucesso] = useState(""); // mensagem de sucesso
   const [loading, setLoading] = useState(false); // estado de carregamento
+
 
   const submitForm = async (e) => {
     e.preventDefault();
@@ -31,15 +33,20 @@ const RegisterForm = () => {
       const data = await authApi.register(dados);
 
       // registro bem-sucedido
-      alert(data.message || "Usuário cadastrado com sucesso, faça login.");
+      setSucesso(data.message || "Usuário cadastrado com sucesso! Redirecionando...");
+
       // limpar formulário
       setNome("");
       setEmail("");
       setConfirmEmail("");
       setSenha("");
-      // redirecionar para login
-      navigate("/auth");
+
+      // redirecionar para login após um tempo curto para o usuário ver a mensagem
+      setTimeout(() => {
+        navigate("/auth");
+      }, 2000);
     } catch (error) {
+
       console.error("Erro ao registrar usuário:", error);
       setErro(error.message || "Não foi possível conectar ao servidor.");
       // limpar formulário
@@ -104,7 +111,14 @@ const RegisterForm = () => {
           {erro}
         </div>
       )}
+
+      {sucesso && (
+        <div className="mt-4 p-3 bg-green-100 text-green-700 border border-green-400 rounded-md">
+          {sucesso}
+        </div>
+      )}
     </>
+
   );
 };
 

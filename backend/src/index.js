@@ -8,6 +8,8 @@ import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import movementRoutes from "./routes/movementRoutes.js";
+import { requestLogger } from "./middlewares/requestLogger.js";
+
 
 // configs
 dotenv.config();
@@ -16,7 +18,9 @@ const PORT = process.env.PORT || 5000;
 // middlewares
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
 app.use("/uploads", express.static("uploads")); // servir imagens gravadas em /uploads
+
 
 
 // Teste de conexão
