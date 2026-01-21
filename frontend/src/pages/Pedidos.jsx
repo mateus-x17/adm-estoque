@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useUserStore } from "../store/userStore";
 import { FiShoppingCart, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { FaUser, FaSearch, FaFilter, FaCalendarAlt } from "react-icons/fa";
 import PedidoRow from "../components/PedidoRow";
 import EditarItem from "../components/EditarItem";
+import { movementsApi } from "../services/api";
 
 const Pedidos = () => {
-    const { token } = useUserStore();
     const [pedidos, setPedidos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
@@ -23,18 +22,15 @@ const Pedidos = () => {
 
     useEffect(() => {
         fetchPedidos();
-    }, [token]);
+    }, []);
 
     const fetchPedidos = async () => {
         try {
-            const res = await fetch("http://localhost:5000/movements?order=desc", {
-                headers: { authorization: `Bearer ${token}` },
-            });
-            const data = await res.json();
+            const data = await movementsApi.getMovements({ order: 'desc' });
             setPedidos(data);
-            setLoading(false);
         } catch (error) {
             console.error(error);
+        } finally {
             setLoading(false);
         }
     };

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { FaUser, FaSearch } from "react-icons/fa";
-import { useUserStore } from "../store/userStore";
 import { useThemeStore } from "../store/useThemeStore.js";
 import ModalMensagem from "../components/ModalMensagem.jsx";
 import EditarItem from "../components/EditarItem.jsx";
 import { useNavigate } from "react-router-dom";
+import { usersApi } from "../services/api";
 
 const getRoleColor = (role) => {
   switch (role) {
@@ -23,9 +23,7 @@ const getInitials = (name) =>
   name.split(" ").map(n => n[0]).join("").toUpperCase();
 
 const Usuarios = () => {
-  const url = "http://localhost:5000/users";
   const navigate = useNavigate();
-  const { token } = useUserStore();
   const { darkMode } = useThemeStore();
 
   const [usuarios, setUsuarios] = useState([]);
@@ -45,31 +43,16 @@ const Usuarios = () => {
 
   const carregarUsuarios = async () => {
     try {
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setUsuarios(data);
-      } else {
-        setModal({
-          visible: true,
-          mensagem: `${data.error} você será redirecionado para home`,
-          tipo: "erro",
-        });
-        setTimeout(() => navigate("/dashboard"), 5000);
-      }
-    } catch {
+      const data = await usersApi.getUsers();
+      setUsuarios(data);
+    } catch (error) {
+      const errorMsg = error.message || "Erro de conexão com o servidor";
       setModal({
         visible: true,
-        mensagem: "Erro de conexão com o servidor",
+        mensagem: `${errorMsg}. Você será redirecionado para home`,
         tipo: "erro",
       });
+      setTimeout(() => navigate("/dashboard"), 5000);
     }
   };
 

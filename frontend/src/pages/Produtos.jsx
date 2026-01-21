@@ -2,13 +2,10 @@ import React, { useState, useEffect } from "react";
 import { FaBoxOpen, FaSearch } from "react-icons/fa";
 import ModalProduto from "../components/ModalProduto.jsx";
 import ProdutoRow from "../components/ProdutoRow.jsx";
-import { useUserStore } from "../store/userStore.js";
 import EditarItem from "../components/EditarItem.jsx";
+import { productsApi } from "../services/api";
 
 const Produtos = () => {
-  const url = "http://localhost:5000/products";
-  const { token } = useUserStore();
-
   const [produtos, setProdutos] = useState([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
   const [editandoProduto, setEditandoProduto] = useState(false);
@@ -19,14 +16,9 @@ const Produtos = () => {
 
   const carregarProdutos = async () => {
     try {
-      const response = await fetch(url, {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setProdutos(data);
-        setTimeout(() => setLoaded(true), 50);
-      }
+      const data = await productsApi.getProducts();
+      setProdutos(data);
+      setTimeout(() => setLoaded(true), 50);
     } catch (error) {
       console.error(error);
     }

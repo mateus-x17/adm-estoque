@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useUserStore } from "../store/userStore";
 import { FiPlus } from "react-icons/fi";
 import {
     BarChart,
@@ -12,11 +11,9 @@ import {
 } from "recharts";
 import FornecedorRow from "../components/FornecedorRow";
 import EditarItem from "../components/EditarItem";
+import { suppliersApi } from "../services/api";
 
 const Fornecedores = () => {
-    const url = "http://localhost:5000/suppliers";
-    const { token } = useUserStore();
-
     const [fornecedores, setFornecedores] = useState([]);
     const [stats, setStats] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -31,23 +28,20 @@ const Fornecedores = () => {
 
     useEffect(() => {
         fetchData();
-    }, [token]);
+    }, []);
 
     const fetchData = async () => {
         try {
-            const [resSup, resStats] = await Promise.all([
-                fetch(url, { headers: { authorization: `Bearer ${token}` } }),
-                fetch(`${url}/stats`, { headers: { authorization: `Bearer ${token}` } })
+            const [dataSup, dataStats] = await Promise.all([
+                suppliersApi.getSuppliers(),
+                suppliersApi.getSupplierStats()
             ]);
-
-            const dataSup = await resSup.json();
-            const dataStats = await resStats.json();
 
             setFornecedores(dataSup.fornecedores || []);
             setStats(dataStats);
-            setLoading(false);
         } catch (error) {
             console.error(error);
+        } finally {
             setLoading(false);
         }
     };
@@ -55,10 +49,7 @@ const Fornecedores = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Excluir fornecedor?")) return;
         try {
-            await fetch(`${url}/${id}`, {
-                method: "DELETE",
-                headers: { authorization: `Bearer ${token}` },
-            });
+            await suppliersApi.deleteSupplier(id);
             fetchData();
         } catch (err) {
             console.error(err);

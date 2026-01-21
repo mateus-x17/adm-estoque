@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../store/userStore";
+import { authApi } from "../services/api";
 
 const RegisterForm = () => {
-  const url = "http://localhost:5000/auth/register";
   const { setUser } = useUserStore();
   const navigate = useNavigate();
 
@@ -28,23 +28,7 @@ const RegisterForm = () => {
     const dados = { nome, email, senha };
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dados),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        const mensagemErro = data?.error || "Erro no servidor";
-        setErro(mensagemErro);
-        // limpar fomrmulário
-        setNome("");
-        setEmail("");
-        setConfirmEmail("");
-        setSenha("");
-        return;
-      }
+      const data = await authApi.register(dados);
 
       // registro bem-sucedido
       alert(data.message || "Usuário cadastrado com sucesso, faça login.");
@@ -57,7 +41,12 @@ const RegisterForm = () => {
       navigate("/auth");
     } catch (error) {
       console.error("Erro ao registrar usuário:", error);
-      setErro("Não foi possível conectar ao servidor.");
+      setErro(error.message || "Não foi possível conectar ao servidor.");
+      // limpar formulário
+      setNome("");
+      setEmail("");
+      setConfirmEmail("");
+      setSenha("");
     } finally {
       setLoading(false);
     }

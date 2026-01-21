@@ -1,4 +1,4 @@
-const MovimentacaoRow = ({ movimentacao, abrirModal }) => {
+const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
     const dataCompacta = new Date(movimentacao.data).toLocaleDateString("pt-BR")
 
     const isEntrada = movimentacao.tipo === "ENTRADA"
@@ -6,7 +6,9 @@ const MovimentacaoRow = ({ movimentacao, abrirModal }) => {
     return (
         <>
             {/* DESKTOP */}
-            <tr className="hidden md:table-row border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
+            <tr
+                style={{ animationDelay: `${index * 0.05}s` }}
+                className="hidden md:table-row border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 transition animate-fadeIn">
                 <td className="px-4 py-3">{movimentacao.produto.nome}</td>
                 <td className="px-4 py-3 text-center">
                     <span

@@ -1,27 +1,20 @@
 import React, { useState, useEffect } from "react";
 import ModalProduto from "../components/ModalProduto.jsx";
 import ProdutoRow from "../components/ProdutoRow.jsx";
-import { useUserStore } from "../store/userStore.js";
+import { productsApi } from "../services/api";
 
 const Produtos = () => {
-  const url = "http://localhost:5000/products";
   const [produtos, setProdutos] = useState([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
   const [loaded, setLoaded] = useState(false);
-  const { token } = useUserStore();
 
   const abrirModal = (produto) => setProdutoSelecionado(produto);
   const fecharModal = () => setProdutoSelecionado(null);
 
   const carregarProdutos = async () => {
     try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (response.ok) setProdutos(data);
-      else console.error("Erro ao carregar produtos:", data.message);
+      const data = await productsApi.getProducts();
+      setProdutos(data);
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
     }

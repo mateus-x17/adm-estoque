@@ -21,11 +21,6 @@ const links = [
   { name: "Dashboard", path: "/dashboard", icon: <HiHome size={20} /> },
   { name: "Produtos", path: "/dashboard/produtos", icon: <HiCube size={20} /> },
   {
-    name: "Usuários",
-    path: "/dashboard/usuarios",
-    icon: <HiUsers size={20} />,
-  },
-  {
     name: "Movimentações",
     path: "/dashboard/movimentacoes",
     icon: <HiSwitchHorizontal size={20} />,
@@ -34,6 +29,11 @@ const links = [
     name: "Pedidos",
     path: "/dashboard/pedidos",
     icon: <HiShoppingCart size={20} />,
+  },
+  {
+    name: "Usuários",
+    path: "/dashboard/usuarios",
+    icon: <HiUsers size={20} />,
   },
   {
     name: "Categorias",

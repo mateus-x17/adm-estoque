@@ -1,16 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../store/userStore";
-// import ModalMensagem from "./ModalMensagem.jsx"; // seu modal para mostrar mensagens
+import { authApi } from "../services/api";
 
 const LoginForm = () => {
-  const url = "http://localhost:5000/auth/login"; // backend
   const { setUser } = useUserStore();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState(""); // mensagem de erro
+  const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
 
   const submitForm = async (e) => {
@@ -19,18 +18,7 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        const mensagemErro = data?.error || "Erro no servidor";
-        setErro(mensagemErro);
-        return;
-      }
+      const data = await authApi.login({ email, senha });
 
       // login OK
       setUser(data.user, data.token);
@@ -39,7 +27,7 @@ const LoginForm = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error("Erro ao fazer login:", error);
-      setErro("Não foi possível conectar ao servidor.");
+      setErro(error.message || "Não foi possível conectar ao servidor.");
     } finally {
       setLoading(false);
     }

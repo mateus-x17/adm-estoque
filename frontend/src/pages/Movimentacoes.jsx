@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useUserStore } from "../store/userStore";
 import MovimentacaoRow from "../components/MovimentacaoRow";
 import ModalMovimentacao from "../components/ModalMovimentacao";
 import { FiFilter } from "react-icons/fi";
@@ -15,11 +14,9 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { movementsApi } from "../services/api";
 
 const Movimentacoes = () => {
-  const url = "http://localhost:5000/movements";
-  const { token } = useUserStore();
-
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -51,53 +48,54 @@ const Movimentacoes = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const res = await fetch(url, {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      try {
+        const data = await movementsApi.getMovements();
 
-      setMovimentacoes(data);
-      setLoaded(true);
+        setMovimentacoes(data);
+        setLoaded(true);
 
-      const grouped = {};
-      let entradas = 0;
-      let saidas = 0;
+        const grouped = {};
+        let entradas = 0;
+        let saidas = 0;
 
-      data.forEach((m) => {
-        const dateObj = new Date(m.data);
-        const dateKey = dateObj.toISOString().split("T")[0];
+        data.forEach((m) => {
+          const dateObj = new Date(m.data);
+          const dateKey = dateObj.toISOString().split("T")[0];
 
-        if (!grouped[dateKey]) {
-          grouped[dateKey] = {
-            date: dateKey,
-            label: dateObj.toLocaleDateString("pt-BR"),
-            Entradas: 0,
-            Saidas: 0,
-          };
-        }
+          if (!grouped[dateKey]) {
+            grouped[dateKey] = {
+              date: dateKey,
+              label: dateObj.toLocaleDateString("pt-BR"),
+              Entradas: 0,
+              Saidas: 0,
+            };
+          }
 
-        if (m.tipo === "ENTRADA") {
-          grouped[dateKey].Entradas += m.quantidade;
-          entradas += m.quantidade;
-        } else {
-          grouped[dateKey].Saidas += m.quantidade;
-          saidas += m.quantidade;
-        }
-      });
+          if (m.tipo === "ENTRADA") {
+            grouped[dateKey].Entradas += m.quantidade;
+            entradas += m.quantidade;
+          } else {
+            grouped[dateKey].Saidas += m.quantidade;
+            saidas += m.quantidade;
+          }
+        });
 
-      const sortedLineData = Object.values(grouped).sort(
-        (a, b) => new Date(a.date) - new Date(b.date),
-      );
+        const sortedLineData = Object.values(grouped).sort(
+          (a, b) => new Date(a.date) - new Date(b.date),
+        );
 
-      setLineChartData(sortedLineData);
-      setPieChartData([
-        { name: "Entradas", value: entradas },
-        { name: "Saídas", value: saidas },
-      ]);
+        setLineChartData(sortedLineData);
+        setPieChartData([
+          { name: "Entradas", value: entradas },
+          { name: "Saídas", value: saidas },
+        ]);
+      } catch (error) {
+        console.error("Error fetching movements:", error);
+      }
     };
 
     fetchAll();
-  }, [token]);
+  }, []);
 
   // filtros aplicados
   const filtradas = movimentacoes
@@ -130,7 +128,7 @@ const Movimentacoes = () => {
       </header>
 
       {/* filtros colapsáveis */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl">
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-3xl">
         <button
           onClick={() => setFiltrosAbertos(!filtrosAbertos)}
           className="w-full px-6 py-4 flex items-center justify-between font-semibold"
@@ -159,9 +157,9 @@ const Movimentacoes = () => {
               onChange={(e) => setTipoFiltro(e.target.value)}
               className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Todos</option>
-              <option value="ENTRADA">Entrada</option>
-              <option value="SAIDA">Saída</option>
+              <option value="" className="bg-white dark:bg-slate-800">Todos</option>
+              <option value="ENTRADA" className="bg-white dark:bg-slate-800">Entrada</option>
+              <option value="SAIDA" className="bg-white dark:bg-slate-800">Saída</option>
             </select>
 
             <input
@@ -182,7 +180,7 @@ const Movimentacoes = () => {
       </section>
 
       {/* tabela */}
-      <div className="bg-white dark:bg-slate-900 border rounded-3xl overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border dark:border-slate-700/50 rounded-3xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100">
             <tr>
@@ -240,7 +238,7 @@ const Movimentacoes = () => {
 
       {/* gráficos */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border rounded-3xl p-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border dark:border-slate-700/50 rounded-3xl p-6">
           <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">
             Entradas x Saídas
           </h3>
@@ -256,7 +254,7 @@ const Movimentacoes = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border rounded-3xl p-6">
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-700/50 rounded-3xl p-6">
           <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">
             Resumo geral
           </h3>
