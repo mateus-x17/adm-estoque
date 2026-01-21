@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react"
-import { useUserStore } from "../store/userStore"
-import MovimentacaoRow from "../components/MovimentacaoRow"
-import ModalMovimentacao from "../components/ModalMovimentacao"
-import { FiFilter } from "react-icons/fi"
+import React, { useEffect, useState } from "react";
+import { useUserStore } from "../store/userStore";
+import MovimentacaoRow from "../components/MovimentacaoRow";
+import ModalMovimentacao from "../components/ModalMovimentacao";
+import { FiFilter } from "react-icons/fi";
 import {
   LineChart,
   Line,
@@ -14,100 +14,108 @@ import {
   PieChart,
   Pie,
   Cell,
-} from "recharts"
+} from "recharts";
 
 const Movimentacoes = () => {
-  const url = "http://localhost:5000/movements"
-  const { token } = useUserStore()
+  const url = "http://localhost:5000/movements";
+  const { token } = useUserStore();
 
-  const [movimentacoes, setMovimentacoes] = useState([])
-  const [loaded, setLoaded] = useState(false)
+  const [movimentacoes, setMovimentacoes] = useState([]);
+  const [loaded, setLoaded] = useState(false);
 
   // filtros
-  const [search, setSearch] = useState("")
-  const [tipoFiltro, setTipoFiltro] = useState("")
-  const [fromDate, setFromDate] = useState("")
-  const [toDate, setToDate] = useState("")
-  const [filtrosAbertos, setFiltrosAbertos] = useState(true)
+  const [search, setSearch] = useState("");
+  const [tipoFiltro, setTipoFiltro] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(true);
 
   // paginação
-  const [paginaAtual, setPaginaAtual] = useState(1)
-  const itensPorPagina = 8
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 8;
 
   // modal
-  const [modalAberto, setModalAberto] = useState(false)
-  const [movSelecionada, setMovSelecionada] = useState(null)
+  const [modalAberto, setModalAberto] = useState(false);
+  const [movSelecionada, setMovSelecionada] = useState(null);
 
   // gráficos
-  const [lineChartData, setLineChartData] = useState([])
-  const [pieChartData, setPieChartData] = useState([])
+  const [lineChartData, setLineChartData] = useState([]);
+  const [pieChartData, setPieChartData] = useState([]);
 
-  const pieColors = ["#22c55e", "#ef4444"]
+  const pieColors = ["#22c55e", "#ef4444"];
 
   const abrirModal = (mov) => {
-    setMovSelecionada(mov)
-    setModalAberto(true)
-  }
+    setMovSelecionada(mov);
+    setModalAberto(true);
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
       const res = await fetch(url, {
         headers: { authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
+      });
+      const data = await res.json();
 
-      setMovimentacoes(data)
-      setLoaded(true)
+      setMovimentacoes(data);
+      setLoaded(true);
 
-      const grouped = {}
-      let entradas = 0
-      let saidas = 0
+      const grouped = {};
+      let entradas = 0;
+      let saidas = 0;
 
       data.forEach((m) => {
-        const date = new Date(m.data).toLocaleDateString("pt-BR")
+        const dateObj = new Date(m.data);
+        const dateKey = dateObj.toISOString().split("T")[0];
 
-        if (!grouped[date]) {
-          grouped[date] = { date, Entradas: 0, Saidas: 0 }
+        if (!grouped[dateKey]) {
+          grouped[dateKey] = {
+            date: dateKey,
+            label: dateObj.toLocaleDateString("pt-BR"),
+            Entradas: 0,
+            Saidas: 0,
+          };
         }
 
         if (m.tipo === "ENTRADA") {
-          grouped[date].Entradas += m.quantidade
-          entradas += m.quantidade
+          grouped[dateKey].Entradas += m.quantidade;
+          entradas += m.quantidade;
         } else {
-          grouped[date].Saidas += m.quantidade
-          saidas += m.quantidade
+          grouped[dateKey].Saidas += m.quantidade;
+          saidas += m.quantidade;
         }
-      })
+      });
 
-      setLineChartData(Object.values(grouped))
+      const sortedLineData = Object.values(grouped).sort(
+        (a, b) => new Date(a.date) - new Date(b.date),
+      );
+
+      setLineChartData(sortedLineData);
       setPieChartData([
         { name: "Entradas", value: entradas },
         { name: "Saídas", value: saidas },
-      ])
-    }
+      ]);
+    };
 
-    fetchAll()
-  }, [token])
+    fetchAll();
+  }, [token]);
 
   // filtros aplicados
   const filtradas = movimentacoes
-    .filter((m) =>
-      m.produto.nome.toLowerCase().includes(search.toLowerCase())
-    )
+    .filter((m) => m.produto.nome.toLowerCase().includes(search.toLowerCase()))
     .filter((m) => (tipoFiltro ? m.tipo === tipoFiltro : true))
     .filter((m) => {
-      const data = new Date(m.data)
-      if (fromDate && data < new Date(fromDate)) return false
-      if (toDate && data > new Date(toDate)) return false
-      return true
-    })
+      const data = new Date(m.data);
+      if (fromDate && data < new Date(fromDate)) return false;
+      if (toDate && data > new Date(toDate)) return false;
+      return true;
+    });
 
-  const totalPaginas = Math.ceil(filtradas.length / itensPorPagina)
+  const totalPaginas = Math.ceil(filtradas.length / itensPorPagina);
 
   const paginadas = filtradas.slice(
     (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
-  )
+    paginaAtual * itensPorPagina,
+  );
 
   return (
     <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-8">
@@ -127,7 +135,10 @@ const Movimentacoes = () => {
           onClick={() => setFiltrosAbertos(!filtrosAbertos)}
           className="w-full px-6 py-4 flex items-center justify-between font-semibold"
         >
-          <span className="text-sm text-slate-900 dark:text-white"> Filtros</span>
+          <span className="text-sm text-slate-900 dark:text-white">
+            {" "}
+            Filtros
+          </span>
           <span className="text-sm text-slate-500">
             {filtrosAbertos ? "Ocultar" : "Mostrar"}
           </span>
@@ -207,7 +218,7 @@ const Movimentacoes = () => {
         <div className="flex items-center justify-center gap-3">
           <button
             disabled={paginaAtual === 1}
-            onClick={() => setPaginaAtual(p => p - 1)}
+            onClick={() => setPaginaAtual((p) => p - 1)}
             className="px-4 py-2 rounded-xl text-sm bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-40"
           >
             Anterior
@@ -219,7 +230,7 @@ const Movimentacoes = () => {
 
           <button
             disabled={paginaAtual === totalPaginas}
-            onClick={() => setPaginaAtual(p => p + 1)}
+            onClick={() => setPaginaAtual((p) => p + 1)}
             className="px-4 py-2 rounded-xl text-sm bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-40"
           >
             Próximo
@@ -230,21 +241,25 @@ const Movimentacoes = () => {
       {/* gráficos */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 border rounded-3xl p-6">
-          <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">Entradas x Saídas</h3>
+          <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">
+            Entradas x Saídas
+          </h3>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={lineChartData}>
-              <XAxis dataKey="date" />
+              <XAxis dataKey="label" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="Entradas" stroke="#22c55e" />
-              <Line type="monotone" dataKey="Saidas" stroke="#ef4444" />
+              <Line dataKey="Entradas" stroke="#22c55e" />
+              <Line dataKey="Saidas" stroke="#ef4444" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         <div className="bg-white dark:bg-slate-900 border rounded-3xl p-6">
-          <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">Resumo geral</h3>
+          <h3 className="font-semibold mb-4 text-slate-900 dark:text-white">
+            Resumo geral
+          </h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
@@ -265,14 +280,13 @@ const Movimentacoes = () => {
         </div>
       </section>
 
-
       <ModalMovimentacao
         isOpen={modalAberto}
         onClose={() => setModalAberto(false)}
         movimentacao={movSelecionada}
       />
     </div>
-  )
-}
+  );
+};
 
 export default Movimentacoes;

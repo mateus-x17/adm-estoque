@@ -9,7 +9,7 @@ import {
   ArrowDownRight,
   TrendingUp,
   MoreHorizontal,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -19,7 +19,9 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid,
+  Line,
+  LineChart,
 } from "recharts";
 import { useUserStore } from "../store/userStore";
 
@@ -30,14 +32,19 @@ const Dashboard = () => {
   const urlUserStats = "http://localhost:5000/movements/user-stats";
   const urlMovements = "http://localhost:5000/movements";
 
-
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ totalProdutos: 0, lowStock: 0, totalValue: 0, lowStockList: [] });
+  const [stats, setStats] = useState({
+    totalProdutos: 0,
+    lowStock: 0,
+    totalValue: 0,
+    lowStockList: [],
+  });
   const [totalFornecedores, setTotalFornecedores] = useState(0);
   const [totalCategorias, setTotalCategorias] = useState(0);
   const [movementsData, setMovementsData] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [userStats, setUserStats] = useState([]);
+  const [saidaMontanteData, setSaidaMontanteData] = useState([]);
 
   const { token } = useUserStore();
 
@@ -53,7 +60,7 @@ const Dashboard = () => {
           totalProdutos: statsData.total,
           lowStock: statsData.lowStock,
           totalValue: statsData.totalValue,
-          lowStockList: statsData.lowStockList
+          lowStockList: statsData.lowStockList,
         });
 
         const resFornec = await fetch(urlFornecedores, {
@@ -73,6 +80,27 @@ const Dashboard = () => {
         });
         const movements = await resMov.json();
         setMovementsData(movements);
+        // saidas das movimentações
+        const saidas = movements.filter((m) => m.tipo === "SAIDA");
+        const saidasPorData = saidas.reduce((acc, mov) => {
+          const data = new Date(mov.data).toLocaleDateString("pt-BR");
+          if (!acc[data]) {
+            acc[data] = {
+              data,
+              montante: 0,
+            };
+          }
+          acc[data].montante += mov.quantidade * Number(mov.produto.preco);
+          return acc;
+        }, {});
+
+        const sortedData = Object.values(saidasPorData).sort((a, b) => {
+          const [da, ma, ya] = a.data.split("/");
+          const [db, mb, yb] = b.data.split("/");
+          return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
+        });
+
+        setSaidaMontanteData(sortedData);
 
         const resUserStats = await fetch(urlUserStats, {
           headers: { Authorization: `Bearer ${token}` },
@@ -80,15 +108,15 @@ const Dashboard = () => {
         const userData = await resUserStats.json();
         setUserStats(userData);
 
-        const products = [...new Set(movements.map(m => m.produto.nome))];
+        const products = [...new Set(movements.map((m) => m.produto.nome))];
 
-        const formattedData = products.map(produto => {
+        const formattedData = products.map((produto) => {
           const entradas = movements
-            .filter(m => m.produto.nome === produto && m.tipo === "ENTRADA")
+            .filter((m) => m.produto.nome === produto && m.tipo === "ENTRADA")
             .reduce((acc, cur) => acc + cur.quantidade, 0);
 
           const saidas = movements
-            .filter(m => m.produto.nome === produto && m.tipo === "SAIDA")
+            .filter((m) => m.produto.nome === produto && m.tipo === "SAIDA")
             .reduce((acc, cur) => acc + cur.quantidade, 0);
 
           return { produto, Entradas: entradas, Saidas: saidas };
@@ -111,28 +139,28 @@ const Dashboard = () => {
       value: stats.totalProdutos,
       icon: Package,
       color: "from-blue-500 to-indigo-600",
-      trend: "Total itens"
+      trend: "Total itens",
     },
     {
       title: "Baixo Estoque",
       value: stats.lowStock,
       icon: AlertCircle,
       color: "from-amber-400 to-orange-500",
-      trend: "Requer atenção"
+      trend: "Requer atenção",
     },
     {
       title: "Fornecedores Ativos",
       value: totalFornecedores,
       icon: Truck,
       color: "from-emerald-500 to-teal-600",
-      trend: "Parceiros"
+      trend: "Parceiros",
     },
     {
       title: "Categorias",
       value: totalCategorias,
       icon: ListTree,
       color: "from-fuchsia-500 to-pink-600",
-      trend: "Segmentos"
+      trend: "Segmentos",
     },
   ];
 
@@ -140,7 +168,9 @@ const Dashboard = () => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-lg shadow-xl text-xs">
-          <p className="font-bold text-slate-900 dark:text-white mb-2">{label}</p>
+          <p className="font-bold text-slate-900 dark:text-white mb-2">
+            {label}
+          </p>
           {payload.map((entry, index) => (
             <div key={index} className="flex items-center gap-2 mt-1">
               <div
@@ -198,7 +228,7 @@ const Dashboard = () => {
                   {kpi.title}
                 </h3>
                 <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {loading ? "..." : kpi.value ?? 0}
+                  {loading ? "..." : (kpi.value ?? 0)}
                 </p>
               </div>
             </div>
@@ -259,19 +289,27 @@ const Dashboard = () => {
             <div className="space-y-4">
               {stats.lowStockList && stats.lowStockList.length > 0 ? (
                 stats.lowStockList.map((prod) => (
-                  <div key={prod.id} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                  <div
+                    key={prod.id}
+                    className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold text-xs">
                         {prod.quantidade}
                       </div>
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={prod.nome}>
+                      <span
+                        className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]"
+                        title={prod.nome}
+                      >
                         {prod.nome}
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum produto com baixo estoque.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Nenhum produto com baixo estoque.
+                </p>
               )}
             </div>
           </div>
@@ -282,10 +320,14 @@ const Dashboard = () => {
               Movimentações Recentes
             </h2>
             <div className="space-y-4">
-              {movementsData.slice(0, 5).map(mov => (
+              {movementsData.slice(0, 5).map((mov) => (
                 <div key={mov.id} className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-indigo-500/10 text-indigo-500">
-                    {mov.tipo === "ENTRADA" ? <ArrowUpRight className="w-5 h-5 text-green-500" /> : <ArrowDownRight className="w-5 h-5 text-red-500" />}
+                    {mov.tipo === "ENTRADA" ? (
+                      <ArrowUpRight className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <ArrowDownRight className="w-5 h-5 text-red-500" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-slate-900 dark:text-white">
@@ -308,7 +350,9 @@ const Dashboard = () => {
       {/* User Stats Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm h-[400px]">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Movimentações por Usuário</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">
+            Movimentações por Usuário
+          </h2>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={userStats}>
@@ -316,18 +360,29 @@ const Dashboard = () => {
                 <XAxis dataKey="name" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
-                  itemStyle={{ color: '#fff' }}
-                  cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    borderColor: "#334155",
+                    color: "#fff",
+                  }}
+                  itemStyle={{ color: "#fff" }}
+                  cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
                 />
-                <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Movimentações" />
+                <Bar
+                  dataKey="count"
+                  fill="#8b5cf6"
+                  radius={[4, 4, 0, 0]}
+                  name="Movimentações"
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm h-[400px]">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Valor Movimentado por Usuário (Saídas)</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">
+            Valor Movimentado por Usuário (Saídas)
+          </h2>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={userStats}>
@@ -335,13 +390,51 @@ const Dashboard = () => {
                 <XAxis dataKey="name" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
-                  itemStyle={{ color: '#fff' }}
-                  cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    borderColor: "#334155",
+                    color: "#fff",
+                  }}
+                  itemStyle={{ color: "#fff" }}
+                  cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
                   formatter={(value) => `R$ ${value.toFixed(2)}`}
                 />
-                <Bar dataKey="totalValue" fill="#ec4899" radius={[4, 4, 0, 0]} name="Valor Total" />
+                <Bar
+                  dataKey="totalValue"
+                  fill="#ec4899"
+                  radius={[4, 4, 0, 0]}
+                  name="Valor Total"
+                />
               </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Montante de Saídas ao Longo do Tempo */}
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 p-8 shadow-sm h-[400px]">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">
+            Montante de Saídas ao Longo do Tempo
+          </h2>
+
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={saidaMontanteData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="data" />
+                <YAxis />
+                <Tooltip formatter={(value) => `R$ ${value.toFixed(2)}`} />
+                <Legend />
+
+                <Line
+                  type="monotone"
+                  dataKey="montante"
+                  stroke="#ec4899"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  name="Montante (R$)"
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
