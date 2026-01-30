@@ -223,32 +223,40 @@ O frontend estará disponível em `http://localhost:5173`
 
 ## 🎨 Screenshots
 
-### 🏠 Página Home
+### 🏠 Página Home (light/dark mode)
 ![Página Home da aplicação](screenshots/HomePage.png)
+![Home dark mode](screenshots/Home-dark.png)
 
-### 🔐 Login
+### 🔐 Login (light/dark mode)
+![Página de Login dark mode](screenshots/Login-light.png)
 ![Página de Login](screenshots/LoginPage.png)
 
-### 📊 Dashboard Administrativo
+### 📊 Dashboard Administrativo (light/dark mode)
 ![Dashboard Administrativo](screenshots/Dashboard-administrativo.png)
-
-### 📦 Produtos
+![Dashboard Administrativo dark mode](screenshots/Dashboard-dark.png)
+### 📦 Produtos (light/dark mode)
 ![Página de Produtos](screenshots/Pagina-produtos.png)
+![Página de Produtos dark mode](screenshots/Produtos-dark.png)
 
-### 📋 Movimentações
+### 📋 Movimentações (light/dark mode)
 ![Página de Movimentações](screenshots/Pagina-movimentacoes.png)
+![Página de Movimentações dark mode](screenshots/Movimentacoes-dark.png)
 
-### 🛒 Pedidos
+### 🛒 Pedidos (light/dark mode)
 ![Página de Pedidos](screenshots/Pagina-pedidos.png)
+![Página de Pedidos dark mode](screenshots/Pedidos-dark.png)
 
-### 👥 Usuários
+### 👥 Usuários (light/dark mode)
 ![Página de Usuários](screenshots/Pagina-usuarios.png)
+![Página de Usuários dark mode](screenshots/Usuarios-dark.png)
 
-### 🏷️ Categorias
+### 🏷️ Categorias (light/dark mode)
 ![Página de Categorias](screenshots/Pagina-categorias.png)
+![Página de Categorias dark mode](screenshots/Categorias-dark.png)
 
-### 🚚 Fornecedores
+### 🚚 Fornecedores (light/dark mode)
 ![Página de Fornecedores](screenshots/Pagina-fornecedores.png)
+![Página de Fornecedores dark mode](screenshots/Fornecedores-dark.png)
 
 ---
 
