@@ -49,7 +49,7 @@ export async function getProduct(req, res) {
 
 export async function createProduct(req, res) {
   const { nome, descricao, preco, quantidade, categoriaId, fornecedorId } = req.body;
-  const imagem = req.file ? `/uploads/${req.file.filename}` : null; // caminho público
+  const imagem = req.file ? `/uploads/produtos/${req.file.filename}` : null; // caminho público
   try {
     const prod = await prisma.produto.create({
       data: { nome, descricao, preco: parseFloat(preco), quantidade: Number(quantidade || 0), imagem, categoriaId: categoriaId ? Number(categoriaId) : null, fornecedorId: fornecedorId ? Number(fornecedorId) : null },
@@ -73,7 +73,7 @@ export async function updateProduct(req, res) {
     if (imagem && fs.existsSync(`.${imagem}`)) {
       try { fs.unlinkSync(`.${imagem}`); } catch (e) {/* ignore */ }
     }
-    imagem = `/uploads/${req.file.filename}`;
+    imagem = `/uploads/produtos/${req.file.filename}`;
   }
 
   try {

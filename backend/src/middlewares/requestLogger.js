@@ -1,13 +1,21 @@
 export function requestLogger(req, res, next) {
-    const timestamp = new Date().toISOString().replace('T', ' ').split('.')[0];
+    const start = Date.now();
     const method = req.method;
     const path = req.originalUrl || req.url;
 
-    // O usuário é anexado à req pelo authMiddleware, se autenticado
-    const userInfo = req.user
-        ? ` - User: [${req.user.id}] ${req.user.email}`
-        : ' - Unauthenticated';
+    // Loga APÓS a resposta ser enviada, quando o authMiddleware já populou req.user
+    res.on('finish', () => {
+        const timestamp = new Date().toISOString().replace('T', ' ').split('.')[0];
+        const ms = Date.now() - start;
+        const status = res.statusCode;
 
-    console.log(`[${timestamp}] ${method} ${path}${userInfo}`);
+        // req.user já foi preenchido pelo authMiddleware neste momento
+        const userInfo = req.user
+            ? ` | User: [${req.user.id}] ${req.user.email}`
+            : ' | Unauthenticated';
+
+        console.log(`[${timestamp}] ${method} ${path} ${status} (${ms}ms)${userInfo}`);
+    });
+
     next();
 }

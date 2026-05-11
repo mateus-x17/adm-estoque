@@ -3,13 +3,25 @@ import path from "path";
 import fs from "fs";
 
 const uploadsDir = path.resolve("uploads");
+const usuariosDir = path.join(uploadsDir, "usuarios");
+const produtosDir = path.join(uploadsDir, "produtos");
 
-// garante pasta uploads
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// garante pastas de upload
+[uploadsDir, usuariosDir, produtosDir].forEach((dir) => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadsDir);
+    // detecta o destino correto com base na rota
+    const url = req.originalUrl || req.url || "";
+    if (url.includes("/users")) {
+      cb(null, usuariosDir);
+    } else if (url.includes("/products")) {
+      cb(null, produtosDir);
+    } else {
+      cb(null, uploadsDir); // fallback
+    }
   },
   filename: function (req, file, cb) {
     const ext = path.extname(file.originalname);
@@ -22,7 +34,7 @@ function fileFilter(req, file, cb) {
   const extensoesPermitidas = /jpeg|jpg|webp|png/;
   const ext = path.extname(file.originalname).toLowerCase();
   if (extensoesPermitidas.test(ext)) cb(null, true);
-  else cb(new Error("Tipo de arquivo inválido. Apenas jpg, jpeg, png."));
+  else cb(new Error("Tipo de arquivo inválido. Apenas jpg, jpeg, png, webp."));
 }
 
 export const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB

@@ -6,7 +6,7 @@ import fs from "fs";
 
 export async function createUser(req, res) {
   const { nome, email, senha, role } = req.body; // agora funciona
-  const imagem = req.file?.path; // caminho do arquivo, se houver
+  const imagem = req.file ? `/uploads/usuarios/${req.file.filename}` : undefined; // caminho público
 
   if (!nome || !email || !senha) return res.status(400).json({ error: "Dados incompletos" });
 
@@ -51,7 +51,7 @@ export async function updateUser(req, res) {
 
     // remover imagem antiga, se existir
     if (user && user.imagem) {
-      const caminhoImagemAntiga = `.${user.imagem}`; // ./uploads/nome.jpg
+      const caminhoImagemAntiga = `.${user.imagem}`; // ./uploads/usuarios/nome.jpg
       if (fs.existsSync(caminhoImagemAntiga)) {
         try {
           fs.unlinkSync(caminhoImagemAntiga);
@@ -62,7 +62,7 @@ export async function updateUser(req, res) {
     }
 
     // adicionar nova imagem ao objeto de atualização
-    data.imagem = `/uploads/${req.file.filename}`;
+    data.imagem = `/uploads/usuarios/${req.file.filename}`;
   }
 
   try {
