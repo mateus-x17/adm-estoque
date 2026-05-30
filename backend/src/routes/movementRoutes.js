@@ -1,6 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { permit } from "../middlewares/roleMiddleware.js";
+import { validateRequest } from "../middlewares/validationMiddleware.js";
 import { listMovements, getUserStats } from "../controllers/movementController.js";
 
 const router = express.Router();

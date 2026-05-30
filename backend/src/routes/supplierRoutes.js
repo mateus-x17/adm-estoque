@@ -1,6 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { permit } from "../middlewares/roleMiddleware.js";
+import { validateRequest } from "../middlewares/validationMiddleware.js";
 import {
   criarFornecedor,
   listarFornecedores,
@@ -16,8 +17,18 @@ const router = express.Router();
 router.get("/stats", authMiddleware, getSupplierStats);
 
 // 🔹 Apenas ADMIN e GERENTE podem criar/editar/deletar fornecedores
-router.post("/", authMiddleware, permit("ADMIN", "GERENTE"), criarFornecedor);
-router.put("/:id", authMiddleware, permit("ADMIN", "GERENTE"), atualizarFornecedor);
+router.post("/", 
+  authMiddleware, 
+  permit("ADMIN", "GERENTE"), 
+  validateRequest({ required: ['nome', 'email', 'telefone', 'endereco'] }),
+  criarFornecedor
+);
+router.put("/:id", 
+  authMiddleware, 
+  permit("ADMIN", "GERENTE"), 
+  validateRequest({ required: ['nome', 'email', 'telefone', 'endereco'] }),
+  atualizarFornecedor
+);
 router.delete("/:id", authMiddleware, permit("ADMIN", "GERENTE"), deletarFornecedor);
 
 // 🔹 Todos podem listar fornecedores

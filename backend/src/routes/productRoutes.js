@@ -1,6 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { permit } from "../middlewares/roleMiddleware.js";
+import { validateRequest } from "../middlewares/validationMiddleware.js";
 import {
   createProduct,
   listProducts,
@@ -27,11 +28,25 @@ router.get("/:id", getProduct);
 
 
 // criar/editar/delete -> gerentes e admins
-router.post("/", permit("ADMIN", "GERENTE"), upload.single("imagem"), createProduct);
-router.put("/:id", permit("ADMIN", "GERENTE"), upload.single("imagem"), updateProduct);
+router.post("/", 
+  permit("ADMIN", "GERENTE"), 
+  upload.single("imagem"), 
+  validateRequest({ required: ['nome', 'preco', 'quantidade', 'categoriaId'] }),
+  createProduct
+);
+router.put("/:id", 
+  permit("ADMIN", "GERENTE"), 
+  upload.single("imagem"), 
+  validateRequest({ required: ['nome', 'preco', 'quantidade', 'categoriaId'] }),
+  updateProduct
+);
 router.delete("/:id", permit("ADMIN"), deleteProduct);
 
 // ajustar quantidade -> gerentes e operadores (dependendo da regra)
-router.post("/:id/adjust", permit("ADMIN", "GERENTE", "OPERADOR"), adjustQuantity);
+router.post("/:id/adjust", 
+  permit("ADMIN", "GERENTE", "OPERADOR"),
+  validateRequest({ required: ['qtd', 'tipo', 'obs'] }),
+  adjustQuantity
+);
 
 export default router;

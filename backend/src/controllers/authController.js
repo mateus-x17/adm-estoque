@@ -1,49 +1,24 @@
-// import { PrismaClient } from "@prisma/client";
-// const prisma = new PrismaClient();
-import { prisma } from "../config/prismaClient.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
+import { authenticateUser, registerUser } from '../services/authService.js';
+import { AppError } from '../utils/errorHandler.js';
 
-dotenv.config();
-
-
-export async function loginController(req, res) {
+export async function loginController(req, res, next) {
   try {
     const { email, senha } = req.body;
-    if (!email || !senha) return res.status(400).json({ error: "Email e senha são obrigatórios" });
-
-    const user = await prisma.usuario.findUnique({ where: { email } });
-    if (!user) return res.status(401).json({ error: "Credenciais inválidas" });
-
-    const isValid = await bcrypt.compare(senha, user.senha);
-    if (!isValid) return res.status(401).json({ error: "Credenciais inválidas" });
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "8h" }
-    );
-
-    res.json({
-      token,
-      user: { id: user.id, nome: user.nome, email: user.email, imagem: user.imagem, role: user.role },
-    });
+    const result = await authenticateUser(email, senha);
+    res.json(result);
   } catch (err) {
-    console.error("Erro no loginController:", err);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    console.error('ERRO REAL:');
+    console.error(err);
+    next(err instanceof AppError ? err : new AppError('Erro interno do servidor', 500));
   }
 }
 
-
-export async function registerController(req, res) {
-  // verificar se não está vazio
-  if (!req.body.nome || !req.body.email || !req.body.senha) return res.status(400).json({ error: "Dados incompletos" });
-  const { nome, email, senha, role } = req.body;
-  // verificar se o usuário existe
-  const userExists = await prisma.usuario.findUnique({ where: { email } });
-  if (userExists) return res.status(400).json({ error: "Usuário já cadastrado" });
-  const hashed = await bcrypt.hash(senha, 10);
-  const user = await prisma.usuario.create({ data: { nome, email, senha: hashed, role: role || "OPERADOR" } });
-  res.json({message: "Usuário cadastrado com sucesso", usuario:user});
+export async function registerController(req, res, next) {
+  try {
+    const { nome, email, senha, role } = req.body;
+    const user = await registerUser({ nome, email, senha, role });
+    res.status(201).json({ message: 'Usuário cadastrado com sucesso', usuario: user });
+  } catch (err) {
+    next(err instanceof AppError ? err : new AppError('Erro interno do servidor', 500));
+  }
 }

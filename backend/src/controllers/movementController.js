@@ -1,69 +1,62 @@
 // import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
 import { prisma } from '../config/prismaClient.js';
+import { childLogger } from '../config/logger.js';
+const log = childLogger('movementController');
 
-export async function listMovements(req, res) {
+export async function listMovements(req, res, next) {
   try {
     const { produtoId, from, to, order } = req.query;
     const where = {};
 
     if (produtoId) where.produtoId = Number(produtoId);
 
-    // Criar filtro de data somente se from ou to existirem
     if (from || to) {
       where.data = {};
       if (from) where.data.gte = new Date(from);
       if (to) where.data.lte = new Date(to);
     }
 
-    // Ordenação: asc ou desc (default desc)
     const orderBy = { data: order === "asc" ? "asc" : "desc" };
 
-    const mov = await prisma.movimento.findMany({
-      where,
-      include: { produto: true, usuario: true },
-      orderBy,
-    });
-
+    const mov = await prisma.movimento.findMany({ where, include: { produto: true, usuario: true }, orderBy });
     res.json(mov);
   } catch (err) {
-    console.error("Erro ao listar movimentações:", err);
-    res.status(500).json({ message: "Erro interno ao listar movimentações" });
+    log.error({ err }, 'Error listing movements');
+    next(err);
   }
 }
 
-export async function getUserStats(req, res) {
+export async function getUserStats(req, res, next) {
   try {
-    const movements = await prisma.movimento.findMany({
-      include: { produto: true, usuario: true }
+    const stats = await prisma.movimento.groupBy({
+      by: ['usuarioId'],
+      _count: { _all: true },
+      _sum: { quantidade: true },
     });
 
-    const stats = movements.reduce((acc, mov) => {
-      if (!mov.usuario) return acc;
-      const userName = mov.usuario.nome;
+    // join usuario names
+    const results = await Promise.all(stats.map(async (s) => {
+      const usuario = await prisma.usuario.findUnique({ where: { id: s.usuarioId }, select: { nome: true } });
+      // compute totalValue for SAIDA movements
+      const totalValueAgg = await prisma.movimento.aggregate({
+        where: { usuarioId: s.usuarioId, tipo: 'SAIDA' },
+        _sum: { quantidade: true }
+      });
 
-      if (!acc[userName]) {
-        acc[userName] = { name: userName, count: 0, totalValue: 0 };
-      }
+      return {
+        usuarioId: s.usuarioId,
+        name: usuario?.nome || 'Desconhecido',
+        count: s._count._all || 0,
+        totalQuantity: s._sum.quantidade || 0,
+        totalSaidaQuantity: totalValueAgg._sum.quantidade || 0
+      };
+    }));
 
-      // Quantidade de movimentações (total de registros)
-      acc[userName].count += 1;
-
-      // Valor movimentado (considerando SAIDA como vendas)
-      // Se a ideia for movimentação financeira geral, somaríamos tudo.
-      // Dado "(vendas)", vamos somar apenas SAIDAS.
-      if (mov.tipo === "SAIDA") {
-        acc[userName].totalValue += (mov.quantidade * Number(mov.produto.preco));
-      }
-
-      return acc;
-    }, {});
-
-    const result = Object.values(stats);
-    res.json(result);
+    res.json(results);
   } catch (err) {
-    console.error("Erro ao obter estatísticas de usuários:", err);
-    res.status(500).json({ message: "Erro interno ao obter estatísticas" });
+    log.error({ err }, 'Error getting user stats');
+    next(err);
   }
 }
 
