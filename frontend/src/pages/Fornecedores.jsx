@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { FiPlus } from "react-icons/fi";
-import EditarItem from "../components/EditarItem";
-import FornecedorDashboard from "../components/FornecedorDashboard";
-import FornecedoresTable from "../components/FornecedoresTable";
+import EditarItem from "../components/forms/EditarItem.jsx";
+import FornecedorDashboard from "../components/dashboard/FornecedorDashboard.jsx";
+import FornecedoresTable from "../components/tables/FornecedoresTable.jsx";
 import { suppliersApi } from "../services/api";
-import ModalMensagem from "../components/ModalMensagem.jsx";
+import ModalMensagem from "../components/common/ModalMensagem.jsx";
 
 
 

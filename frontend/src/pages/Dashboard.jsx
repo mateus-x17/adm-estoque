@@ -1,11 +1,11 @@
 
 import { Clock } from "lucide-react";
-import KPISection from "../components/KPISection";
-import StockFlowChart from "../components/StockFlowChart";
-import LowStockAlert from "../components/LowStockAlert";
-import RecentMovements from "../components/RecentMovements";
-import UserStatsCharts from "../components/UserStatsCharts";
-import MontanteGrafic from "../components/MontanteGrafic";
+import KPISection from "../components/dashboard/KPISection.jsx";
+import StockFlowChart from "../components/dashboard/StockFlowChart.jsx";
+import LowStockAlert from "../components/dashboard/LowStockAlert.jsx";
+import RecentMovements from "../components/dashboard/RecentMovements.jsx";
+import UserStatsCharts from "../components/dashboard/UserStatsCharts.jsx";
+import MontanteGrafic from "../components/dashboard/MontanteGrafic.jsx";
 
 const Dashboard = () => {
 

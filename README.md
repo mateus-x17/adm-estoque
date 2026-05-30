@@ -1,6 +1,6 @@
-# 📦 Sistema de Gerenciamento de Estoque
+# 📦 ADM Estoque
 
-Um sistema completo e moderno para gerenciamento de estoque, desenvolvido com **Node.js** e **React**. Permite o controle de produtos, categorias, fornecedores, movimentações de estoque e gerenciamento de usuários com diferentes níveis de permissão.
+Sistema de gerenciamento de estoque com backend em **Node.js + Express + Prisma** e frontend em **React + Vite**. O projeto permite controlar produtos, categorias, fornecedores, movimentações de estoque e usuários com permissões de administrador.
 
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
 ![Node](https://img.shields.io/badge/node-v18+-green.svg)
@@ -8,216 +8,326 @@ Um sistema completo e moderno para gerenciamento de estoque, desenvolvido com **
 
 ---
 
-## ✨ Funcionalidades
+## ✨ Visão Geral do Projeto
 
-### 📊 Dashboard
-- Visão geral do estoque com gráficos interativos
-- Estatísticas de movimentações (entradas e saídas)
-- Indicadores de desempenho em tempo real
+O sistema foi desenvolvido para ser uma aplicação de estoque completa:
 
-### 📦 Produtos
-- Cadastro, edição e exclusão de produtos
-- Upload de imagens para produtos
-- Vinculação com categorias e fornecedores
-- Controle de quantidade em estoque
+- Backend com APIs REST, autenticação JWT e controle de acesso por roles
+- Frontend Single Page Application com navegação protegida e dashboard analítico
+- Upload de imagens de produto/usuário com entrega de arquivos estáticos
+- Estado global leve com **Zustand** e integração com APIs via cliente centralizado
+- Logs estruturados com **pino** e tratamento global de erros
 
-### 🏷️ Categorias
-- Organização de produtos por categorias
-- Gerenciamento completo (CRUD)
+---
 
-### 🚚 Fornecedores
-- Cadastro de fornecedores com informações de contato
-- Visualização de produtos por fornecedor
+## 🧩 Funcionalidades Principais
 
-### 📋 Movimentações (Pedidos)
-- Registro de entradas e saídas de estoque
-- Histórico completo de movimentações
-- Filtros por data, tipo e produto
-- Atualização automática do estoque
+### Backend
+- Autenticação e registro de usuários
+- Autorização via JWT
+- Controle de acesso por papel (**ADMIN**, **GERENTE**, **OPERADOR**)
+- CRUD de produtos com upload de imagem
+- CRUD de categorias
+- CRUD de fornecedores
+- Histórico de movimentações de estoque
+- Estatísticas e contagens para dashboard
+- Validação centralizada de payloads de requisição
+- Registro de requisições HTTP e tratamento de erros global
 
-### 👥 Usuários
-- Sistema de autenticação com JWT
-- Níveis de permissão: **ADMIN**, **GERENTE** e **OPERADOR**
-- Gerenciamento de usuários (apenas ADMIN)
+### Frontend
+- Login e registro de usuários
+- Dashboard administrativo com gráficos e cards de KPI
+- Listagem e gerenciamento de produtos
+- Exibição de categorias e fornecedores
+- Tela de movimentações com filtros e gráficos
+- Sistema de pedidos/faturas
+- Gerenciamento de usuários com permissões
+- Modo escuro e notificações de interface
+- Roteamento protegido e layout persistente
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
 ### Backend
-| Tecnologia | Descrição |
-|------------|-----------|
-| **Node.js** | Runtime JavaScript |
-| **Express 5** | Framework web |
-| **Prisma ORM** | Mapeamento objeto-relacional |
-| **PostgreSQL** | Banco de dados relacional |
-| **JWT** | Autenticação via tokens |
-| **Bcrypt.js** | Hash de senhas |
-| **Multer** | Upload de arquivos |
+| Tecnologia | Uso |
+|------------|-----|
+| Node.js | Runtime do servidor |
+| Express | Framework HTTP |
+| Prisma | ORM para PostgreSQL |
+| PostgreSQL | Banco de dados relacional |
+| JWT | Autenticação baseada em token |
+| bcryptjs | Hash de senhas |
+| multer | Upload de arquivos |
+| helmet | Segurança HTTP |
+| cors | Configuração de CORS |
+| express-rate-limit | Proteção de login |
+| pino | Logging estruturado |
 
 ### Frontend
-| Tecnologia | Descrição |
-|------------|-----------|
-| **React 19** | Biblioteca UI |
-| **Vite** | Build tool moderno |
-| **TailwindCSS** | Framework CSS utilitário |
-| **Zustand** | Gerenciamento de estado |
-| **React Router v7** | Roteamento SPA |
-| **Recharts** | Gráficos e visualizações |
-| **Framer Motion** | Animações |
-| **Lucide React** | Ícones |
+| Tecnologia | Uso |
+|------------|-----|
+| React | Biblioteca UI |
+| Vite | Ferramenta de build |
+| Zustand | Gerenciamento de estado |
+| React Router v7 | Navegação SPA |
+| TailwindCSS | Estilização utilitária |
+| Recharts | Visualização de gráficos |
+| Framer Motion | Animações |
+| react-icons | Ícones de interface |
 
 ---
 
-## 📁 Estrutura do Projeto
+## 📁 Estrutura do Repositório
 
 ```
-gerenciador-de-estoque/
+adm-estoque/
 ├── backend/
 │   ├── prisma/
-│   │   ├── schema.prisma    # Modelos do banco de dados
-│   │   ├── seed.js          # Dados iniciais
-│   │   └── migrations/      # Migrações do banco
+│   │   ├── migrations/      # Migrações do banco de dados
+│   │   ├── schema.prisma    # Modelos e índices do Prisma
+│   │   ├── seed.js          # Dados iniciais de usuários, categorias, etc.
+│   │   └── seedMovements.js # Popula movimentações de estoque
 │   ├── src/
-│   │   ├── controllers/     # Lógica de negócio
-│   │   ├── routes/          # Rotas da API
-│   │   ├── middlewares/     # Autenticação e validações
-│   │   ├── config/          # Configurações (DB, etc)
-│   │   └── index.js         # Entry point
-│   └── uploads/             # Arquivos enviados
-│
-└── frontend/
-    ├── src/
-    │   ├── components/      # Componentes reutilizáveis
-    │   ├── pages/           # Páginas da aplicação
-    │   ├── services/        # Camada de API
-    │   ├── store/           # Estado global (Zustand)
-    │   ├── hooks/           # Custom hooks
-    │   └── layout/          # Layout da aplicação
-    └── public/              # Arquivos estáticos
+│   │   ├── config/          # Prisma client, logger, multer
+│   │   ├── controllers/     # Endpoints chamam os controllers
+│   │   ├── middlewares/     # Autenticação, autorização, validação e logs
+│   │   ├── routes/          # Definição de rotas REST
+│   │   ├── services/        # Regras de negócio e persistência
+│   │   ├── utils/           # Handler de erros e sanitização
+│   │   └── index.js         # Servidor Express e inicialização
+│   ├── uploads/            # Arquivos de imagem enviados
+│   ├── .env.example        # Exemplo de variáveis de ambiente
+│   └── package.json
+├── frontend/
+│   ├── public/             # Arquivos estáticos
+│   ├── src/
+│   │   ├── components/     # Componentes UI organizados por domínio
+│   │   │   ├── common/     # Botões, modais, navegação, notificações
+│   │   │   ├── forms/      # Formulários e modais de cadastro/edição
+│   │   │   ├── tables/     # Tabelas e listas do dashboard
+│   │   │   └── dashboard/  # Cards e gráficos do dashboard
+│   │   ├── config/         # Rotas e configurações centrais
+│   │   ├── hooks/          # Hooks reutilizáveis
+│   │   ├── layout/         # Layout principal e fluxo de páginas
+│   │   ├── pages/          # Páginas de rota principais
+│   │   ├── services/       # API clients e integrações HTTP
+│   │   ├── store/          # Zustand stores para estado global
+│   │   ├── utils/          # Validações e helpers
+│   │   └── index.css       # Estilos globais
+│   └── package.json
+└── README.md
 ```
 
 ---
 
-## 🚀 Como Executar
+## 🧠 Arquitetura do Backend
 
-### Pré-requisitos
-- **Node.js** v18 ou superior
-- **PostgreSQL** (local ou serviço como Neon/Supabase)
-- **npm** ou **yarn**
+### Principais componentes
+- `src/index.js` - configura o servidor, middleware, rotas e error handler
+- `src/config/prismaClient.js` - instancia o Prisma Client
+- `src/config/logger.js` - logger estruturado com `pino`
+- `src/middlewares/authMiddleware.js` - valida JWT e carrega usuário
+- `src/middlewares/roleMiddleware.js` - controla acesso por roles
+- `src/middlewares/requestLogger.js` - registra cada requisição HTTP
+- `src/utils/errorHandler.js` - tratamento global de erros
+- `src/services/*Service.js` - abstrai lógica de dados e regras de negócio
+- `src/controllers/*Controller.js` - recepciona requisições e chama serviços
 
-### 1️⃣ Clonar o Repositório
+### Fluxo de requisição
+1. Requisição chega ao Express
+2. Validação de CORS, JSON e proteção de cabeçalhos
+3. Autenticação / autorização se necessário
+4. Controller executa a ação chamando o Service
+5. Service interage com Prisma
+6. Errors são capturadas pelo middleware global
 
-```bash
-git clone https://github.com/mateus-x17/adm-estoque.git
-cd adm-estoque
-```
-
-### 2️⃣ Configurar o Backend
-
-```bash
-cd backend
-
-# Instalar dependências
-npm install
-
-# Configurar variáveis de ambiente
-# Crie um arquivo .env baseado no exemplo abaixo:
-```
-
-**Arquivo `.env`:**
-```env
-PORT=5000
-DATABASE_URL="postgresql://usuario:senha@host:5432/nome_banco?sslmode=require"
-JWT_SECRET="sua_chave_secreta_aqui"
-```
-
-```bash
-# Executar migrações do banco de dados
-npm run prisma:migrate
-
-# Gerar o Prisma Client
-npm run prisma:generate
-
-# (Opcional) Popular o banco com dados iniciais
-npm run seed
-
-# Iniciar o servidor de desenvolvimento
-npm run dev
-```
-
-O backend estará rodando em `http://localhost:5000`
-
-### 3️⃣ Configurar o Frontend
-
-```bash
-cd frontend
-
-# Instalar dependências
-npm install
-
-# Iniciar o servidor de desenvolvimento
-npm run dev
-```
-
-O frontend estará disponível em `http://localhost:5173`
+### Segurança e validação
+- Autenticação via JWT com `authMiddleware`
+- Controle de acesso por `permit('ADMIN', 'GERENTE', ...)`
+- Limitação de tentativas de login com `express-rate-limit`
+- Proteção de cabeçalhos com `helmet`
+- Validação simples de payloads em `validationMiddleware.js`
 
 ---
 
-## 📡 Rotas da API
+## 🧩 Backend: Principais Endpoints
 
 ### Autenticação
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/api/auth/register` | Registrar usuário |
-| POST | `/api/auth/login` | Login |
-
-### Produtos
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/products` | Listar todos |
-| GET | `/api/products/:id` | Buscar por ID |
-| POST | `/api/products` | Criar produto |
-| PUT | `/api/products/:id` | Atualizar produto |
-| DELETE | `/api/products/:id` | Excluir produto |
-
-### Categorias
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/categories` | Listar todas |
-| POST | `/api/categories` | Criar categoria |
-| DELETE | `/api/categories/:id` | Excluir categoria |
-
-### Fornecedores
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/suppliers` | Listar todos |
-| POST | `/api/suppliers` | Criar fornecedor |
-| PUT | `/api/suppliers/:id` | Atualizar fornecedor |
-| DELETE | `/api/suppliers/:id` | Excluir fornecedor |
-
-### Movimentações
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/movements` | Listar todas |
-| POST | `/api/movements` | Registrar movimentação |
+| Método | Rota | Descrição | Proteção |
+|--------|------|-----------|----------|
+| POST | `/auth/login` | Login do usuário | Rate limit |
+| POST | `/auth/register` | Cria novo usuário | Público |
 
 ### Usuários
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/users` | Listar todos |
-| PUT | `/api/users/:id` | Atualizar usuário |
-| DELETE | `/api/users/:id` | Excluir usuário |
+| Método | Rota | Descrição | Proteção |
+|--------|------|-----------|----------|
+| GET | `/users` | Lista usuários | ADMIN |
+| GET | `/users/:id` | Busca usuário por ID | ADMIN |
+| POST | `/users` | Cria usuário com upload de imagem | ADMIN |
+| PUT | `/users/:id` | Atualiza usuário e imagem | ADMIN |
+| DELETE | `/users/:id` | Exclui usuário | ADMIN |
+
+### Produtos
+| Método | Rota | Descrição | Proteção |
+|--------|------|-----------|----------|
+| GET | `/products` | Lista produtos | Autenticado |
+| GET | `/products/:id` | Busca produto por ID | Autenticado |
+| POST | `/products` | Cria produto com upload de imagem | ADMIN, GERENTE |
+| PUT | `/products/:id` | Atualiza produto | ADMIN, GERENTE |
+| DELETE | `/products/:id` | Exclui produto | ADMIN |
+| POST | `/products/:id/adjust` | Ajusta quantidade do estoque | ADMIN, GERENTE, OPERADOR |
+| GET | `/products/count` | Conta total de produtos | Autenticado |
+| GET | `/products/stats` | Estatísticas de produto | Autenticado |
+
+### Categorias
+| Método | Rota | Descrição | Proteção |
+|--------|------|-----------|----------|
+| GET | `/categories` | Lista categorias | Autenticado |
+| GET | `/categories/count` | Contagem de categorias | Autenticado |
+| POST | `/categories` | Cria categoria | ADMIN, GERENTE |
+| PUT | `/categories/:id` | Atualiza categoria | ADMIN, GERENTE |
+| DELETE | `/categories/:id` | Exclui categoria | ADMIN |
+
+### Fornecedores
+| Método | Rota | Descrição | Proteção |
+|--------|------|-----------|----------|
+| GET | `/suppliers` | Lista fornecedores | Autenticado |
+| GET | `/suppliers/stats` | Estatísticas de fornecedores | Autenticado |
+| GET | `/suppliers/count` | Contagem de fornecedores | Autenticado |
+| POST | `/suppliers` | Cria fornecedor | ADMIN, GERENTE |
+| PUT | `/suppliers/:id` | Atualiza fornecedor | ADMIN, GERENTE |
+| DELETE | `/suppliers/:id` | Exclui fornecedor | ADMIN, GERENTE |
+
+### Movimentações
+| Método | Rota | Descrição | Proteção |
+|--------|------|-----------|----------|
+| GET | `/movements` | Lista movimentações de estoque | ADMIN, GERENTE, OPERADOR |
+| GET | `/movements/user-stats` | Estatísticas de usuário | ADMIN, GERENTE |
 
 ---
 
-## 🔐 Níveis de Permissão
+## 🧠 Arquitetura do Frontend
+
+### Estrutura principal
+- `src/main.jsx` - inicializa o React e o roteador
+- `src/config/routes.js` - define rotas públicas e protegidas
+- `src/layout/Layout.jsx` - layout da aplicação com `Sidebar`, `Header` e `NotificationContainer`
+- `src/components/ProtectedRoute.jsx` - protege rotas administrativas
+- `src/store/` - stores do Zustand para autenticação, usuário e notificações
+- `src/services/api/` - clientes HTTP centralizados para backend
+- `src/hooks/` - hooks utilitários para formulários e chamadas de API
+- `src/pages/` - páginas de rota para cada área funcional
+
+### Organização de componentes
+- `components/common/` - botões, inputs, notificações, barra lateral, modais gerais
+- `components/forms/` - formulários de login, registro, edição e modais de CRUD
+- `components/tables/` - tabelas e linhas de listagem de dados
+- `components/dashboard/` - cartões e gráficos de dashboard
+
+### Estado e UX
+- `useAuthStore` - guarda token JWT localmente
+- `useUserStore` - persiste dados do usuário logado
+- `useNotificationStore` - mostra alertas de sucesso/erro na interface
+- `useThemeStore` - controla modo claro/escuro
+
+### Integração com backend
+- `services/api/apiClient.js` - ponto central para requisições HTTP
+- `services/api/auth.api.js` - login e registro
+- `services/api/products.api.js` - produtos
+- `services/api/categories.api.js` - categorias
+- `services/api/suppliers.api.js` - fornecedores
+- `services/api/movements.api.js` - movimentações
+- `services/api/users.api.js` - usuários
+
+---
+
+## 📌 Frontend: Páginas e Rotas
+
+| Rota | Página | Objetivo |
+|------|--------|----------|
+| `/` | `Home` | Página inicial pública |
+| `/auth` | `Auth` | Login e registro |
+| `/dashboard` | `Dashboard` | Visão geral do sistema |
+| `/dashboard/produtos` | `Produtos` | Gerenciamento de produtos |
+| `/dashboard/usuarios` | `Usuarios` | Gerenciamento de usuários |
+| `/dashboard/movimentacoes` | `Movimentacoes` | Histórico e entrada/saída |
+| `/dashboard/categorias` | `Categorias` | Gestão de categorias |
+| `/dashboard/pedidos` | `Pedidos` | Pedidos e filtros |
+| `/dashboard/fornecedores` | `Fornecedores` | Gestão de fornecedores |
+
+---
+
+## 🔧 Como Executar
+
+### Backend
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Atualize o .env com as credenciais do PostgreSQL
+npm run prisma:migrate
+npm run prisma:generate
+npm run seed
+npm run dev
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### URLs padrão
+- Backend: `http://localhost:5000`
+- Frontend: `http://localhost:5173`
+
+---
+
+## 🔐 Permissões de Acesso
 
 | Role | Permissões |
 |------|------------|
-| **ADMIN** | Acesso total: gerencia usuários, produtos, categorias, fornecedores e movimentações |
+| **ADMIN** | Gerencia usuários, produtos, categorias, fornecedores e movimentações |
 | **GERENTE** | Gerencia produtos, categorias, fornecedores e movimentações |
-| **OPERADOR** | Visualiza e registra movimentações de entrada/saída |
+| **OPERADOR** | Registra e visualiza movimentações |
+
+---
+
+## 💡 Observações
+
+- O backend expõe a rota de teste `/test-db` para verificar a conexão com o banco
+- O servidor usa `helmet`, `cors` e `rate-limit` para melhorar a segurança
+- O frontend centraliza as rotas em `src/config/routes.js` e protege as áreas administrativas com `ProtectedRoute`
+- Os uploads gravam arquivos em `backend/uploads` e são servidos por `/uploads`
+
+---
+
+## 🧪 Scripts Disponíveis
+
+### Backend
+| Script | Descrição |
+|--------|-----------|
+| `npm run dev` | Inicia servidor com nodemon |
+| `npm run start` | Inicia servidor em modo produção |
+| `npm run prisma:migrate` | Executa migrações Prisma |
+| `npm run prisma:generate` | Gera Prisma Client |
+| `npm run seed` | Popula dados iniciais |
+| `npm run seedMovements` | Popula movimentações de estoque |
+
+### Frontend
+| Script | Descrição |
+|--------|-----------|
+| `npm run dev` | Inicia servidor de desenvolvimento |
+| `npm run build` | Gera build de produção |
+| `npm run preview` | Visualiza build gerado |
+| `npm run lint` | Executa ESLint |
+
+---
+
+## 👤 Autor
+Desenvolvido por **Mateus**
 
 ---
 

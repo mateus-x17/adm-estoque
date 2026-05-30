@@ -1,5 +1,5 @@
-import HeaderHome from "../components/HeaderHome";
-import FooterHome from "../components/FooterHome";
+import HeaderHome from "../components/common/HeaderHome.jsx";
+import FooterHome from "../components/common/FooterHome.jsx";
 import { FiBox, FiBarChart2 } from "react-icons/fi";
 import { FaUsers, FaTruck, FaShieldAlt } from "react-icons/fa";
 import { MdLayers } from "react-icons/md";

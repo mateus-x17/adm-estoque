@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaUser, FaSearch } from "react-icons/fa";
 import { useThemeStore } from "../store/useThemeStore.js";
-import ModalMensagem from "../components/ModalMensagem.jsx";
-import EditarItem from "../components/EditarItem.jsx";
+import ModalMensagem from "../components/common/ModalMensagem.jsx";
+import EditarItem from "../components/forms/EditarItem.jsx";
 import { useNavigate } from "react-router-dom";
 import { usersApi } from "../services/api";
 

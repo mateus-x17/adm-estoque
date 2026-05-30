@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import MovimentacaoRow from "../components/MovimentacaoRow";
-import ModalMovimentacao from "../components/ModalMovimentacao";
+import MovimentacaoRow from "../components/tables/MovimentacaoRow.jsx";
+import ModalMovimentacao from "../components/forms/ModalMovimentacao.jsx";
 import { FiFilter } from "react-icons/fi";
 import {
   LineChart,

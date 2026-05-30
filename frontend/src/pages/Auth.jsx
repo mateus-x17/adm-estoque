@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import LoginForm from "../components/LoginForm.jsx";
-import RegisterForm from "../components/RegisterForm.jsx";
+import LoginForm from "../components/forms/LoginForm.jsx";
+import RegisterForm from "../components/forms/RegisterForm.jsx";
 import { useThemeStore } from "../store/useThemeStore.js";
 import { FiSun, FiMoon } from "react-icons/fi";
 

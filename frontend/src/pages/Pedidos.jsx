@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import EditarItem from "../components/EditarItem";
-import PedidosFilters from "../components/PedidosFilters";
-import PedidosTableContainer from "../components/PedidosTableContainer";
-import PaginationControls from "../components/PaginationControls";
+import EditarItem from "../components/forms/EditarItem.jsx";
+import PedidosFilters from "../components/tables/PedidosFilters.jsx";
+import PedidosTableContainer from "../components/tables/PedidosTableContainer.jsx";
+import PaginationControls from "../components/common/PaginationControls.jsx";
 import { movementsApi } from "../services/api";
 
 const Pedidos = () => {

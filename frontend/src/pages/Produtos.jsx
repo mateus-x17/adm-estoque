@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaBoxOpen, FaSearch } from "react-icons/fa";
-import ModalProduto from "../components/ModalProduto.jsx";
-import ProdutoRow from "../components/ProdutoRow.jsx";
-import EditarItem from "../components/EditarItem.jsx";
+import ModalProduto from "../components/forms/ModalProduto.jsx";
+import ProdutoRow from "../components/tables/ProdutoRow.jsx";
+import EditarItem from "../components/forms/EditarItem.jsx";
 import { productsApi } from "../services/api";
 
 const Produtos = () => {

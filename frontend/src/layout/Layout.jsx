@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
+import Sidebar from "../components/common/Sidebar.jsx";
+import Header from "../components/common/Header.jsx";
+import NotificationContainer from "../components/common/NotificationContainer.jsx";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useUserStore } from "../store/userStore";
 
@@ -31,6 +32,7 @@ const Layout = () => {
 
       <div className="flex flex-col flex-1 h-full">
         <Header />
+        <NotificationContainer />
         <main className="flex-1 overflow-y-auto bg-gray-200 dark:bg-gray-900 transition-colors duration-200">
           <Outlet />
         </main>

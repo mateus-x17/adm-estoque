@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import ModalProduto from "../components/ModalProduto.jsx";
-import ProdutoRow from "../components/ProdutoRow.jsx";
+import ModalProduto from "../forms/ModalProduto.jsx";
+import ProdutoRow from "./ProdutoRow.jsx";
 import { productsApi } from "../services/api";
 
 const Produtos = () => {
