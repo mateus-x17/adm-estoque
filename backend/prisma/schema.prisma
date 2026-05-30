@@ -13,10 +13,13 @@ model Usuario {
   email     String   @unique
   senha     String
   role      Role     @default(OPERADOR)
-  imagem    String?  // ✅ Adicione isso
+  imagem    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   movimentos Movimento[]
+
+  @@index([email])
+  @@index([role])
 }
 
 model Categoria {
@@ -39,7 +42,7 @@ model Produto {
   descricao   String?
   preco       Float
   quantidade  Int       @default(0)
-  imagem      String?   // caminho do arquivo
+  imagem      String?
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
   categoriaId Int?
   fornecedor  Fornecedor? @relation(fields: [fornecedorId], references: [id])
@@ -47,6 +50,11 @@ model Produto {
   movimentos  Movimento[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+
+  @@index([categoriaId])
+  @@index([fornecedorId])
+  @@index([quantidade])
+  @@index([nome])
 }
 
 model Movimento {
@@ -59,6 +67,10 @@ model Movimento {
   usuarioId  Int
   data       DateTime  @default(now())
   observacao String?
+
+  @@index([usuarioId])
+  @@index([produtoId])
+  @@index([data])
 }
 
 enum Role {
