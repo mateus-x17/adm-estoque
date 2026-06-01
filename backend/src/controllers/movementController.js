@@ -39,18 +39,31 @@ export async function getUserStats(req, res, next) {
     const results = await Promise.all(stats.map(async (s) => {
       const usuario = await prisma.usuario.findUnique({ where: { id: s.usuarioId }, select: { nome: true } });
       // compute totalValue for SAIDA movements
-      const totalValueAgg = await prisma.movimento.aggregate({
-        where: { usuarioId: s.usuarioId, tipo: 'SAIDA' },
-        _sum: { quantidade: true }
-      });
+const saidas = await prisma.movimento.findMany({
+  where: {
+    usuarioId: s.usuarioId,
+    tipo: 'SAIDA'
+  },
+  include: {
+    produto: {
+      select: {
+        preco: true
+      }
+    }
+  }
+});
 
-      return {
-        usuarioId: s.usuarioId,
-        name: usuario?.nome || 'Desconhecido',
-        count: s._count._all || 0,
-        totalQuantity: s._sum.quantidade || 0,
-        totalSaidaQuantity: totalValueAgg._sum.quantidade || 0
-      };
+const totalValue = saidas.reduce((acc, mov) => {
+  return acc + (mov.quantidade * mov.produto.preco);
+}, 0);
+
+return {
+  usuarioId: s.usuarioId,
+  name: usuario?.nome || 'Desconhecido',
+  count: s._count._all || 0,
+  totalQuantity: s._sum.quantidade || 0,
+  totalValue
+};
     }));
 
     res.json(results);
