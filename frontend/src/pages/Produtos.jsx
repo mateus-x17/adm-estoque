@@ -14,29 +14,43 @@ const Produtos = () => {
   const [sortPrice, setSortPrice] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  const carregarProdutos = async () => {
-    try {
-      const data = await productsApi.getProducts();
-      setProdutos(data);
-      setTimeout(() => setLoaded(true), 50);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+const carregarProdutos = async () => {
+  try {
+    const result = await productsApi.getProducts();
+
+    console.log(result);
+
+    setProdutos(result);
+
+    setTimeout(() => setLoaded(true), 50);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   useEffect(() => {
     carregarProdutos();
   }, []);
 
-  const atualizarProduto = (produtoAtualizado) => {
-    if (!produtoAtualizado) return;
-    setProdutos((prev) =>
-      prev.map((p) => (p.id === produtoAtualizado.id ? produtoAtualizado : p))
-    );
-    setProdutoSelecionado((prev) =>
-      prev?.id === produtoAtualizado.id ? produtoAtualizado : prev
-    );
-  };
+    const atualizarProduto = (produtoAtualizado) => {
+    if (!produtoAtualizado) return
+
+    setProdutos((prev) => {
+      const existe = prev.some(
+        (p) => p.id === produtoAtualizado.id
+      )
+
+      if (existe) {
+        return prev.map((p) =>
+          p.id === produtoAtualizado.id
+            ? produtoAtualizado
+            : p
+        )
+      }
+
+      return [...prev, produtoAtualizado]
+    })
+    }
 
   const abrirModalProduto = (produto) => {
     setProdutoSelecionado({ ...produto, type: "produto" });
