@@ -45,7 +45,7 @@ router.delete("/:id", permit("ADMIN"), deleteProduct);
 // ajustar quantidade -> gerentes e operadores (dependendo da regra)
 router.post("/:id/adjust", 
   permit("ADMIN", "GERENTE", "OPERADOR"),
-  validateRequest({ required: ['qtd', 'tipo', 'obs'] }),
+  validateRequest({ required: ['quantidade', 'tipo'] }),
   adjustQuantity
 );
 

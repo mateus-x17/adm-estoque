@@ -9,7 +9,7 @@ import {
   deletarFornecedor,
   countFornecedores,
   getSupplierStats,
-  obterFornecedor
+  obterFornecedor,
 } from "../controllers/supplierController.js";
 
 const router = express.Router();
@@ -18,24 +18,31 @@ const router = express.Router();
 router.get("/stats", authMiddleware, getSupplierStats);
 
 // 🔹 Apenas ADMIN e GERENTE podem criar/editar/deletar fornecedores
-router.post("/", 
-  authMiddleware, 
-  permit("ADMIN", "GERENTE"), 
-  validateRequest({ required: ['nome', 'email', 'telefone', 'endereco'] }),
-  criarFornecedor
+router.post(
+  "/",
+  authMiddleware,
+  permit("ADMIN", "GERENTE"),
+  validateRequest({ required: ["nome", "email", "telefone", "endereco"] }),
+  criarFornecedor,
 );
-router.put("/:id", 
-  authMiddleware, 
-  permit("ADMIN", "GERENTE"), 
-  validateRequest({ required: ['nome', 'email', 'telefone', 'endereco'] }),
-  atualizarFornecedor
+router.put(
+  "/:id",
+  authMiddleware,
+  permit("ADMIN", "GERENTE"),
+  validateRequest({ required: ["nome", "email", "telefone", "endereco"] }),
+  atualizarFornecedor,
 );
-router.delete("/:id", authMiddleware, permit("ADMIN", "GERENTE"), deletarFornecedor);
+router.delete(
+  "/:id",
+  authMiddleware,
+  permit("ADMIN", "GERENTE"),
+  deletarFornecedor,
+);
 
 // 🔹 Todos podem listar fornecedores
-router.get("/:id", authMiddleware, obterFornecedor);
 router.get("/", authMiddleware, listarFornecedores);
 // contagem de fornecedores
 router.get("/count", authMiddleware, countFornecedores);
+router.get("/:id", authMiddleware, obterFornecedor);
 
 export default router;
