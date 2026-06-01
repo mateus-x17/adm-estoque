@@ -8,7 +8,8 @@ import {
   atualizarFornecedor,
   deletarFornecedor,
   countFornecedores,
-  getSupplierStats
+  getSupplierStats,
+  obterFornecedor
 } from "../controllers/supplierController.js";
 
 const router = express.Router();
@@ -32,6 +33,7 @@ router.put("/:id",
 router.delete("/:id", authMiddleware, permit("ADMIN", "GERENTE"), deletarFornecedor);
 
 // 🔹 Todos podem listar fornecedores
+router.get("/:id", authMiddleware, obterFornecedor);
 router.get("/", authMiddleware, listarFornecedores);
 // contagem de fornecedores
 router.get("/count", authMiddleware, countFornecedores);

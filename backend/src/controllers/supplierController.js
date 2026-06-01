@@ -5,10 +5,10 @@ const log = childLogger('supplierController');
 // 🔹 Criar fornecedor
 export async function criarFornecedor(req, res, next) {
   try {
-    const { nome, contato, endereco } = req.body;
+    const { nome, email, telefone, endereco } = req.body;
     if (!nome) return res.status(400).json({ error: "Nome é obrigatório" });
 
-    const fornecedor = await prisma.fornecedor.create({ data: { nome, contato, endereco } });
+    const fornecedor = await prisma.fornecedor.create({ data: { nome, email, telefone, endereco  } });
     res.json({ fornecedor });
   } catch (err) {
     log.error({ err }, 'Error creating supplier');
@@ -42,9 +42,9 @@ export async function countFornecedores(req, res, next) {
 export async function atualizarFornecedor(req, res, next) {
   try {
     const { id } = req.params;
-    const { nome, contato, endereco } = req.body;
+    const { nome, email, telefone, endereco } = req.body;
 
-    const fornecedor = await prisma.fornecedor.update({ where: { id: parseInt(id) }, data: { nome, contato, endereco } });
+    const fornecedor = await prisma.fornecedor.update({ where: { id: parseInt(id) }, data: { nome, email, telefone, endereco } });
     res.json({ fornecedor });
   } catch (err) {
     log.error({ err }, 'Error updating supplier');
@@ -103,6 +103,26 @@ export async function getSupplierStats(req, res, next) {
     res.json(stats);
   } catch (err) {
     log.error({ err }, 'Error getting supplier stats');
+    next(err);
+  }
+}
+
+export async function obterFornecedor(req, res, next) {
+  try {
+    const fornecedor = await prisma.fornecedor.findUnique({
+      where: {
+        id: parseInt(req.params.id)
+      }
+    });
+
+    if (!fornecedor) {
+      return res.status(404).json({
+        error: "Fornecedor não encontrado"
+      });
+    }
+
+    res.json(fornecedor);
+  } catch (err) {
     next(err);
   }
 }

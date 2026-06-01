@@ -2,13 +2,13 @@ import { prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
 
 export async function createSupplier(data) {
-  const { nome, contato, endereco } = data;
+  const { nome, email, telefone, endereco } = data;
   if (!nome || typeof nome !== 'string' || nome.trim() === '') {
     throw new AppError('Nome de fornecedor é obrigatório', 400);
   }
 
   return prisma.fornecedor.create({
-    data: { nome: nome.trim(), contato, endereco }
+    data: { nome: nome.trim(), email, telefone, endereco }
   });
 }
 
@@ -17,13 +17,14 @@ export async function listSuppliers() {
 }
 
 export async function updateSupplier(id, data) {
-  const { nome, contato, endereco } = data;
+  const { nome, email, telefone, endereco } = data;
+
   const supplier = await prisma.fornecedor.findUnique({ where: { id: parseInt(id) } });
   if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
 
   return prisma.fornecedor.update({
     where: { id: parseInt(id) },
-    data: { nome: nome ? nome.trim() : undefined, contato, endereco }
+    data: { nome: nome ? nome.trim() : undefined, email, telefone, endereco }
   });
 }
 

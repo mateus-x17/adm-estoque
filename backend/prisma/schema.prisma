@@ -29,11 +29,12 @@ model Categoria {
 }
 
 model Fornecedor {
-  id       Int      @id @default(autoincrement())
-  nome     String
-  contato  String?
-  endereco String?
-  produtos Produto[]
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String?
+  telefone  String?
+  endereco  String?
+  produtos  Produto[]
 }
 
 model Produto {
