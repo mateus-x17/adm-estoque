@@ -9,9 +9,9 @@ const API_BASE_URL = "http://localhost:5000";
  * Get authentication token from user store
  */
 const getToken = () => {
-    const storeData = localStorage.getItem("auth-storage");  // ✅ CORRIGIDO: era "user-store"
+    const storeData = localStorage.getItem("auth-token");  // ✅ Nome correto do store Zustand
     if (!storeData) {
-        console.log("[API Client] No auth-storage found in localStorage");
+        console.log("[API Client] No auth-token found in localStorage");
         return null;
     }
 
@@ -21,7 +21,7 @@ const getToken = () => {
         console.log("[API Client] Token from storage:", token ? "✅ Found" : "❌ Missing in state");
         return token;
     } catch (error) {
-        console.error("[API Client] Error parsing auth-storage:", error);
+        console.error("[API Client] Error parsing auth-token:", error);
         return null;
     }
 };

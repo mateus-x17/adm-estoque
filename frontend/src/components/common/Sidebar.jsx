@@ -16,6 +16,7 @@ import { FaGear } from "react-icons/fa6";
 import { FiLogOut } from "react-icons/fi";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { useUserStore } from "../../store/userStore.js";
+import { useAuthStore } from "../../store/useAuthStore.js";
 
 const links = [
   { name: "Dashboard", path: "/dashboard", icon: <HiHome size={20} /> },
@@ -130,11 +131,13 @@ const Sidebar = ({ closeSidebar }) => {
   }, [darkMode]);
 
   const { clearUser, user } = useUserStore();
+  const { clearToken } = useAuthStore();
 
   // Função de logout (simples - por hora)
   const logout = () => {
     // Lógica de logout aqui
     clearUser(); // Limpa os dados do usuário no Zustand
+    clearToken(); // Limpa o token de autenticação
     alert("Logout de usuário realizado com sucesso!");
     // Exemplo: redirecionar para a pággin home com hook useNavigate: navigate('/');
     navigate("/");

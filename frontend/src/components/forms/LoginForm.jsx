@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/userStore.js";
+import { useAuthStore } from "../../store/useAuthStore.js";
 import { authApi } from "../../services/api/index.js";
 
 const LoginForm = () => {
   const { setUser } = useUserStore();
+  const { setToken } = useAuthStore();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -20,8 +22,9 @@ const LoginForm = () => {
     try {
       const data = await authApi.login({ email, senha });
 
-      // login OK
-      setUser(data.user, data.token);
+      // Salvar user e token
+      setUser(data.user);
+      setToken(data.token);
       console.log("Login bem-sucedido. Usuário:", data.user.email);
       navigate("/dashboard");
 
