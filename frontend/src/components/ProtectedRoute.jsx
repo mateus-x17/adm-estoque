@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useUserStore } from '../store/useUserStore.js';
+import { useUserStore } from '../store/userStore.js';
 
 const ProtectedRoute = ({ element, requiredRole = null }) => {
   const user = useUserStore((state) => state.user);

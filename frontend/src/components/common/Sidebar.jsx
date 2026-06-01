@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useThemeStore } from "../store/useThemeStore";
+import { useThemeStore } from "../../store/useThemeStore.js";
 import { NavLink } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import {
@@ -15,7 +15,7 @@ import { FaUser, FaTruck } from "react-icons/fa";
 import { FaGear } from "react-icons/fa6";
 import { FiLogOut } from "react-icons/fi";
 import { FaMoon, FaSun } from "react-icons/fa";
-import { useUserStore } from "../store/userStore";
+import { useUserStore } from "../../store/userStore.js";
 
 const links = [
   { name: "Dashboard", path: "/dashboard", icon: <HiHome size={20} /> },

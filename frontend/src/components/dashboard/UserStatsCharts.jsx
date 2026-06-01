@@ -9,7 +9,7 @@ import {
     CartesianGrid,
     Cell,
 } from "recharts";
-import { movementsApi } from "../services/api";
+import { movementsApi } from "../../services/api/index.js";
 
 const COLORS_COUNT = [
     "#818cf8", "#a78bfa", "#c084fc", "#e879f9", "#f472b6",

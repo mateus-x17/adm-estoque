@@ -7,6 +7,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      backgroundSize: {
+        'gradient-400': '400% 400%',
+      },
       keyframes: {
         slideInLeft: {
           '0%': { transform: 'translateX(-100%)' },
@@ -50,8 +53,6 @@ module.exports = {
         gradientShift: "gradientShift 6s ease infinite alternate",
         fadeInUp: "fadeInUp 0.8s ease forwards",
         fadeInDown: "fadeInDown 0.8s ease forwards",
-        fadeIn: "fadeIn 1s ease forwards",
-      // animações page auth
         fadeIn: "fadeIn 0.6s ease-out",
         slideUp: "slideUp 0.5s ease-out",
       },

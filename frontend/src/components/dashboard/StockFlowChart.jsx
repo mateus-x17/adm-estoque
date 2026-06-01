@@ -10,7 +10,7 @@ import {
     CartesianGrid,
 } from "recharts";
 import { MoreHorizontal } from "lucide-react";
-import { movementsApi } from "../services/api";
+import { movementsApi } from "../../services/api/index.js";
 
 // Tooltip customizado com visual premium
 const CustomTooltip = ({ active, payload, label }) => {

@@ -3,7 +3,7 @@ import EditarItem from "../components/forms/EditarItem.jsx";
 import PedidosFilters from "../components/tables/PedidosFilters.jsx";
 import PedidosTableContainer from "../components/tables/PedidosTableContainer.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
-import { movementsApi } from "../services/api";
+import { movementsApi } from "../services/api/index.js";
 
 const Pedidos = () => {
     const [pedidos, setPedidos] = useState([]);

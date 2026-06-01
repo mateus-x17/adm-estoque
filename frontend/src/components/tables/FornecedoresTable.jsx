@@ -1,5 +1,5 @@
 import React from "react";
-import FornecedorRow from "./FornecedorRow";
+import FornecedorRow from "./FornecedorRow.jsx";
 
 /**
  * Table component for displaying suppliers list

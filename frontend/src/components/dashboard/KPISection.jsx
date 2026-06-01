@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, Package, Truck, ListTree, TrendingUp } from "lucide-react";
-import { productsApi, suppliersApi, categoriesApi } from "../services/api";
+import { productsApi, suppliersApi, categoriesApi } from "../../services/api/index.js";
 
 export default function KPISection() {
     const [loading, setLoading] = useState(true);

@@ -8,7 +8,7 @@ import {
     ResponsiveContainer,
     CartesianGrid,
 } from "recharts";
-import { movementsApi } from "../services/api";
+import { movementsApi } from "../../services/api/index.js";
 
 // Tooltip customizado premium
 const CustomTooltip = ({ active, payload, label }) => {

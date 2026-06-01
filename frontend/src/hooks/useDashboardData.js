@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { productsApi, suppliersApi, categoriesApi, movementsApi } from "../services/api";
+import { productsApi, suppliersApi, categoriesApi, movementsApi } from "../services/api/index.js";
 
 export const useDashboardData = () => {
     const [loading, setLoading] = useState(true);

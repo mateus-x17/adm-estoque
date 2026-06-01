@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import EditarItem from "./EditarItem.jsx";
-
-import ModalMensagem from "./ModalMensagem.jsx";
+import ModalMensagem from "../common/ModalMensagem.jsx";
 
 
 function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {

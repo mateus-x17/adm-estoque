@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { useThemeStore } from "../store/useThemeStore"
-import { useUserStore } from "../store/userStore"
-import ModalMensagem from "./ModalMensagem.jsx"
+import { useThemeStore } from "../../store/useThemeStore.js"
+import { useUserStore } from "../../store/userStore.js"
+import ModalMensagem from "../common/ModalMensagem.jsx"
 
 const formConfigs = {
   usuario: {

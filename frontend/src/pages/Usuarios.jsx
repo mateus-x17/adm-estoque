@@ -4,7 +4,7 @@ import { useThemeStore } from "../store/useThemeStore.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
 import { useNavigate } from "react-router-dom";
-import { usersApi } from "../services/api";
+import { usersApi } from "../services/api/index.js";
 
 const getRoleColor = (role) => {
   switch (role) {

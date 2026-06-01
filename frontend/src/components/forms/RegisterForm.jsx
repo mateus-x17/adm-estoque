@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUserStore } from "../store/userStore";
-import { authApi } from "../services/api";
+import { useUserStore } from "../../store/userStore.js";
+import { authApi } from "../../services/api/index.js";
 
 const RegisterForm = () => {
   const { setUser } = useUserStore();

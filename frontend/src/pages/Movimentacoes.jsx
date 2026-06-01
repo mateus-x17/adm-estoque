@@ -14,7 +14,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { movementsApi } from "../services/api";
+import { movementsApi } from "../services/api/index.js";
 
 const Movimentacoes = () => {
   const [movimentacoes, setMovimentacoes] = useState([]);

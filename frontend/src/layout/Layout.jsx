@@ -1,9 +1,9 @@
 import React, { useEffect } from "react";
 import Sidebar from "../components/common/Sidebar.jsx";
 import Header from "../components/common/Header.jsx";
-import NotificationContainer from "../components/common/NotificationContainer.jsx";
+import { NotificationContainer } from "../components/common/NotificationContainer.jsx";
 import { Outlet, useNavigate } from "react-router-dom";
-import { useUserStore } from "../store/userStore";
+import { useUserStore } from "../store/userStore.js";
 
 const Layout = () => {
   const navigate = useNavigate();

@@ -61,7 +61,7 @@ const Home = () => {
         className="
           relative w-full h-[60vh] flex flex-col items-center justify-center text-center text-white overflow-hidden 
           bg-gradient-to-r from-purple-800 via-blue-400 to-green-600 
-          bg-[length:400%_400%] animate-gradientShift">
+          bg-gradient-400 animate-gradientShift">
 
           <div className="absolute inset-0 bg-black/30" />
           <h1 className="relative z-10 text-4xl md:text-5xl font-bold drop-shadow-lg animate-fadeInDown">

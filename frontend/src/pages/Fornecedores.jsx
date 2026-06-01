@@ -3,7 +3,7 @@ import { FiPlus } from "react-icons/fi";
 import EditarItem from "../components/forms/EditarItem.jsx";
 import FornecedorDashboard from "../components/dashboard/FornecedorDashboard.jsx";
 import FornecedoresTable from "../components/tables/FornecedoresTable.jsx";
-import { suppliersApi } from "../services/api";
+import { suppliersApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 
 

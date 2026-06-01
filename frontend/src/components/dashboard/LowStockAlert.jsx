@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
-import { productsApi } from "../services/api";
+import { productsApi } from "../../services/api/index.js";
 
 export default function LowStockAlert() {
     const [lowStockList, setLowStockList] = useState([]);

@@ -3,7 +3,7 @@ import { CgLogIn } from "react-icons/cg";
 import { HiHome } from "react-icons/hi";
 import { FiSun, FiMoon } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
-import { useThemeStore } from "../store/useThemeStore";
+import { useThemeStore } from "../../store/useThemeStore.js";
 
 function HeaderHome() {
   const { darkMode, toggleDarkMode } = useThemeStore();

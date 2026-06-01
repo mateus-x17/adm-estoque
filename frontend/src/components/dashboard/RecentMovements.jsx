@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { movementsApi } from "../services/api";
+import { movementsApi } from "../../services/api/index.js";
 
 export default function RecentMovements() {
     const [movementsData, setMovementsData] = useState([]);

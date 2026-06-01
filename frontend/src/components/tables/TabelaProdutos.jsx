@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ModalProduto from "../forms/ModalProduto.jsx";
 import ProdutoRow from "./ProdutoRow.jsx";
-import { productsApi } from "../services/api";
+import { productsApi } from "../../services/api/index.js";
 
 const Produtos = () => {
   const [produtos, setProdutos] = useState([]);

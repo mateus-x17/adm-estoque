@@ -1,5 +1,5 @@
 import React from "react";
-import PedidoRow from "./PedidoRow";
+import PedidoRow from "./PedidoRow.jsx";
 
 /**
  * Table container for Pedidos with header and count badge

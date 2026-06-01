@@ -3,7 +3,7 @@ import { FaBoxOpen, FaSearch } from "react-icons/fa";
 import ModalProduto from "../components/forms/ModalProduto.jsx";
 import ProdutoRow from "../components/tables/ProdutoRow.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
-import { productsApi } from "../services/api";
+import { productsApi } from "../services/api/index.js";
 
 const Produtos = () => {
   const [produtos, setProdutos] = useState([]);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { FiPlus, FiEdit, FiTrash, FiX } from "react-icons/fi";
-import { categoriesApi } from "../services/api";
+import { categoriesApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 
 

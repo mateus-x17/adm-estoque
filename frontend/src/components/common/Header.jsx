@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useThemeStore } from "../store/useThemeStore";
+import { useThemeStore } from "../../store/useThemeStore.js";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { HiMenu } from "react-icons/hi";
-import Sidebar from "./Sidebar";
+import Sidebar from "./Sidebar.jsx";
 
 const Header = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
