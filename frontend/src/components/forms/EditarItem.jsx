@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { useThemeStore } from "../../store/useThemeStore.js"
 import { useUserStore } from "../../store/userStore.js"
+import { useAuthStore } from "../../store/useAuthStore.js"
 import ModalMensagem from "../common/ModalMensagem.jsx"
 
 const formConfigs = {
@@ -51,7 +52,8 @@ const formConfigs = {
   fornecedor: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "contato", label: "Contato", type: "text", required: true },
+      { name: "email", label: "Email", type: "email", required: true },
+      { name: "telefone", label: "Telefone", type: "text", required: true },
       { name: "endereco", label: "Endereço", type: "text", required: true },
     ],
     route: (id) => `http://localhost:5000/suppliers/${id}`,
@@ -59,14 +61,15 @@ const formConfigs = {
   CriarFornecedor: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "contato", label: "Contato", type: "text", required: true },
+      { name: "email", label: "Email", type: "email", required: true },
+      { name: "telefone", label: "Telefone", type: "text", required: true },
       { name: "endereco", label: "Endereço", type: "text", required: true },
     ],
     route: "http://localhost:5000/suppliers",
   },
   CriarPedido: {
     fields: [
-      { name: "produtoId", label: "Produto", type: "select", endpoint: "/products", keyName: "produto", required: true },
+      { name: "produtoId", label: "Produto", type: "select", endpoint: "/products", keyName: "data", required: true },
       { name: "quantidade", label: "Quantidade", type: "number", required: true },
       { name: "tipo", label: "Tipo", type: "select", options: ["SAIDA", "ENTRADA"], required: true },
       { name: "observacao", label: "Observação", type: "textarea" },
@@ -78,7 +81,7 @@ const formConfigs = {
 
 function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
   const { darkMode } = useThemeStore()
-  const { token } = useUserStore()
+  const token = useAuthStore((state) => state.token)
   const config = formConfigs[type]
   const isCreating = type.startsWith("Criar")
 
@@ -105,6 +108,9 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         })
         if (!res.ok) return
         const data = await res.json()
+        /////
+        console.log("PRODUCTS RESPONSE", data)
+        /////
         const list = Array.isArray(data) ? data : data[field.keyName] || []
         setSelectOptions((prev) => ({ ...prev, [field.name]: list }))
       } else if (field.options) {
@@ -127,6 +133,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.log("TOKEN", token)
 
     try {
       const formData = new FormData()
@@ -147,19 +154,40 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       // adjust-quantity might expect JSON. Let's check Pedidos.jsx again in thought. 
       // Pedidos.jsx uses JSON.stringify.
       // Let's force JSON for CriarPedido or if no file.
+      const hasFileField = config.fields.some(
+        (field) => field.type === "file"
+      )
+    let body
+    const headers = {}
 
-      let body
-      let headers = token ? { Authorization: `Bearer ${token}` } : {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
 
-      if (type === 'CriarPedido') {
-        headers["Content-Type"] = "application/json"
+    if (type === "CriarPedido") {
+      headers["Content-Type"] = "application/json"
 
-        const payload = { ...form }
-        if (payload.quantidade) payload.quantidade = Number(payload.quantidade)
+      const payload = {
+        ...form,
+        quantidade: Number(form.quantidade),
+      }
 
-        body = JSON.stringify(payload)
-      } else {
-        body = formData
+      body = JSON.stringify(payload)
+
+    } else if (hasFileField) {
+
+      body = formData
+
+    } else {
+
+      headers["Content-Type"] = "application/json"
+      body = JSON.stringify(form)
+
+    }
+
+      console.log("FORM:", form)
+      for (const pair of formData.entries()) {
+        console.log(pair[0], pair[1])
       }
 
       const res = await fetch(url, {
@@ -168,17 +196,40 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         body,
       })
 
+      console.log("STATUS:", res.status)
+      const responseText = await res.clone().text()
+      console.log("RESPONSE:", responseText)
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        setModal({ visible: true, mensagem: err.error || "Erro ao salvar", tipo: "erro" })
+
+        console.error("BACKEND ERROR:", err)
+
+        setModal({
+          visible: true,
+          mensagem:
+            err.error ||
+            err.message ||
+            `Erro ${res.status}`,
+          tipo: "erro",
+        })
+
         return
       }
 
-      const updatedItem = isCreating
-        ? await res.json()
-        : await fetch(config.route(itemData.id), {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }).then((r) => r.json())
+      // const updatedItem = isCreating
+      //   ? await res.json()
+      //   : await fetch(config.route(itemData.id), {
+      //     headers: token ? { Authorization: `Bearer ${token}` } : {},
+      //   }).then((r) => r.json())
+
+      // const updatedItem = await res.json()
+      const responseData = await res.json()
+      const updatedItem =
+        responseData.fornecedor ||
+        responseData.produto ||
+        responseData.usuario ||
+        responseData
 
       setModal({
         visible: true,

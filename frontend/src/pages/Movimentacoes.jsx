@@ -25,7 +25,7 @@ const Movimentacoes = () => {
   const [tipoFiltro, setTipoFiltro] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [filtrosAbertos, setFiltrosAbertos] = useState(true);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   // paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
