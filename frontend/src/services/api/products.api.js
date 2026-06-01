@@ -7,12 +7,18 @@ export const productsApi = {
     /**
      * Get all products
      */
-    getProducts: () => apiClient.get("/products"),
+    getProducts: async () => {
+        const response = await apiClient.get("/products");
+        return response.data || response;
+    },
 
     /**
      * Get product statistics (total, low stock, etc.)
      */
-    getProductStats: () => apiClient.get("/products/stats"),
+    getProductStats: async () => {
+        const response = await apiClient.get("/products/stats");
+        return response.data || response;
+    },
 
     /**
      * Create a new product

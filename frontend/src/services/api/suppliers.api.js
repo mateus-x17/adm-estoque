@@ -7,17 +7,26 @@ export const suppliersApi = {
     /**
      * Get all suppliers
      */
-    getSuppliers: () => apiClient.get("/suppliers"),
+    getSuppliers: async () => {
+        const response = await apiClient.get("/suppliers");
+        return response.data || response;
+    },
 
     /**
      * Get suppliers count
      */
-    getSuppliersCount: () => apiClient.get("/suppliers/count"),
+    getSuppliersCount: async () => {
+        const response = await apiClient.get("/suppliers/count");
+        return response.data || response;
+    },
 
     /**
      * Get supplier statistics
      */
-    getSupplierStats: () => apiClient.get("/suppliers/stats"),
+    getSupplierStats: async () => {
+        const response = await apiClient.get("/suppliers/stats");
+        return response.data || response;
+    },
 
     /**
      * Create a new supplier

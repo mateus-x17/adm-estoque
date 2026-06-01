@@ -7,7 +7,10 @@ export const usersApi = {
     /**
      * Get all users
      */
-    getUsers: () => apiClient.get("/users"),
+    getUsers: async () => {
+        const response = await apiClient.get("/users");
+        return response.data || response;
+    },
 
     /**
      * Create a new user

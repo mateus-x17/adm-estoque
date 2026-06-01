@@ -8,16 +8,20 @@ export const movementsApi = {
      * Get all movements with optional filters
      * @param {Object} params - Query parameters (order, tipo, etc.)
      */
-    getMovements: (params = {}) => {
+    getMovements: async (params = {}) => {
         const queryString = new URLSearchParams(params).toString();
         const endpoint = queryString ? `/movements?${queryString}` : "/movements";
-        return apiClient.get(endpoint);
+        const response = await apiClient.get(endpoint);
+        return response.data || response;
     },
 
     /**
      * Get user statistics (movement counts and values per user)
      */
-    getUserStats: () => apiClient.get("/movements/user-stats"),
+    getUserStats: async () => {
+        const response = await apiClient.get("/movements/user-stats");
+        return response.data || response;
+    },
 
     /**
      * Create a new movement
