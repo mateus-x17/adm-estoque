@@ -1,26 +1,12 @@
-// import { PrismaClient } from "@prisma/client";
-// const prisma = new PrismaClient();
 import { prisma } from '../config/prismaClient.js';
 import { childLogger } from '../config/logger.js';
+import { listMovementsPaginated } from '../services/movementService.js';
 const log = childLogger('movementController');
 
 export async function listMovements(req, res, next) {
   try {
-    const { produtoId, from, to, order } = req.query;
-    const where = {};
-
-    if (produtoId) where.produtoId = Number(produtoId);
-
-    if (from || to) {
-      where.data = {};
-      if (from) where.data.gte = new Date(from);
-      if (to) where.data.lte = new Date(to);
-    }
-
-    const orderBy = { data: order === "asc" ? "asc" : "desc" };
-
-    const mov = await prisma.movimento.findMany({ where, include: { produto: true, usuario: true }, orderBy });
-    res.json(mov);
+    const result = await listMovementsPaginated(req.query);
+    res.json(result);
   } catch (err) {
     log.error({ err }, 'Error listing movements');
     next(err);

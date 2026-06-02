@@ -4,9 +4,7 @@ const log = childLogger('productController');
 
 export async function listProducts(req, res, next) {
   try {
-    const page = req.query.page || 1;
-    const limit = req.query.limit || 10;
-    const result = await productService.listProductsPaginated(page, limit);
+    const result = await productService.listProductsPaginated(req.query);
     res.json(result);
   } catch (err) {
     log.error({ err }, 'Error listing products');

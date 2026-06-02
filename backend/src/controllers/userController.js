@@ -2,6 +2,7 @@
 // const prisma = new PrismaClient();
 import { childLogger } from "../config/logger.js";
 import * as userService from "../services/userService.js";
+import { AppError } from "../utils/errorHandler.js";
 const log = childLogger("userController");
 
 export async function createUser(req, res, next) {
@@ -74,6 +75,58 @@ export async function deleteUser(req, res, next) {
     res.json({ ok: true });
   } catch (err) {
     log.error({ err }, "Error deleting user");
+    next(err);
+  }
+}
+
+export async function getMe(req, res, next) {
+  try {
+    const user = await userService.getUserById(req.user.id);
+    res.json(user);
+  } catch (err) {
+    log.error({ err }, "Error getting logged user");
+    next(err);
+  }
+}
+
+export async function updateMe(req, res, next) {
+  try {
+    const isAdmin = req.user.role === "ADMIN";
+
+    const newImagePath = req.file
+      ? `/uploads/usuarios/${req.file.filename}`
+      : null;
+
+    const { nome, email, role } = req.body || {};
+
+    // Guardrails: não confiar em role vindo do cliente para não-admin.
+    if (!isAdmin && role !== undefined) {
+      throw new AppError("Acesso negado", 403);
+    }
+
+    const updateData = {
+      nome,
+      email,
+    };
+
+    if (isAdmin && role !== undefined && role !== "") {
+      const allowedRoles = ["ADMIN", "GERENTE", "OPERADOR"];
+      const normalizedRole = String(role).toUpperCase();
+      if (!allowedRoles.includes(normalizedRole)) {
+        throw new AppError("Role inválida", 400);
+      }
+      updateData.role = normalizedRole;
+    }
+
+    const user = await userService.updateUser(
+      req.user.id,
+      updateData,
+      newImagePath
+    );
+
+    res.json(user);
+  } catch (err) {
+    log.error({ err }, "Error updating logged user");
     next(err);
   }
 }
