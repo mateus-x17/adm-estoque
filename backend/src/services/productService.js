@@ -2,23 +2,48 @@ import { prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
 import fs from 'fs';
 
-export async function listProductsPaginated(page = 1, limit = 10) {
-  const limitSafe = Math.min(Math.max(1, parseInt(limit) || 10), 100);
+export async function listProductsPaginated(filters = {}) {
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    sortPrice,
+    categoriaId,
+  } = filters;
+
+  const where = {
+    AND: [
+      search && search !== 'undefined' && search !== 'null'
+        ? { nome: { contains: search, mode: "insensitive" } }
+        : {},
+      categoriaId && categoriaId !== 'undefined' && categoriaId !== 'null' && !isNaN(Number(categoriaId))
+        ? { categoriaId: Number(categoriaId) }
+        : {},
+    ],
+  };
+
+  const limitSafe = limit === 'all' ? undefined : Math.min(Math.max(1, parseInt(limit) || 10), 100);
   const pageSafe = Math.max(1, parseInt(page) || 1);
-  const skip = (pageSafe - 1) * limitSafe;
+  const skip = limit === 'all' ? undefined : (pageSafe - 1) * limitSafe;
+
+  const orderBy = sortPrice && ['asc', 'desc'].includes(sortPrice)
+    ? { preco: sortPrice }
+    : undefined;
 
   const [products, total] = await Promise.all([
     prisma.produto.findMany({
+      where,
       skip,
       take: limitSafe,
+      orderBy,
       include: { categoria: true, fornecedor: true }
     }),
-    prisma.produto.count()
+    prisma.produto.count({ where })
   ]);
 
   return {
     data: products,
-    pagination: { page: pageSafe, limit: limitSafe, total, pages: Math.ceil(total / limitSafe) }
+    pagination: { page: pageSafe, limit: limitSafe, total, pages: limit === 'all' ? 1 : Math.ceil(total / limitSafe) }
   };
 }
 

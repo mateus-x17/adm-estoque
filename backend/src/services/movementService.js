@@ -2,20 +2,60 @@ import { prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
 
 export async function listMovementsPaginated(filters = {}) {
-  const { produtoId, from, to, order, page = 1, limit = 20 } = filters;
-  const where = {};
+  const {
+    produtoId,
+    from,
+    to,
+    order,
+    page = 1,
+    limit = 20,
+    tipo,
+    usuarioId,
+    search,
+  } = filters;
 
-  if (produtoId) where.produtoId = Number(produtoId);
+  const where = {
+    AND: [
+      produtoId && !isNaN(Number(produtoId))
+        ? {
+            produtoId: Number(produtoId),
+          }
+        : {},
+      from || to
+        ? {
+            data: {
+              ...(from && from !== 'undefined' && from !== 'null' ? { gte: new Date(from) } : {}),
+              ...(to && to !== 'undefined' && to !== 'null' ? { lte: new Date(to) } : {}),
+            },
+          }
+        : {},
+      tipo && tipo !== 'undefined' && tipo !== 'null' && ['ENTRADA', 'SAIDA'].includes(tipo)
+        ? {
+            tipo,
+          }
+        : {},
+      usuarioId && usuarioId !== 'undefined' && usuarioId !== 'null' && !isNaN(Number(usuarioId))
+        ? {
+            usuarioId: Number(usuarioId),
+          }
+        : {},
+      search && search !== 'undefined' && search !== 'null'
+        ? {
+            produto: {
+              nome: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          }
+        : {},
+    ],
+  };
 
-  if (from || to) {
-    where.data = {};
-    if (from) where.data.gte = new Date(from);
-    if (to) where.data.lte = new Date(to);
-  }
-
-  const limitSafe = Math.min(Math.max(1, parseInt(limit) || 20), 100);
+  const isAll = limit === 'all';
+  const limitSafe = isAll ? undefined : Math.min(Math.max(1, parseInt(limit) || 20), 100);
   const pageSafe = Math.max(1, parseInt(page) || 1);
-  const skip = (pageSafe - 1) * limitSafe;
+  const skip = isAll ? undefined : (pageSafe - 1) * limitSafe;
 
   const orderBy = { data: order === 'asc' ? 'asc' : 'desc' };
 
@@ -25,14 +65,19 @@ export async function listMovementsPaginated(filters = {}) {
       include: { produto: true, usuario: { select: { id: true, nome: true, email: true, role: true } } },
       orderBy,
       skip,
-      take: limitSafe
+      take: limitSafe,
     }),
     prisma.movimento.count({ where })
   ]);
 
   return {
     data: movements,
-    pagination: { page: pageSafe, limit: limitSafe, total, pages: Math.ceil(total / limitSafe) }
+    pagination: {
+      page: pageSafe,
+      limit: isAll ? 'all' : limitSafe,
+      total,
+      pages: isAll ? 1 : Math.ceil(total / limitSafe)
+    }
   };
 }
 
