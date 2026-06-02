@@ -7,6 +7,9 @@ const PedidosFilters = ({
     setFilterDate,
     filterType,
     setFilterType,
+    userFilter,
+    setUserFilter,
+    usuarios = [],
     showFilters,
     setShowFilters,
     onCreateClick,
@@ -72,6 +75,25 @@ const PedidosFilters = ({
                         <option value="SAIDA" className="bg-white dark:bg-slate-800">
                             Saída
                         </option>
+                    </select>
+
+                    <select
+                        value={userFilter}
+                        onChange={handleChange(setUserFilter)}
+                        className="w-full lg:w-56 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="" className="bg-white dark:bg-slate-800">
+                            Todos os usuários
+                        </option>
+                        {usuarios.map((u) => (
+                            <option
+                                key={u.id}
+                                value={u.id}
+                                className="bg-white dark:bg-slate-800"
+                            >
+                                {u.nome}
+                            </option>
+                        ))}
                     </select>
                 </div>
             )}

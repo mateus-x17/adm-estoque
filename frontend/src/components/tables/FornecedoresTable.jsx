@@ -4,7 +4,7 @@ import FornecedorRow from "./FornecedorRow.jsx";
 /**
  * Table component for displaying suppliers list
  */
-const FornecedoresTable = ({ fornecedores, loading, onEdit, onDelete }) => {
+const FornecedoresTable = ({ fornecedores, loading, onEdit, onDelete, onOpenDetails }) => {
     return (
         <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800">
             <table className="w-full text-left text-sm text-slate-600 dark:text-slate-400">
@@ -38,6 +38,7 @@ const FornecedoresTable = ({ fornecedores, loading, onEdit, onDelete }) => {
                                 index={index}
                                 onEdit={onEdit}
                                 onDelete={onDelete}
+                                onOpenDetails={onOpenDetails}
                             />
                         ))
                     )}
