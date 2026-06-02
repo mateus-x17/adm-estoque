@@ -5,6 +5,7 @@ import Layout from '../layout/Layout.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import Produtos from '../pages/Produtos.jsx';
 import Usuarios from '../pages/Usuarios.jsx';
+import Configuracoes from '../pages/Configuracoes.jsx';
 import Movimentacoes from '../pages/Movimentacoes.jsx';
 import Categorias from '../pages/Categorias.jsx';
 import Pedidos from '../pages/Pedidos.jsx';
@@ -36,6 +37,10 @@ export const router = createBrowserRouter([
       {
         path: 'usuarios',
         element: <Usuarios />,
+      },
+      {
+        path: 'configuracoes',
+        element: <Configuracoes />,
       },
       {
         path: 'movimentacoes',
