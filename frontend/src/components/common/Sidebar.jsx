@@ -17,6 +17,7 @@ import { FiLogOut } from "react-icons/fi";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { useUserStore } from "../../store/userStore.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
+import ModalMensagem from "./ModalMensagem.jsx";
 
 const links = [
   { name: "Dashboard", path: "/dashboard", icon: <HiHome size={20} /> },
@@ -133,14 +134,27 @@ const Sidebar = ({ closeSidebar }) => {
   const { clearUser, user } = useUserStore();
   const { clearToken } = useAuthStore();
 
+  const [logoutModal, setLogoutModal] = useState({
+    visible: false,
+    mensagem: "",
+    tipo: "sucesso",
+  });
+
   // Função de logout (simples - por hora)
   const logout = () => {
-    // Lógica de logout aqui
+    setLogoutModal({
+      visible: true,
+      mensagem: "Logout de usuário realizado com sucesso!",
+      tipo: "sucesso",
+    });
+  };
+
+  const closeLogoutModal = () => {
+    setLogoutModal({ visible: false, mensagem: "", tipo: "sucesso" });
     clearUser(); // Limpa os dados do usuário no Zustand
     clearToken(); // Limpa o token de autenticação
-    alert("Logout de usuário realizado com sucesso!");
-    // Exemplo: redirecionar para a pággin home com hook useNavigate: navigate('/');
     navigate("/");
+    closeSidebar?.();
   };
 
   return (
@@ -203,8 +217,16 @@ const Sidebar = ({ closeSidebar }) => {
         </button>
 
         <div className="flex items-center gap-3 mt-3 cursor-pointer hover:text-gray-500 dark:hover:text-blue-400">
-          <FaGear size={20} />
-          <p>Configurações</p>
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => {
+              navigate("/dashboard/configuracoes");
+              closeSidebar?.();
+            }}
+          >
+            <FaGear size={20} />
+            <p>Configurações</p>
+          </div>
         </div>
 
         <div
@@ -215,6 +237,14 @@ const Sidebar = ({ closeSidebar }) => {
           <p>Sair</p>
         </div>
       </div>
+
+      {logoutModal.visible && (
+        <ModalMensagem
+          mensagem={logoutModal.mensagem}
+          tipo={logoutModal.tipo}
+          onClose={closeLogoutModal}
+        />
+      )}
     </div>
   );
 };
