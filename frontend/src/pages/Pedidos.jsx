@@ -3,7 +3,7 @@ import EditarItem from "../components/forms/EditarItem.jsx";
 import PedidosFilters from "../components/tables/PedidosFilters.jsx";
 import PedidosTableContainer from "../components/tables/PedidosTableContainer.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
-import { movementsApi } from "../services/api/index.js";
+import { movementsApi, usersApi } from "../services/api/index.js";
 
 const Pedidos = () => {
     const [pedidos, setPedidos] = useState([]);
@@ -15,49 +15,88 @@ const Pedidos = () => {
     const [filterDate, setFilterDate] = useState("");
     const [filterType, setFilterType] = useState("todos");
     const [showFilters, setShowFilters] = useState(false);
+    const [userFilter, setUserFilter] = useState("");
+    const [usuarios, setUsuarios] = useState([]);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
 
+    // carregar usuários para filtro
     useEffect(() => {
-        fetchPedidos();
+        const carregarUsuarios = async () => {
+            try {
+                const response = await usersApi.getUsers({
+                    page: 1,
+                    limit: 100,
+                    search: "",
+                    role: "todos",
+                });
+                setUsuarios(response.data || []);
+            } catch (error) {
+                console.error("Erro ao carregar usuários para filtro de pedidos:", error);
+            }
+        };
+
+        carregarUsuarios();
     }, []);
 
-    const fetchPedidos = async () => {
-        try {
-            const data = await movementsApi.getMovements({ order: 'desc' });
-            setPedidos(data);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // buscar pedidos paginados do backend
+    useEffect(() => {
+        const fetchPedidos = async () => {
+            try {
+                const params = {
+                    page: currentPage,
+                    limit: itemsPerPage,
+                    order: "desc",
+                    tipo: filterType !== "todos" ? filterType : undefined,
+                    usuarioId: userFilter || undefined,
+                };
+
+                const result = await movementsApi.getMovements(params);
+                const serverData = result.data || [];
+                const pagination = result.pagination || {
+                    page: currentPage,
+                    limit: itemsPerPage,
+                    total: serverData.length,
+                    pages: 1,
+                };
+
+                // filtros adicionais (ID e data) ainda aplicados no frontend sobre a página atual
+                const filtered = serverData.filter((ped) => {
+                    if (filterId && !ped.id.toString().includes(filterId)) return false;
+                    if (filterDate) {
+                        const pedDate = new Date(ped.data).toLocaleDateString("en-CA");
+                        if (pedDate !== filterDate) return false;
+                    }
+                    return true;
+                });
+
+                setPedidos(filtered);
+                setTotalPages(pagination.pages || 1);
+                setTotalCount(pagination.total || serverData.length);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPedidos();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, filterId, filterDate, filterType, userFilter]);
 
     const handleItemCreated = () => {
-        fetchPedidos();
+        // recarrega página atual após criação
+        setLoading(true);
+        setCurrentPage(1);
     };
 
     const handleFilterChange = () => {
         setCurrentPage(1); // Reset to first page when filters change
     };
-
-    // Filter Logic
-    const filteredPedidos = pedidos.filter(ped => {
-        if (filterId && !ped.id.toString().includes(filterId)) return false;
-        if (filterType !== "todos" && ped.tipo !== filterType) return false;
-        if (filterDate) {
-            const pedDate = new Date(ped.data).toLocaleDateString("en-CA");
-            if (pedDate !== filterDate) return false;
-        }
-        return true;
-    });
-
-    // Pagination Logic
-    const totalPages = Math.ceil(filteredPedidos.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const currentPedidos = filteredPedidos.slice(startIndex, startIndex + itemsPerPage);
 
     return (
         <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-8">
@@ -81,6 +120,9 @@ const Pedidos = () => {
                 setFilterDate={setFilterDate}
                 filterType={filterType}
                 setFilterType={setFilterType}
+                userFilter={userFilter}
+                setUserFilter={setUserFilter}
+                usuarios={usuarios}
                 showFilters={showFilters}
                 setShowFilters={setShowFilters}
                 onCreateClick={() => setModalOpen(true)}
@@ -89,13 +131,13 @@ const Pedidos = () => {
 
             {/* Pedidos Table */}
             <PedidosTableContainer
-                pedidos={currentPedidos}
-                totalCount={filteredPedidos.length}
+                pedidos={pedidos}
+                totalCount={totalCount}
                 loading={loading}
             />
 
             {/* Pagination */}
-            {!loading && filteredPedidos.length > 0 && (
+            {!loading && totalPages > 1 && (
                 <PaginationControls
                     currentPage={currentPage}
                     totalPages={totalPages}

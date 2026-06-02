@@ -3,7 +3,8 @@ import { FaBoxOpen, FaSearch } from "react-icons/fa";
 import ModalProduto from "../components/forms/ModalProduto.jsx";
 import ProdutoRow from "../components/tables/ProdutoRow.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
-import { productsApi } from "../services/api/index.js";
+import PaginationControls from "../components/common/PaginationControls.jsx";
+import { productsApi, categoriesApi } from "../services/api/index.js";
 
 const Produtos = () => {
   const [produtos, setProdutos] = useState([]);
@@ -12,45 +13,71 @@ const Produtos = () => {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [sortPrice, setSortPrice] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
+  const [categorias, setCategorias] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
 
-const carregarProdutos = async () => {
-  try {
-    const result = await productsApi.getProducts();
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 8;
 
-    console.log(result);
+  // Carregar categorias para o filtro
+  useEffect(() => {
+    categoriesApi.getCategories()
+      .then((res) => setCategorias(res.data || res || []))
+      .catch(() => {});
+  }, []);
 
-    setProdutos(result);
-
-    setTimeout(() => setLoaded(true), 50);
-  } catch (error) {
-    console.error(error);
-  }
-};
+  const carregarProdutos = async () => {
+    try {
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        search: search || undefined,
+        sortPrice: sortPrice || undefined,
+        categoriaId: categoriaFiltro || undefined,
+      };
+      const result = await productsApi.getProducts(params);
+      setProdutos(result.data || []);
+      setTotalPages(result.pagination?.pages || 1);
+      setTotalCount(result.pagination?.total || 0);
+      setLoaded(true);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   useEffect(() => {
     carregarProdutos();
-  }, []);
+  }, [currentPage, search, sortPrice, categoriaFiltro]);
 
-    const atualizarProduto = (produtoAtualizado) => {
-    if (!produtoAtualizado) return
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sortPrice, categoriaFiltro]);
+
+  const atualizarProduto = (produtoAtualizado) => {
+    if (!produtoAtualizado) return;
 
     setProdutos((prev) => {
       const existe = prev.some(
         (p) => p.id === produtoAtualizado.id
-      )
+      );
 
       if (existe) {
         return prev.map((p) =>
           p.id === produtoAtualizado.id
             ? produtoAtualizado
             : p
-        )
+        );
       }
 
-      return [...prev, produtoAtualizado]
-    })
-    }
+      return [...prev, produtoAtualizado];
+    });
+    // Trigger reload to make sure pagination and database count matches correctly
+    carregarProdutos();
+  };
 
   const abrirModalProduto = (produto) => {
     setProdutoSelecionado({ ...produto, type: "produto" });
@@ -62,12 +89,7 @@ const carregarProdutos = async () => {
     setEditandoProduto(true);
   };
 
-  const produtosFiltrados = produtos
-    .filter((p) => p.nome.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      if (!sortPrice) return 0;
-      return sortPrice === "asc" ? a.preco - b.preco : b.preco - a.preco;
-    });
+  const produtosFiltrados = produtos;
 
   return (
     <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-8">
@@ -113,6 +135,19 @@ const carregarProdutos = async () => {
             </div>
 
             <select
+              value={categoriaFiltro}
+              onChange={(e) => setCategoriaFiltro(e.target.value)}
+              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value="" className="bg-white dark:bg-slate-800">Todas as categorias</option>
+              {categorias.map((cat) => (
+                <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-800">
+                  {cat.nome}
+                </option>
+              ))}
+            </select>
+
+            <select
               value={sortPrice}
               onChange={(e) => setSortPrice(e.target.value)}
               className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -127,9 +162,17 @@ const carregarProdutos = async () => {
 
       {/* Tabela */}
       {loaded ? (
-        <div className="bg-slate-100 dark:bg-slate-800/60 rounded-3xl shadow-inner overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl overflow-hidden flex flex-col shadow-sm">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 flex justify-between items-center">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Catálogo de Produtos
+            </h2>
+            <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full font-semibold">
+              Total: {totalCount}
+            </span>
+          </div>
           <div className="h-full overflow-y-auto overflow-x-hidden">
-            <table className="w-full bg-white dark:bg-slate-900 rounded-3xl md:table">
+            <table className="w-full bg-white dark:bg-slate-900 md:table">
               <thead className="hidden md:table-header-group sticky top-0 bg-slate-100 dark:bg-slate-800 z-10">
                 <tr>
                   <th className="px-5 py-4 text-left text-sm font-semibold text-slate-600 dark:text-slate-300">
@@ -166,6 +209,15 @@ const carregarProdutos = async () => {
             Carregando produtos...
           </span>
         </div>
+      )}
+
+      {/* Pagination */}
+      {loaded && totalPages > 1 && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       {produtoSelecionado && !editandoProduto && (
