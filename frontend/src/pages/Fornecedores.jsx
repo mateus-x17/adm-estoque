@@ -5,6 +5,7 @@ import FornecedorDashboard from "../components/dashboard/FornecedorDashboard.jsx
 import FornecedoresTable from "../components/tables/FornecedoresTable.jsx";
 import { suppliersApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
+import ModalFornecedor from "../components/forms/ModalFornecedor.jsx";
 
 
 
@@ -18,6 +19,7 @@ const Fornecedores = () => {
     const [editingItem, setEditingItem] = useState(null);
     const [modalType, setModalType] = useState("CriarFornecedor");
     const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
+    const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
 
 
     useEffect(() => {
@@ -101,6 +103,7 @@ const Fornecedores = () => {
                 loading={loading}
                 onEdit={openEditModal}
                 onDelete={handleDelete}
+                onOpenDetails={(fornecedor) => setFornecedorSelecionado(fornecedor)}
             />
 
             {/* Modal */}
@@ -119,6 +122,21 @@ const Fornecedores = () => {
                     mensagem={modalMsg.mensagem}
                     tipo={modalMsg.tipo}
                     onClose={() => setModalMsg({ visible: false })}
+                />
+            )}
+
+            {fornecedorSelecionado && (
+                <ModalFornecedor
+                    fornecedor={fornecedorSelecionado}
+                    fecharModal={() => setFornecedorSelecionado(null)}
+                    onEdit={(f) => {
+                        setFornecedorSelecionado(null);
+                        openEditModal(f);
+                    }}
+                    onDelete={(id) => {
+                        setFornecedorSelecionado(null);
+                        handleDelete(id);
+                    }}
                 />
             )}
         </div>
