@@ -5,6 +5,14 @@ import { apiClient } from "./apiClient.js";
  */
 export const usersApi = {
   /**
+   * Get currently logged user
+   */
+  getMe: async () => {
+    const response = await apiClient.get(`/users/me`);
+    return response;
+  },
+
+  /**
    * Get all users
    */
   getUsers: async ({ page = 1, limit = 10, search = "", role = "" } = {}) => {

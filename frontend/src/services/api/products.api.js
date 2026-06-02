@@ -7,8 +7,22 @@ export const productsApi = {
     /**
      * Get all products
      */
-    getProducts: async () => {
-        const response = await apiClient.get("/products");
+    getProducts: async (params = {}) => {
+        const cleanParams = {};
+        for (const [key, val] of Object.entries(params)) {
+            if (val !== undefined && val !== null && val !== '') {
+                cleanParams[key] = val;
+            }
+        }
+        const queryString = new URLSearchParams(cleanParams).toString();
+        const endpoint = queryString ? `/products?${queryString}` : "/products";
+        const response = await apiClient.get(endpoint);
+        
+        // If query parameters are provided, return the full response (with pagination details).
+        // If no parameters are provided, return the raw data array for backwards compatibility.
+        if (Object.keys(cleanParams).length > 0) {
+            return response;
+        }
         return response.data || response;
     },
 
