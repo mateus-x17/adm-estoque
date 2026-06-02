@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { useThemeStore } from "../../store/useThemeStore.js"
-import { useUserStore } from "../../store/userStore.js"
 import { useAuthStore } from "../../store/useAuthStore.js"
 import ModalMensagem from "../common/ModalMensagem.jsx"
 
@@ -14,6 +12,64 @@ const formConfigs = {
       { name: "imagem", label: "Foto do Usuário", type: "file" },
     ],
     route: (id) => `http://localhost:5000/users/${id}`,
+  },
+  configuracoes: {
+    fields: [
+      {
+        name: "nome",
+        label: "Nome",
+        type: "text",
+        required: true,
+        description: "Seu nome exibido no sistema.",
+      },
+      {
+        name: "email",
+        label: "Email",
+        type: "email",
+        required: true,
+        description: "Seu email usado para login e identificação do usuário.",
+      },
+      {
+        name: "imagem",
+        label: "Foto",
+        type: "file",
+        description: "Upload de foto do usuário (JPG, PNG ou WEBP).",
+      },
+    ],
+    route: () => `http://localhost:5000/users/me`,
+  },
+  configuracoesAdmin: {
+    fields: [
+      {
+        name: "nome",
+        label: "Nome",
+        type: "text",
+        required: true,
+        description: "Seu nome exibido no sistema.",
+      },
+      {
+        name: "email",
+        label: "Email",
+        type: "email",
+        required: true,
+        description: "Seu email usado para login e identificação do usuário.",
+      },
+      {
+        name: "role",
+        label: "Role / Permissão",
+        type: "select",
+        options: ["ADMIN", "GERENTE", "OPERADOR"],
+        required: true,
+        description: "Define o nível de permissão do usuário no sistema.",
+      },
+      {
+        name: "imagem",
+        label: "Foto",
+        type: "file",
+        description: "Upload de foto do usuário (JPG, PNG ou WEBP).",
+      },
+    ],
+    route: () => `http://localhost:5000/users/me`,
   },
   CriarUsuario: {
     fields: [
@@ -80,10 +136,17 @@ const formConfigs = {
 }
 
 function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
-  const { darkMode } = useThemeStore()
   const token = useAuthStore((state) => state.token)
   const config = formConfigs[type]
   const isCreating = type.startsWith("Criar")
+
+  const panelTitle = (() => {
+    if (!isCreating && (type === "configuracoes" || type === "configuracoesAdmin")) {
+      return "Editar Configurações"
+    }
+    if (isCreating) return `Criar ${type.replace("Criar", "")}`
+    return `Editar ${type}`
+  })()
 
   const [form, setForm] = useState(
     config.fields.reduce((acc, field) => {
@@ -260,7 +323,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       >
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {isCreating ? `Criar ${type.replace("Criar", "")}` : `Editar ${type}`}
+            {panelTitle}
           </h2>
         </div>
 
@@ -270,6 +333,11 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
               <label className="block text-sm mb-1 text-gray-600 dark:text-gray-400">
                 {field.label}
               </label>
+              {field.description ? (
+                <p className="text-xs mb-2 text-slate-500 dark:text-slate-400">
+                  {field.description}
+                </p>
+              ) : null}
 
               {field.type === "select" ? (
                 <select
