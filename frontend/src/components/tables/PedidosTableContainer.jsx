@@ -4,7 +4,7 @@ import PedidoRow from "./PedidoRow.jsx";
 /**
  * Table container for Pedidos with header and count badge
  */
-const PedidosTableContainer = ({ pedidos, totalCount, loading }) => {
+const PedidosTableContainer = ({ pedidos, totalCount, loading, filterId }) => {
     return (
         <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
@@ -38,7 +38,7 @@ const PedidosTableContainer = ({ pedidos, totalCount, loading }) => {
                         ) : pedidos.length === 0 ? (
                             <tr>
                                 <td colSpan="6" className="text-center py-8">
-                                    Nenhum pedido encontrado.
+                                    {filterId ? "Pedido não encontrado." : "Nenhum pedido encontrado."}
                                 </td>
                             </tr>
                         ) : (

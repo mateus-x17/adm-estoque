@@ -35,6 +35,13 @@ const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
                 {/* infos */}
                 <div className="space-y-3 text-sm">
                     <div>
+                        <p className="text-slate-500">ID do Pedido</p>
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                            #{movimentacao.id}
+                        </p>
+                    </div>
+
+                    <div>
                         <p className="text-slate-500">Produto</p>
                         <p className="font-semibold text-slate-900 dark:text-white">
                             {movimentacao.produto.nome}

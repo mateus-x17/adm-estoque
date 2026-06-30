@@ -56,7 +56,8 @@ export async function createProduct(req, res, next) {
 export async function updateProduct(req, res, next) {
   try {
     const newImagePath = req.file ? `/uploads/produtos/${req.file.filename}` : null;
-    const product = await productService.updateProduct(req.params.id, req.body, newImagePath);
+    const removeImage = req.body.removerImagem === "true";
+    const product = await productService.updateProduct(req.params.id, req.body, newImagePath, removeImage);
     res.json(product);
   } catch (err) {
     log.warn({ err }, 'Error updating product');

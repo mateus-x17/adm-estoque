@@ -156,6 +156,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
   )
 
   const [file, setFile] = useState(null)
+  const [removeImage, setRemoveImage] = useState(false)
   const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" })
   const [open, setOpen] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -202,6 +203,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       const formData = new FormData()
       Object.entries(form).forEach(([key, value]) => formData.append(key, value))
       if (file) formData.append("imagem", file)
+      if (removeImage && !file) formData.append("removerImagem", "true")
 
       const method = isCreating ? "POST" : "PUT"
       let url = isCreating ? config.route : config.route(itemData.id)
@@ -362,11 +364,32 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm resize-none text-gray-900 dark:text-gray-100"
                 />
               ) : field.type === "file" ? (
-                <input
-                  type="file"
-                  onChange={(e) => setFile(e.target.files[0])}
-                  className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-                />
+                <div>
+                  {!isCreating && itemData?.imagem && !removeImage && !file ? (
+                    <div className="mb-4 flex flex-col items-start gap-2">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Foto atual:</p>
+                      <img src={`http://localhost:5000${itemData.imagem}`} alt="Preview" className="w-24 h-24 object-cover rounded-xl" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRemoveImage(true);
+                          setFile(null);
+                        }}
+                        className="text-sm font-semibold text-rose-500 hover:text-rose-600"
+                      >
+                        Remover foto
+                      </button>
+                    </div>
+                  ) : null}
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      setFile(e.target.files[0])
+                      setRemoveImage(false)
+                    }}
+                    className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                  />
+                </div>
               ) : (
                 <input
                   type={field.type}

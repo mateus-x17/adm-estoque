@@ -183,75 +183,73 @@ const Movimentacoes = () => {
       </header>
 
       {/* filtros colapsáveis */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-3xl">
-        <button
-          onClick={() => setFiltrosAbertos(!filtrosAbertos)}
-          className="w-full px-6 py-4 flex items-center justify-between font-semibold"
-        >
-          <span className="text-sm text-slate-900 dark:text-white">
-            {" "}
-            Filtros
-          </span>
-          <span className="text-sm text-slate-500">
-            {filtrosAbertos ? "Ocultar" : "Mostrar"}
-          </span>
-        </button>
+      <div className="space-y-4">
+        <div className="flex items-center justify-end">
+          <button
+            onClick={() => setFiltrosAbertos(!filtrosAbertos)}
+            className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          >
+            {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
+          </button>
+        </div>
 
         {filtrosAbertos && (
-          <div className="p-6 pt-0 flex flex-col lg:flex-row gap-4">
-            <input
-              type="text"
-              placeholder="Buscar produto"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full lg:w-1/3 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-3xl">
+            <div className="p-6 flex flex-col lg:flex-row gap-4">
+              <input
+                type="text"
+                placeholder="Buscar produto"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full lg:w-1/3 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
 
-            <select
-              value={tipoFiltro}
-              onChange={(e) => setTipoFiltro(e.target.value)}
-              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="" className="bg-white dark:bg-slate-800">Todos</option>
-              <option value="ENTRADA" className="bg-white dark:bg-slate-800">Entrada</option>
-              <option value="SAIDA" className="bg-white dark:bg-slate-800">Saída</option>
-            </select>
+              <select
+                value={tipoFiltro}
+                onChange={(e) => setTipoFiltro(e.target.value)}
+                className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="" className="bg-white dark:bg-slate-800">Todos</option>
+                <option value="ENTRADA" className="bg-white dark:bg-slate-800">Entrada</option>
+                <option value="SAIDA" className="bg-white dark:bg-slate-800">Saída</option>
+              </select>
 
-            <select
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-              className="w-full lg:w-56 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="" className="bg-white dark:bg-slate-800">
-                Todos os usuários
-              </option>
-              {usuarios.map((u) => (
-                <option
-                  key={u.id}
-                  value={u.id}
-                  className="bg-white dark:bg-slate-800"
-                >
-                  {u.nome}
+              <select
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+                className="w-full lg:w-56 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="" className="bg-white dark:bg-slate-800">
+                  Todos os usuários
                 </option>
-              ))}
-            </select>
+                {usuarios.map((u) => (
+                  <option
+                    key={u.id}
+                    value={u.id}
+                    className="bg-white dark:bg-slate-800"
+                  >
+                    {u.nome}
+                  </option>
+                ))}
+              </select>
 
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
 
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white"
-            />
-          </div>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+          </section>
         )}
-      </section>
+      </div>
 
       {/* tabela */}
       <div className="bg-white dark:bg-slate-900 border dark:border-slate-700/50 rounded-3xl overflow-hidden flex flex-col shadow-sm">

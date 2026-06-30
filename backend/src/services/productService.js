@@ -73,12 +73,17 @@ export async function createProduct(data, imagePath = null) {
   });
 }
 
-export async function updateProduct(id, data, newImagePath = null) {
+export async function updateProduct(id, data, newImagePath = null, removeImage = false) {
   const product = await prisma.produto.findUnique({ where: { id: Number(id) } });
   if (!product) throw new AppError('Produto não encontrado', 404);
 
   let imagePath = product.imagem;
-  if (newImagePath) {
+  if (removeImage) {
+    if (imagePath && fs.existsSync(`.${imagePath}`)) {
+      try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
+    }
+    imagePath = null;
+  } else if (newImagePath) {
     if (imagePath && fs.existsSync(`.${imagePath}`)) {
       try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
     }

@@ -53,6 +53,8 @@ const Pedidos = () => {
                     order: "desc",
                     tipo: filterType !== "todos" ? filterType : undefined,
                     usuarioId: userFilter || undefined,
+                    id: filterId || undefined,
+                    date: filterDate || undefined,
                 };
 
                 const result = await movementsApi.getMovements(params);
@@ -64,17 +66,7 @@ const Pedidos = () => {
                     pages: 1,
                 };
 
-                // filtros adicionais (ID e data) ainda aplicados no frontend sobre a página atual
-                const filtered = serverData.filter((ped) => {
-                    if (filterId && !ped.id.toString().includes(filterId)) return false;
-                    if (filterDate) {
-                        const pedDate = new Date(ped.data).toLocaleDateString("en-CA");
-                        if (pedDate !== filterDate) return false;
-                    }
-                    return true;
-                });
-
-                setPedidos(filtered);
+                setPedidos(serverData);
                 setTotalPages(pagination.pages || 1);
                 setTotalCount(pagination.total || serverData.length);
             } catch (error) {
@@ -134,6 +126,7 @@ const Pedidos = () => {
                 pedidos={pedidos}
                 totalCount={totalCount}
                 loading={loading}
+                filterId={filterId}
             />
 
             {/* Pagination */}

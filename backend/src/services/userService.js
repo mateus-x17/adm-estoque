@@ -111,7 +111,7 @@ export async function getUserById(id) {
   return sanitizeUser(user);
 }
 
-export async function updateUser(id, data, newImagePath = null) {
+export async function updateUser(id, data, newImagePath = null, removeImage = false) {
   const user = await prisma.usuario.findUnique({ where: { id: Number(id) } });
   if (!user) throw new AppError("Usuário não encontrado", 404);
 
@@ -122,7 +122,17 @@ export async function updateUser(id, data, newImagePath = null) {
   }
 
   let imagePath = user.imagem;
-  if (newImagePath) {
+  
+  if (removeImage) {
+    if (imagePath && fs.existsSync(`.${imagePath}`)) {
+      try {
+        fs.unlinkSync(`.${imagePath}`);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    updateData.imagem = null;
+  } else if (newImagePath) {
     if (imagePath && fs.existsSync(`.${imagePath}`)) {
       try {
         fs.unlinkSync(`.${imagePath}`);

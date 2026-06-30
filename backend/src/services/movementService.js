@@ -3,6 +3,8 @@ import { AppError } from '../utils/errorHandler.js';
 
 export async function listMovementsPaginated(filters = {}) {
   const {
+    id,
+    date,
     produtoId,
     from,
     to,
@@ -16,12 +18,24 @@ export async function listMovementsPaginated(filters = {}) {
 
   const where = {
     AND: [
+      id && !isNaN(Number(id))
+        ? {
+            id: Number(id),
+          }
+        : {},
       produtoId && !isNaN(Number(produtoId))
         ? {
             produtoId: Number(produtoId),
           }
         : {},
-      from || to
+      date && date !== 'undefined' && date !== 'null'
+        ? {
+            data: {
+              gte: new Date(new Date(date).setHours(0, 0, 0, 0)),
+              lte: new Date(new Date(date).setHours(23, 59, 59, 999)),
+            },
+          }
+        : from || to
         ? {
             data: {
               ...(from && from !== 'undefined' && from !== 'null' ? { gte: new Date(from) } : {}),

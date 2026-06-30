@@ -57,10 +57,12 @@ export async function updateUser(req, res, next) {
     const newImagePath = req.file
       ? `/uploads/usuarios/${req.file.filename}`
       : null;
+    const removeImage = req.body.removerImagem === "true";
     const user = await userService.updateUser(
       req.params.id,
       req.body,
       newImagePath,
+      removeImage
     );
     res.json(user);
   } catch (err) {
@@ -97,6 +99,8 @@ export async function updateMe(req, res, next) {
       ? `/uploads/usuarios/${req.file.filename}`
       : null;
 
+    const removeImage = req.body.removerImagem === "true";
+
     const { nome, email, role } = req.body || {};
 
     // Guardrails: não confiar em role vindo do cliente para não-admin.
@@ -121,7 +125,8 @@ export async function updateMe(req, res, next) {
     const user = await userService.updateUser(
       req.user.id,
       updateData,
-      newImagePath
+      newImagePath,
+      removeImage
     );
 
     res.json(user);

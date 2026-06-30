@@ -39,7 +39,7 @@ const Usuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("todos");
-  const [filtrosAbertos, setFiltrosAbertos] = useState(true);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [usuariosPorPagina, setUsuariosPorPagina] = useState(10);
   const [totalPaginas, setTotalPaginas] = useState(1);
@@ -119,99 +119,72 @@ const Usuarios = () => {
       </header>
 
       {/* Filtros */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-3xl">
-        <button
-          onClick={() => setFiltrosAbertos(!filtrosAbertos)}
-          className="w-full px-6 py-4 flex items-center justify-between font-semibold"
-        >
-          <span className="text-sm text-slate-900 dark:text-white">
-            Filtros
-          </span>
+      <div className="space-y-4">
+        {/* Toolbar externa */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => abrirEditarUsuario(null, "CriarUsuario")}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition whitespace-nowrap"
+          >
+            <FaUser />
+            Novo Usuário
+          </button>
 
-          <span className="text-sm text-slate-500">
-            {filtrosAbertos ? "Ocultar" : "Mostrar"}
-          </span>
-        </button>
+          <button
+            onClick={() => setFiltrosAbertos(!filtrosAbertos)}
+            className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          >
+            {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
+          </button>
+        </div>
 
         {filtrosAbertos && (
-          <div className="p-6 pt-0 flex flex-col lg:flex-row gap-4">
-            <button
-              onClick={() => abrirEditarUsuario(null, "CriarUsuario")}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl font-semibold hover:bg-indigo-700 transition whitespace-nowrap"
-            >
-              <FaUser />
-              Novo Usuário
-            </button>
+          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-3xl">
+            <div className="p-6 flex flex-col lg:flex-row gap-4">
+              <div className="relative w-full lg:w-1/3">
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar por nome"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
 
-            <div className="relative w-full lg:w-1/3">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-
-              <input
-                type="text"
-                placeholder="Pesquisar por nome"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-              className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-              <option value="todos" className="bg-white dark:bg-slate-800">
-                Todos
-              </option>
+                <option value="todos" className="bg-white dark:bg-slate-800">Todos</option>
+                <option value="admin" className="bg-white dark:bg-slate-800">Admin</option>
+                <option value="gerente" className="bg-white dark:bg-slate-800">Gerente</option>
+                <option value="operador" className="bg-white dark:bg-slate-800">Operador</option>
+              </select>
 
-              <option value="admin" className="bg-white dark:bg-slate-800">
-                Admin
-              </option>
-
-              <option value="gerente" className="bg-white dark:bg-slate-800">
-                Gerente
-              </option>
-
-              <option value="operador" className="bg-white dark:bg-slate-800">
-                Operador
-              </option>
-            </select>
-            {/* filtro numero de usuarios */}
-            <select
-              value={usuariosPorPagina}
-              onChange={(e) => {
-                setPaginaAtual(1);
-                setUsuariosPorPagina(Number(e.target.value));
-              }}
-              className="w-full lg:w-40 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={10} className="bg-white dark:bg-slate-800">
-                10 por página
-              </option>
-
-              <option value={15} className="bg-white dark:bg-slate-800">
-                15 por página
-              </option>
-
-              <option value={25} className="bg-white dark:bg-slate-800">
-                25 por página
-              </option>
-
-              <option value={30} className="bg-white dark:bg-slate-800">
-                30 por página
-              </option>
-
-              <option value={50} className="bg-white dark:bg-slate-800">
-                50 por página
-              </option>
-            </select>
-            {/* total de usuarios ncontrados */}
+              <select
+                value={usuariosPorPagina}
+                onChange={(e) => {
+                  setPaginaAtual(1);
+                  setUsuariosPorPagina(Number(e.target.value));
+                }}
+                className="w-full lg:w-40 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={10} className="bg-white dark:bg-slate-800">10 por página</option>
+                <option value={15} className="bg-white dark:bg-slate-800">15 por página</option>
+                <option value={25} className="bg-white dark:bg-slate-800">25 por página</option>
+                <option value={30} className="bg-white dark:bg-slate-800">30 por página</option>
+                <option value={50} className="bg-white dark:bg-slate-800">50 por página</option>
+              </select>
+            </div>
+            
             <p className="px-6 pb-4 text-sm text-center text-slate-500 dark:text-slate-400">
               {totalUsuarios} usuário(s) encontrado(s)
             </p>
-          </div>
+          </section>
         )}
-      </section>
+      </div>
 
       {/* Modal */}
       {modal.visible && (
