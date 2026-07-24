@@ -43,47 +43,52 @@ const Pedidos = () => {
         carregarUsuarios();
     }, []);
 
+    const fetchPedidos = async () => {
+        try {
+            const params = {
+                page: currentPage,
+                limit: itemsPerPage,
+                order: "desc",
+                tipo: filterType !== "todos" ? filterType : undefined,
+                usuarioId: userFilter || undefined,
+                id: filterId || undefined,
+                date: filterDate || undefined,
+            };
+
+            const result = await movementsApi.getMovements(params);
+            const serverData = result.data || [];
+            const pagination = result.pagination || {
+                page: currentPage,
+                limit: itemsPerPage,
+                total: serverData.length,
+                pages: 1,
+            };
+
+            setPedidos(serverData);
+            setTotalPages(pagination.pages || 1);
+            setTotalCount(pagination.total || serverData.length);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // buscar pedidos paginados do backend
     useEffect(() => {
-        const fetchPedidos = async () => {
-            try {
-                const params = {
-                    page: currentPage,
-                    limit: itemsPerPage,
-                    order: "desc",
-                    tipo: filterType !== "todos" ? filterType : undefined,
-                    usuarioId: userFilter || undefined,
-                    id: filterId || undefined,
-                    date: filterDate || undefined,
-                };
-
-                const result = await movementsApi.getMovements(params);
-                const serverData = result.data || [];
-                const pagination = result.pagination || {
-                    page: currentPage,
-                    limit: itemsPerPage,
-                    total: serverData.length,
-                    pages: 1,
-                };
-
-                setPedidos(serverData);
-                setTotalPages(pagination.pages || 1);
-                setTotalCount(pagination.total || serverData.length);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchPedidos();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage, filterId, filterDate, filterType, userFilter]);
 
     const handleItemCreated = () => {
-        // recarrega página atual após criação
-        setLoading(true);
-        setCurrentPage(1);
+        if (currentPage === 1) {
+            // já estamos na página 1: setCurrentPage(1) não dispara o useEffect,
+            // então buscamos manualmente
+            setLoading(true);
+            fetchPedidos();
+        } else {
+            setCurrentPage(1); // isso já muda o valor e dispara o useEffect
+        }
     };
 
     const handleFilterChange = () => {

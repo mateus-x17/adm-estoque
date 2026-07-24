@@ -27,7 +27,7 @@ const Produtos = () => {
   useEffect(() => {
     categoriesApi.getCategories()
       .then((res) => setCategorias(res.data || res || []))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const carregarProdutos = async () => {
@@ -57,28 +57,47 @@ const Produtos = () => {
     setCurrentPage(1);
   }, [search, sortPrice, categoriaFiltro]);
 
+  // const atualizarProduto = (produtoAtualizado) => {
+  //   if (!produtoAtualizado) return;
+
+  //   setProdutos((prev) => {
+  //     const existe = prev.some(
+  //       (p) => p.id === produtoAtualizado.id
+  //     );
+
+  //     if (existe) {
+  //       return prev.map((p) =>
+  //         p.id === produtoAtualizado.id
+  //           ? produtoAtualizado
+  //           : p
+  //       );
+  //     }
+
+  //     return [...prev, produtoAtualizado];
+  //   });
+  //   // Trigger reload to make sure pagination and database count matches correctly
+  //   carregarProdutos();
+  // };
   const atualizarProduto = (produtoAtualizado) => {
     if (!produtoAtualizado) return;
 
     setProdutos((prev) => {
-      const existe = prev.some(
-        (p) => p.id === produtoAtualizado.id
-      );
-
+      const existe = prev.some((p) => p.id === produtoAtualizado.id);
       if (existe) {
-        return prev.map((p) =>
-          p.id === produtoAtualizado.id
-            ? produtoAtualizado
-            : p
-        );
+        return prev.map((p) => (p.id === produtoAtualizado.id ? produtoAtualizado : p));
       }
-
       return [...prev, produtoAtualizado];
     });
-    // Trigger reload to make sure pagination and database count matches correctly
+
+    // Mantém o produto aberto no ModalProduto sincronizado com a versão atualizada
+    setProdutoSelecionado((prevSel) =>
+      prevSel && prevSel.id === produtoAtualizado.id
+        ? { ...produtoAtualizado, type: "produto" }
+        : prevSel
+    );
+
     carregarProdutos();
   };
-
   const abrirModalProduto = (produto) => {
     setProdutoSelecionado({ ...produto, type: "produto" });
     setEditandoProduto(false);

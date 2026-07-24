@@ -8,6 +8,7 @@ import { usersApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
+import { formatImageUrl } from "../utils/imageHelper.js";
 
 const getRoleColor = (role) => {
   switch (role) {
@@ -212,7 +213,7 @@ const Usuarios = () => {
               <div className="w-12 h-12 rounded-2xl overflow-hidden bg-indigo-500 text-white flex items-center justify-center font-bold">
                 {user.imagem ? (
                   <img
-                    src={`http://localhost:5000${user.imagem}`}
+                    src={formatImageUrl(user.imagem)}
                     alt={user.nome}
                     className="w-full h-full object-cover"
                   />

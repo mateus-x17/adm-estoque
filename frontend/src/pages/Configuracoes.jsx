@@ -4,6 +4,7 @@ import { useThemeStore } from "../store/useThemeStore.js";
 import { usersApi } from "../services/api/users.api.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
+import { formatImageUrl } from "../utils/imageHelper.js";
 
 const fieldMeta = {
   role: {
@@ -93,7 +94,7 @@ function Configuracoes() {
                   <div className="flex items-center gap-4">
                     {me.imagem ? (
                       <img
-                        src={`http://localhost:5000${me.imagem}`}
+                        src={formatImageUrl(me.imagem)}
                         alt="Foto do usuário"
                         className="w-20 h-20 rounded-2xl object-cover border border-slate-200 dark:border-slate-700"
                       />
