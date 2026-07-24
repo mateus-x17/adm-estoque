@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { useAuthStore } from "../../store/useAuthStore.js"
 import ModalMensagem from "../common/ModalMensagem.jsx"
+import { formatImageUrl } from "../../utils/imageHelper.js"
 
 const formConfigs = {
   usuario: {
@@ -222,33 +223,33 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       const hasFileField = config.fields.some(
         (field) => field.type === "file"
       )
-    let body
-    const headers = {}
+      let body
+      const headers = {}
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    }
-
-    if (type === "CriarPedido") {
-      headers["Content-Type"] = "application/json"
-
-      const payload = {
-        ...form,
-        quantidade: Number(form.quantidade),
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
       }
 
-      body = JSON.stringify(payload)
+      if (type === "CriarPedido") {
+        headers["Content-Type"] = "application/json"
 
-    } else if (hasFileField) {
+        const payload = {
+          ...form,
+          quantidade: Number(form.quantidade),
+        }
 
-      body = formData
+        body = JSON.stringify(payload)
 
-    } else {
+      } else if (hasFileField) {
 
-      headers["Content-Type"] = "application/json"
-      body = JSON.stringify(form)
+        body = formData
 
-    }
+      } else {
+
+        headers["Content-Type"] = "application/json"
+        body = JSON.stringify(form)
+
+      }
 
       console.log("FORM:", form)
       for (const pair of formData.entries()) {
@@ -289,12 +290,17 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       //   }).then((r) => r.json())
 
       // const updatedItem = await res.json()
+      ///////////////////////////////////////
+      // const responseData = await res.json()
+      // const updatedItem =
+      //   responseData.fornecedor ||
+      //   responseData.produto ||
+      //   responseData.usuario ||
+      //   responseData
       const responseData = await res.json()
-      const updatedItem =
-        responseData.fornecedor ||
-        responseData.produto ||
-        responseData.usuario ||
-        responseData
+      const updatedItem = responseData.id !== undefined
+        ? responseData
+        : responseData.fornecedor || responseData.produto || responseData.usuario || responseData
 
       setModal({
         visible: true,
@@ -368,7 +374,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   {!isCreating && itemData?.imagem && !removeImage && !file ? (
                     <div className="mb-4 flex flex-col items-start gap-2">
                       <p className="text-xs text-gray-600 dark:text-gray-400">Foto atual:</p>
-                      <img src={`http://localhost:5000${itemData.imagem}`} alt="Preview" className="w-24 h-24 object-cover rounded-xl" />
+                      <img src={formatImageUrl(itemData.imagem)} alt="Preview" className="w-24 h-24 object-cover rounded-xl" />
                       <button
                         type="button"
                         onClick={() => {

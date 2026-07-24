@@ -1,4 +1,5 @@
 import React from "react";
+import { formatImageUrl } from "../../utils/imageHelper.js";
 
 const ProdutoRow = ({ produto, index, abrirModal }) => {
   return (
@@ -15,11 +16,7 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
       <td className="block md:hidden p-4 space-y-3">
         <div className="flex items-center gap-4">
           <img
-            src={
-              produto.imagem
-                ? `http://localhost:5000${produto.imagem.startsWith("/") ? "" : "/"}${produto.imagem}`
-                : "/default.png"
-            }
+            src={formatImageUrl(produto.imagem) || "/default.png"}
             alt={produto.nome}
             className="w-16 h-16 rounded-lg object-cover shadow-sm flex-shrink-0"
           />
@@ -45,11 +42,7 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
       {/* Desktop cells */}
       <td className="hidden md:table-cell px-4 py-3">
         <img
-          src={
-            produto.imagem
-              ? `http://localhost:5000${produto.imagem.startsWith("/") ? "" : "/"}${produto.imagem}`
-              : "/default.png"
-          }
+          src={formatImageUrl(produto.imagem) || "/default.png"}
           alt={produto.nome}
           className="w-14 h-14 rounded-lg object-cover shadow-sm"
         />

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import EditarItem from "./EditarItem.jsx";
 import ModalMensagem from "../common/ModalMensagem.jsx";
+import { formatImageUrl } from "../../utils/imageHelper.js";
 
 
 function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
@@ -33,8 +34,7 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
           <div className="flex flex-col items-center text-center mb-6">
             {produtoSelecionado.imagem && (
               <img
-                src={`http://localhost:5000${produtoSelecionado.imagem.startsWith("/") ? "" : "/"
-                  }${produtoSelecionado.imagem}`}
+                src={formatImageUrl(produtoSelecionado.imagem)}
                 alt={produtoSelecionado.nome}
                 className="w-32 h-32 sm:w-36 sm:h-36 object-cover rounded-xl shadow mb-4"
               />

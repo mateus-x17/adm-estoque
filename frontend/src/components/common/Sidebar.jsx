@@ -18,6 +18,7 @@ import { FaMoon, FaSun } from "react-icons/fa";
 import { useUserStore } from "../../store/userStore.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
 import ModalMensagem from "./ModalMensagem.jsx";
+import { formatImageUrl } from "../../utils/imageHelper.js";
 
 const links = [
   { name: "Dashboard", path: "/dashboard", icon: <HiHome size={20} /> },
@@ -188,7 +189,7 @@ const Sidebar = ({ closeSidebar }) => {
           {/* exibir imagem do usuario aredondada ao lado do nome e se não houver exibir o incone */}
           {user.imagem ? (
             <img
-              src={`http://localhost:5000${user.imagem}`}
+              src={formatImageUrl(user.imagem)}
               alt="User"
               className="w-10 h-10 rounded-full object-cover"
             />
