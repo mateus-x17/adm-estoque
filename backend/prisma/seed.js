@@ -70,9 +70,9 @@ async function main() {
 
   // 3) Fornecedores
   const fornecedoresData = [
-    { nome: "TechDistribuidora Ltda", contato: "contato@techdist.com", endereco: "Av. Tecnológica, 1000" },
-    { nome: "Mundo dos Periféricos", contato: "vendas@mperifericos.com", endereco: "Rua Central, 200" },
-    { nome: "ErgoMóveis SA", contato: "suporte@ergomoveis.com", endereco: "Av. Conforto, 55" },
+    { nome: "TechDistribuidora Ltda", email: "contato@techdist.com", endereco: "Av. Tecnológica, 1000" },
+    { nome: "Mundo dos Periféricos", email: "vendas@mperifericos.com", endereco: "Rua Central, 200" },
+    { nome: "ErgoMóveis SA", email: "suporte@ergomoveis.com", endereco: "Av. Conforto, 55" },
   ];
   const fornecedores = [];
   for (const f of fornecedoresData) {
@@ -128,17 +128,41 @@ async function main() {
     return u;
   }
 
+  // Gera uma data aleatória entre 2026-01-01 e hoje
+  const START_DATE = new Date("2026-01-01T00:00:00.000Z");
+  const END_DATE   = new Date(); // hoje
+
+  function randomDateBetween(from, to) {
+    const ms = from.getTime() + Math.random() * (to.getTime() - from.getTime());
+    const d = new Date(ms);
+    // hora aleatória para evitar datas idênticas
+    d.setHours(Math.floor(Math.random() * 24));
+    d.setMinutes(Math.floor(Math.random() * 60));
+    d.setSeconds(Math.floor(Math.random() * 60));
+    return d;
+  }
+
   // Para cada produto vamos criar:
-  // - ENTRADA inicial (cadastro de estoque)
-  // - ENTRADA reposição
-  // - SAIDA venda
-  // - Ajuste (pode ser entrada ou saída)
+  // - ENTRADA inicial (cadastro de estoque) — mais antiga
+  // - ENTRADA reposição                     — intermediária
+  // - SAIDA venda                           — mais recente
+  // - Ajuste (pode ser entrada ou saída)    — mais recente
   for (const prod of createdProducts) {
     // valores coerentes por produto (pode ajustar ranges)
     const entradaInicial = Math.floor(Math.random() * 81) + 20; // 20-100
     const reposicao = Math.floor(Math.random() * 41) + 10; // 10-50
     const saidaVenda = Math.floor(Math.random() * 20) + 1; // 1-20
     const ajuste = (Math.random() > 0.5) ? (Math.floor(Math.random() * 6) + 1) : -(Math.floor(Math.random() * 3) + 1); // +1..+6 ou -1..-3
+
+    // 4 datas em ordem cronológica crescente dentro do intervalo 2026-hoje
+    const allDates = [
+      randomDateBetween(START_DATE, END_DATE),
+      randomDateBetween(START_DATE, END_DATE),
+      randomDateBetween(START_DATE, END_DATE),
+      randomDateBetween(START_DATE, END_DATE),
+    ].sort((a, b) => a - b); // garante ordem crescente
+
+    const [dataEntradaInicial, dataReposicao, dataSaida, dataAjuste] = allDates;
 
     const movimentosOps = [
       // 1) entrada inicial
@@ -148,6 +172,7 @@ async function main() {
           quantidade: entradaInicial,
           tipo: "ENTRADA",
           usuarioId: nextUser().id,
+          data: dataEntradaInicial,
           observacao: "Entrada inicial de estoque (cadastro)",
         },
       }),
@@ -164,6 +189,7 @@ async function main() {
           quantidade: reposicao,
           tipo: "ENTRADA",
           usuarioId: nextUser().id,
+          data: dataReposicao,
           observacao: "Reposição vinda do fornecedor",
         },
       }),
@@ -180,6 +206,7 @@ async function main() {
           quantidade: saidaVenda,
           tipo: "SAIDA",
           usuarioId: nextUser().id,
+          data: dataSaida,
           observacao: "Saída para venda/pedido",
         },
       }),
@@ -196,6 +223,7 @@ async function main() {
           quantidade: Math.abs(ajuste),
           tipo: ajuste >= 0 ? "ENTRADA" : "SAIDA",
           usuarioId: nextUser().id,
+          data: dataAjuste,
           observacao: ajuste >= 0 ? "Ajuste positivo de inventário" : "Ajuste negativo de inventário",
         },
       }),
@@ -215,11 +243,11 @@ async function main() {
     // Exibir logs legíveis
     console.log("");
     console.log(`📦 Produto: "${prod.nome}" (id ${prod.id})`);
-    console.log(`   ➕ Entrada inicial: +${entradaInicial} (mov id ${mov1.id}) → estoque agora: ${up1.quantidade}`);
-    console.log(`   ➕ Reposição: +${reposicao} (mov id ${mov2.id}) → estoque agora: ${up2.quantidade}`);
-    console.log(`   ➖ Saída (venda): -${saidaVenda} (mov id ${mov3.id}) → estoque agora: ${up3.quantidade}`);
+    console.log(`   ➕ Entrada inicial: +${entradaInicial} em ${dataEntradaInicial.toLocaleDateString("pt-BR")} (mov id ${mov1.id}) → estoque: ${up1.quantidade}`);
+    console.log(`   ➕ Reposição: +${reposicao} em ${dataReposicao.toLocaleDateString("pt-BR")} (mov id ${mov2.id}) → estoque: ${up2.quantidade}`);
+    console.log(`   ➖ Saída (venda): -${saidaVenda} em ${dataSaida.toLocaleDateString("pt-BR")} (mov id ${mov3.id}) → estoque: ${up3.quantidade}`);
     const ajusteSign = ajuste >= 0 ? "+" : "-";
-    console.log(`   🔧 Ajuste: ${ajusteSign}${Math.abs(ajuste)} (mov id ${mov4.id}) → estoque agora: ${up4.quantidade}`);
+    console.log(`   🔧 Ajuste: ${ajusteSign}${Math.abs(ajuste)} em ${dataAjuste.toLocaleDateString("pt-BR")} (mov id ${mov4.id}) → estoque: ${up4.quantidade}`);
   }
 
   console.log("\n✅ Seed concluído com sucesso!");
