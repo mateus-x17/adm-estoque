@@ -3,13 +3,15 @@
 import { childLogger } from "../config/logger.js";
 import * as userService from "../services/userService.js";
 import { AppError } from "../utils/errorHandler.js";
+import { uploadToCloudinary } from "../config/cloudinaryConfig.js";
 const log = childLogger("userController");
 
 export async function createUser(req, res, next) {
   try {
-    const imagem = req.file
-      ? `/uploads/usuarios/${req.file.filename}`
-      : undefined;
+    let imagem = undefined;
+    if (req.file) {
+      imagem = await uploadToCloudinary(req.file.path, "usuarios");
+    }
     const user = await userService.createUser(req.body, imagem);
     res.status(201).json(user);
   } catch (err) {
@@ -54,9 +56,10 @@ export async function getUser(req, res, next) {
 
 export async function updateUser(req, res, next) {
   try {
-    const newImagePath = req.file
-      ? `/uploads/usuarios/${req.file.filename}`
-      : null;
+    let newImagePath = null;
+    if (req.file) {
+      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/usuarios");
+    }
     const removeImage = req.body.removerImagem === "true";
     const user = await userService.updateUser(
       req.params.id,
@@ -95,9 +98,10 @@ export async function updateMe(req, res, next) {
   try {
     const isAdmin = req.user.role === "ADMIN";
 
-    const newImagePath = req.file
-      ? `/uploads/usuarios/${req.file.filename}`
-      : null;
+    let newImagePath = null;
+    if (req.file) {
+      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/usuarios");
+    }
 
     const removeImage = req.body.removerImagem === "true";
 

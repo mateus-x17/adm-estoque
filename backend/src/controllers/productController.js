@@ -1,5 +1,6 @@
 import { childLogger } from '../config/logger.js';
 import * as productService from '../services/productService.js';
+import { uploadToCloudinary } from '../config/cloudinaryConfig.js';
 const log = childLogger('productController');
 
 export async function listProducts(req, res, next) {
@@ -44,7 +45,10 @@ export async function getProduct(req, res, next) {
 
 export async function createProduct(req, res, next) {
   try {
-    const imagem = req.file ? `/uploads/produtos/${req.file.filename}` : null;
+    let imagem = null;
+    if (req.file) {
+      imagem = await uploadToCloudinary(req.file.path, "ADM-estoque/produtos");
+    }
     const product = await productService.createProduct(req.body, imagem);
     res.status(201).json(product);
   } catch (err) {
@@ -55,7 +59,10 @@ export async function createProduct(req, res, next) {
 
 export async function updateProduct(req, res, next) {
   try {
-    const newImagePath = req.file ? `/uploads/produtos/${req.file.filename}` : null;
+    let newImagePath = null;
+    if (req.file) {
+      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/produtos");
+    }
     const removeImage = req.body.removerImagem === "true";
     const product = await productService.updateProduct(req.params.id, req.body, newImagePath, removeImage);
     res.json(product);

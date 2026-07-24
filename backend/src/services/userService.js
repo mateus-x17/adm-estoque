@@ -3,6 +3,7 @@ import { prisma } from "../config/prismaClient.js";
 import fs from "fs";
 import { AppError } from "../utils/errorHandler.js";
 import { sanitizeUser, sanitizeUsers } from "../utils/sanitizers.js";
+import { deleteFromCloudinary } from "../config/cloudinaryConfig.js";
 
 export async function createUser(data, imagePath = null) {
   const { nome, email, senha, role } = data;
@@ -46,26 +47,26 @@ export async function listUsers({
     AND: [
       search
         ? {
-            OR: [
-              {
-                nome: {
-                  contains: search,
-                  mode: "insensitive",
-                },
+          OR: [
+            {
+              nome: {
+                contains: search,
+                mode: "insensitive",
               },
-              !isNaN(search)
-                ? {
-                    id: Number(search),
-                  }
-                : {},
-            ],
-          }
+            },
+            !isNaN(search)
+              ? {
+                id: Number(search),
+              }
+              : {},
+          ],
+        }
         : {},
 
       role && role !== "todos"
         ? {
-            role: role.toUpperCase(),
-          }
+          role: role.toUpperCase(),
+        }
         : {},
     ],
   };
@@ -111,33 +112,81 @@ export async function getUserById(id) {
   return sanitizeUser(user);
 }
 
+// export async function updateUser(id, data, newImagePath = null, removeImage = false) {
+//   const user = await prisma.usuario.findUnique({ where: { id: Number(id) } });
+//   if (!user) throw new AppError("Usuário não encontrado", 404);
+
+//   const updateData = { ...data };
+
+//   if (data.senha) {
+//     updateData.senha = await bcrypt.hash(data.senha, 10);
+//   }
+
+//   let imagePath = user.imagem;
+
+//   if (removeImage) {
+//     if (imagePath) {
+//       if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+//         await deleteFromCloudinary(imagePath);
+//       } else if (fs.existsSync(`.${imagePath}`)) {
+//         try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
+//       }
+//     }
+//     updateData.imagem = null;
+//   } else if (newImagePath) {
+//     if (imagePath) {
+//       if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+//         await deleteFromCloudinary(imagePath);
+//       } else if (fs.existsSync(`.${imagePath}`)) {
+//         try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
+//       }
+//     }
+//     imagePath = newImagePath;
+//     updateData.imagem = imagePath;
+//   }
+
+//   const updated = await prisma.usuario.update({
+//     where: { id: Number(id) },
+//     data: updateData,
+//     select: { id: true, nome: true, email: true, role: true, imagem: true },
+//   });
+
+//   return sanitizeUser(updated);
+// }
 export async function updateUser(id, data, newImagePath = null, removeImage = false) {
   const user = await prisma.usuario.findUnique({ where: { id: Number(id) } });
   if (!user) throw new AppError("Usuário não encontrado", 404);
 
-  const updateData = { ...data };
+  // Só pegamos os campos que realmente podem ser atualizados.
+  // Isso evita que "removerImagem" (campo de controle) ou "imagem"
+  // (controlada só via newImagePath/removeImage) vazem pro Prisma.
+  const { nome, email, role, senha } = data;
+  const updateData = {};
+  if (nome !== undefined) updateData.nome = nome;
+  if (email !== undefined) updateData.email = email;
+  if (role !== undefined) updateData.role = role;
 
-  if (data.senha) {
-    updateData.senha = await bcrypt.hash(data.senha, 10);
+  if (senha) {
+    updateData.senha = await bcrypt.hash(senha, 10);
   }
 
   let imagePath = user.imagem;
-  
+
   if (removeImage) {
-    if (imagePath && fs.existsSync(`.${imagePath}`)) {
-      try {
-        fs.unlinkSync(`.${imagePath}`);
-      } catch (e) {
-        /* ignore */
+    if (imagePath) {
+      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+        await deleteFromCloudinary(imagePath);
+      } else if (fs.existsSync(`.${imagePath}`)) {
+        try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
       }
     }
     updateData.imagem = null;
   } else if (newImagePath) {
-    if (imagePath && fs.existsSync(`.${imagePath}`)) {
-      try {
-        fs.unlinkSync(`.${imagePath}`);
-      } catch (e) {
-        /* ignore */
+    if (imagePath) {
+      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+        await deleteFromCloudinary(imagePath);
+      } else if (fs.existsSync(`.${imagePath}`)) {
+        try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
       }
     }
     imagePath = newImagePath;
@@ -157,11 +206,11 @@ export async function deleteUser(id) {
   const user = await prisma.usuario.findUnique({ where: { id: Number(id) } });
   if (!user) throw new AppError("Usuário não encontrado", 404);
 
-  if (user.imagem && fs.existsSync(`.${user.imagem}`)) {
-    try {
-      fs.unlinkSync(`.${user.imagem}`);
-    } catch (e) {
-      /* ignore */
+  if (user.imagem) {
+    if (user.imagem.startsWith("http://") || user.imagem.startsWith("https://")) {
+      await deleteFromCloudinary(user.imagem);
+    } else if (fs.existsSync(`.${user.imagem}`)) {
+      try { fs.unlinkSync(`.${user.imagem}`); } catch (e) { /* ignore */ }
     }
   }
 

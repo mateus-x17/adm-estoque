@@ -1,5 +1,6 @@
 import { prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
+import { deleteFromCloudinary } from '../config/cloudinaryConfig.js';
 import fs from 'fs';
 
 export async function listProductsPaginated(filters = {}) {
@@ -56,6 +57,22 @@ export async function getProductById(id) {
   return product;
 }
 
+// export async function createProduct(data, imagePath = null) {
+//   const { nome, descricao, preco, quantidade, categoriaId, fornecedorId } = data;
+//   if (!nome) throw new AppError('Nome é obrigatório', 400);
+
+//   return prisma.produto.create({
+//     data: {
+//       nome,
+//       descricao,
+//       preco: parseFloat(preco) || 0,
+//       quantidade: Number(quantidade) || 0,
+//       imagem: imagePath,
+//       categoriaId: categoriaId ? Number(categoriaId) : null,
+//       fornecedorId: fornecedorId ? Number(fornecedorId) : null
+//     }
+//   });
+// }
 export async function createProduct(data, imagePath = null) {
   const { nome, descricao, preco, quantidade, categoriaId, fornecedorId } = data;
   if (!nome) throw new AppError('Nome é obrigatório', 400);
@@ -69,7 +86,8 @@ export async function createProduct(data, imagePath = null) {
       imagem: imagePath,
       categoriaId: categoriaId ? Number(categoriaId) : null,
       fornecedorId: fornecedorId ? Number(fornecedorId) : null
-    }
+    },
+    include: { categoria: true, fornecedor: true }
   });
 }
 
@@ -79,13 +97,21 @@ export async function updateProduct(id, data, newImagePath = null, removeImage =
 
   let imagePath = product.imagem;
   if (removeImage) {
-    if (imagePath && fs.existsSync(`.${imagePath}`)) {
-      try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
+    if (imagePath) {
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        await deleteFromCloudinary(imagePath);
+      } else if (fs.existsSync(`.${imagePath}`)) {
+        try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
+      }
     }
     imagePath = null;
   } else if (newImagePath) {
-    if (imagePath && fs.existsSync(`.${imagePath}`)) {
-      try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
+    if (imagePath) {
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        await deleteFromCloudinary(imagePath);
+      } else if (fs.existsSync(`.${imagePath}`)) {
+        try { fs.unlinkSync(`.${imagePath}`); } catch (e) { /* ignore */ }
+      }
     }
     imagePath = newImagePath;
   }
@@ -101,7 +127,8 @@ export async function updateProduct(id, data, newImagePath = null, removeImage =
       imagem: imagePath,
       categoriaId: categoriaId ? Number(categoriaId) : null,
       fornecedorId: fornecedorId ? Number(fornecedorId) : null
-    }
+    },
+    include: { categoria: true, fornecedor: true }
   });
 }
 
@@ -109,8 +136,12 @@ export async function deleteProduct(id) {
   const product = await prisma.produto.findUnique({ where: { id: Number(id) } });
   if (!product) throw new AppError('Produto não encontrado', 404);
 
-  if (product.imagem && fs.existsSync(`.${product.imagem}`)) {
-    try { fs.unlinkSync(`.${product.imagem}`); } catch (e) { /* ignore */ }
+  if (product.imagem) {
+    if (product.imagem.startsWith('http://') || product.imagem.startsWith('https://')) {
+      await deleteFromCloudinary(product.imagem);
+    } else if (fs.existsSync(`.${product.imagem}`)) {
+      try { fs.unlinkSync(`.${product.imagem}`); } catch (e) { /* ignore */ }
+    }
   }
 
   return prisma.produto.delete({ where: { id: Number(id) } });
