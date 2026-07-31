@@ -390,148 +390,132 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
   };
 
   return createPortal(
-    <div
-      className={`fixed inset-0 z-50 bg-black/50 transition-opacity ${closing ? "opacity-0" : "opacity-100"}`}
-      onClick={handleClose}
-      onTransitionEnd={() => closing && onClose()}
-    >
       <div
-        className={`absolute right-0 top-0 h-screen w-[65%] max-w-md transform transition-transform duration-300 ${
-          open ? "translate-x-0" : "translate-x-full"
-        } bg-[var(--bg-elevated)] border-l border-[var(--line)] shadow-2xl flex flex-col`}
-        onClick={(e) => e.stopPropagation()}
+        className={`fixed inset-0 z-50 bg-black/50 transition-opacity ${closing ? "opacity-0" : "opacity-100"}`}
+        onClick={handleClose}
+        onTransitionEnd={() => closing && onClose()}
       >
-        <div className="p-6 border-b border-[var(--line)]">
-          <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
-            {panelTitle}
-          </h2>
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-auto p-6 space-y-4"
+        <div
+          className={`absolute right-0 top-0 h-[100dvh] w-[65%] max-w-md transform transition-transform duration-300 ${
+            open ? "translate-x-0" : "translate-x-full"
+          } bg-[var(--bg-elevated)] border-l border-[var(--line)] shadow-2xl flex flex-col`}
+          onClick={(e) => e.stopPropagation()}
         >
-          {config.fields.map((field) => (
-            <div key={field.name}>
-              <label className="block text-sm mb-1 text-[var(--ink-soft)]">
-                {field.label}
-              </label>
-              {field.description ? (
-                <p className="text-xs mb-2 text-[var(--ink-soft)]">
-                  {field.description}
-                </p>
-              ) : null}
+          <div className="p-6 border-b border-[var(--line)] shrink-0">
+            <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
+              {panelTitle}
+            </h2>
+          </div>
 
-              {field.type === "select" ? (
-                <select
-                  name={field.name}
-                  value={form[field.name]}
-                  onChange={(e) =>
-                    setForm({ ...form, [field.name]: e.target.value })
-                  }
-                  className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
-                >
-                  <option
-                    value=""
-                    className="bg-[var(--bg-elevated)] text-[var(--ink)]"
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+            {config.fields.map((field) => (
+              <div key={field.name}>
+                <label className="block text-sm mb-1 text-[var(--ink-soft)]">
+                  {field.label}
+                </label>
+                {field.description ? (
+                  <p className="text-xs mb-2 text-[var(--ink-soft)]">{field.description}</p>
+                ) : null}
+
+                {field.type === "select" ? (
+                  <select
+                    name={field.name}
+                    value={form[field.name]}
+                    onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
+                    className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
                   >
-                    Selecione
-                  </option>
-                  {selectOptions[field.name]?.map((opt) => (
-                    <option
-                      key={opt.id}
-                      value={opt.id}
-                      className="bg-[var(--bg-elevated)] text-[var(--ink)]"
-                    >
-                      {opt.nome}
+                    <option value="" className="bg-[var(--bg-elevated)] text-[var(--ink)]">
+                      Selecione
                     </option>
-                  ))}
-                </select>
-              ) : field.type === "textarea" ? (
-                <textarea
-                  name={field.name}
-                  rows={3}
-                  value={form[field.name]}
-                  onChange={(e) =>
-                    setForm({ ...form, [field.name]: e.target.value })
-                  }
-                  className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm resize-none text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
-                />
-              ) : field.type === "file" ? (
-                <div>
-                  {!isCreating && itemData?.imagem && !removeImage && !file ? (
-                    <div className="mb-4 flex flex-col items-start gap-2">
-                      <p className="text-xs text-[var(--ink-soft)]">
-                        Foto atual:
-                      </p>
-                      <img
-                        src={formatImageUrl(itemData.imagem)}
-                        alt="Preview"
-                        className="w-20 h-20 object-cover rounded-md border border-[var(--line)]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRemoveImage(true);
-                          setFile(null);
-                        }}
-                        className="text-sm font-medium text-[var(--danger)] hover:opacity-80 transition-opacity duration-200"
+                    {selectOptions[field.name]?.map((opt) => (
+                      <option
+                        key={opt.id}
+                        value={opt.id}
+                        className="bg-[var(--bg-elevated)] text-[var(--ink)]"
                       >
-                        Remover foto
-                      </button>
-                    </div>
-                  ) : null}
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      setFile(e.target.files[0]);
-                      setRemoveImage(false);
-                    }}
-                    className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)]"
+                        {opt.nome}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "textarea" ? (
+                  <textarea
+                    name={field.name}
+                    rows={3}
+                    value={form[field.name]}
+                    onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
+                    className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm resize-none text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
                   />
-                </div>
-              ) : (
-                <input
-                  type={field.type}
-                  name={field.name}
-                  value={form[field.name]}
-                  onChange={(e) =>
-                    setForm({ ...form, [field.name]: e.target.value })
-                  }
-                  className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
-                />
-              )}
-            </div>
-          ))}
-        </form>
+                ) : field.type === "file" ? (
+                  <div>
+                    {!isCreating && itemData?.imagem && !removeImage && !file ? (
+                      <div className="mb-4 flex flex-col items-start gap-2">
+                        <p className="text-xs text-[var(--ink-soft)]">Foto atual:</p>
+                        <img
+                          src={formatImageUrl(itemData.imagem)}
+                          alt="Preview"
+                          className="w-28 h-28 object-cover rounded-md border border-[var(--line)]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRemoveImage(true);
+                            setFile(null);
+                          }}
+                          className="text-sm font-medium text-[var(--danger)] hover:opacity-80 transition-opacity duration-200"
+                        >
+                          Remover foto
+                        </button>
+                      </div>
+                    ) : null}
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        setFile(e.target.files[0]);
+                        setRemoveImage(false);
+                      }}
+                      className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)]"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type={field.type}
+                    name={field.name}
+                    value={form[field.name]}
+                    onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
+                    className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                  />
+                )}
+              </div>
+            ))}
+          </form>
 
-        <div className="p-4 border-t border-[var(--line)] flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="px-4 py-2 text-sm rounded-md border border-[var(--line)] text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            className="px-4 py-2 text-sm rounded-md bg-[var(--ink)] text-[var(--bg)] font-medium hover:opacity-90 transition-opacity duration-200"
-          >
-            Salvar
-          </button>
+          <div className="p-4 border-t border-[var(--line)] flex justify-end gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-4 py-2 text-sm rounded-md border border-[var(--line)] text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              onClick={handleSubmit}
+              className="px-4 py-2 text-sm rounded-md bg-[var(--ink)] text-[var(--bg)] font-medium hover:opacity-90 transition-opacity duration-200"
+            >
+              Salvar
+            </button>
+          </div>
+
+          {modal.visible && (
+            <ModalMensagem
+              mensagem={modal.mensagem}
+              tipo={modal.tipo}
+              onClose={() => setModal({ visible: false })}
+            />
+          )}
         </div>
-
-        {modal.visible && (
-          <ModalMensagem
-            mensagem={modal.mensagem}
-            tipo={modal.tipo}
-            onClose={() => setModal({ visible: false })}
-          />
-        )}
-      </div>
-    </div>,
-    document.body,
+      </div>,
+      document.body
   );
 }
 

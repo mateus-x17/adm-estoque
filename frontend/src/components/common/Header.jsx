@@ -41,7 +41,9 @@ const Header = () => {
 
         <div className="flex items-baseline gap-1 font-display">
           <span className="text-base font-bold tracking-tight">ESTOQUE</span>
-          <span className="text-base font-bold tracking-tight text-[var(--accent)] font-mono">.OS</span>
+          <span className="text-base font-bold tracking-tight text-[var(--accent)] font-mono">
+            .OS
+          </span>
         </div>
 
         <button
@@ -49,7 +51,11 @@ const Header = () => {
           aria-label="Alternar tema"
           className="rounded-md border border-[var(--line)] p-2 text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
         >
-          {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
+          {darkMode ? (
+            <FiSun className="h-4 w-4" />
+          ) : (
+            <FiMoon className="h-4 w-4" />
+          )}
         </button>
       </header>
 
@@ -59,8 +65,10 @@ const Header = () => {
             className="fixed inset-0 bg-black/50 transition-opacity duration-300"
             onClick={closeSidebar}
           />
-          <div className="relative">
-            <div className={sidebarAnimation === "in" ? "animate-slide-in-left" : "animate-slide-out-left"}>
+          <div className="relative h-full">
+            <div
+              className={`h-full ${sidebarAnimation === "in" ? "animate-slide-in-left" : "animate-slide-out-left"}`}
+            >
               <Sidebar closeSidebar={closeSidebar} />
             </div>
           </div>
