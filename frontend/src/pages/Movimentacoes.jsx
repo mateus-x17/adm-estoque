@@ -55,10 +55,18 @@ const Movimentacoes = () => {
   useEffect(() => {
     const carregarUsuarios = async () => {
       try {
-        const response = await usersApi.getUsers({ page: 1, limit: 100, search: "", role: "todos" });
+        const response = await usersApi.getUsers({
+          page: 1,
+          limit: 100,
+          search: "",
+          role: "todos",
+        });
         setUsuarios(response.data || []);
       } catch (error) {
-        console.error("Erro ao carregar usuários para filtro de movimentações:", error);
+        console.error(
+          "Erro ao carregar usuários para filtro de movimentações:",
+          error,
+        );
       }
     };
     carregarUsuarios();
@@ -143,7 +151,9 @@ const Movimentacoes = () => {
           if (m.tipo === "ENTRADA") grouped[dateKey].Entradas += m.quantidade;
           else grouped[dateKey].Saidas += m.quantidade;
         });
-        const sortedLineData = Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const sortedLineData = Object.values(grouped).sort(
+          (a, b) => new Date(a.date) - new Date(b.date),
+        );
         setLineChartData(sortedLineData);
       } catch (error) {
         console.error("Error fetching movements:", error);
@@ -153,7 +163,16 @@ const Movimentacoes = () => {
     };
 
     fetchMovements();
-  }, [paginaAtual, itensPorPagina, search, tipoFiltro, fromDate, toDate, userFilter, order]);
+  }, [
+    paginaAtual,
+    itensPorPagina,
+    search,
+    tipoFiltro,
+    fromDate,
+    toDate,
+    userFilter,
+    order,
+  ]);
 
   useEffect(() => {
     setPaginaAtual(1);
@@ -165,7 +184,9 @@ const Movimentacoes = () => {
         <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
           Estoque
         </span>
-        <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">Movimentações</h1>
+        <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">
+          Movimentações
+        </h1>
         <p className="text-sm text-[var(--ink-soft)] mt-1">
           Controle de entradas e saídas de produtos.
         </p>
@@ -196,9 +217,24 @@ const Movimentacoes = () => {
               onChange={(e) => setTipoFiltro(e.target.value)}
               className="w-full lg:w-40 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
             >
-              <option value="" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Todos</option>
-              <option value="ENTRADA" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Entrada</option>
-              <option value="SAIDA" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Saída</option>
+              <option
+                value=""
+                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
+              >
+                Todos
+              </option>
+              <option
+                value="ENTRADA"
+                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
+              >
+                Entrada
+              </option>
+              <option
+                value="SAIDA"
+                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
+              >
+                Saída
+              </option>
             </select>
 
             <select
@@ -206,9 +242,18 @@ const Movimentacoes = () => {
               onChange={(e) => setUserFilter(e.target.value)}
               className="w-full lg:w-52 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
             >
-              <option value="" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Todos os usuários</option>
+              <option
+                value=""
+                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
+              >
+                Todos os usuários
+              </option>
               {usuarios.map((u) => (
-                <option key={u.id} value={u.id} className="bg-[var(--bg-elevated)] text-[var(--ink)]">
+                <option
+                  key={u.id}
+                  value={u.id}
+                  className="bg-[var(--bg-elevated)] text-[var(--ink)]"
+                >
                   {u.nome}
                 </option>
               ))}
@@ -227,6 +272,23 @@ const Movimentacoes = () => {
               onChange={(e) => setToDate(e.target.value)}
               className="w-full lg:w-44 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
             />
+
+            <button
+              onClick={toggleOrder}
+              className="flex items-center justify-center gap-1.5 font-mono text-xs uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-4 py-2.5 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200 lg:w-40 shrink-0"
+              title={
+                order === "desc"
+                  ? "Mostrando mais recentes primeiro"
+                  : "Mostrando mais antigos primeiro"
+              }
+            >
+              {order === "desc" ? (
+                <FiArrowDown size={13} />
+              ) : (
+                <FiArrowUp size={13} />
+              )}
+              {order === "desc" ? "Recentes" : "Antigos"}
+            </button>
           </section>
         )}
       </div>
@@ -234,31 +296,22 @@ const Movimentacoes = () => {
       {!loaded ? (
         <div className="flex items-center justify-center gap-3 py-20">
           <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--ink-soft)]">Carregando movimentações...</span>
+          <span className="text-sm text-[var(--ink-soft)]">
+            Carregando movimentações...
+          </span>
         </div>
       ) : (
         <>
           <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-[var(--line)] flex justify-between items-center gap-3">
+            <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
               <h2 className="font-display text-base font-semibold text-[var(--ink)]">
                 Histórico de movimentações
               </h2>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={toggleOrder}
-                  className="flex items-center gap-1.5 font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
-                  title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
-                >
-                  {order === "desc" ? <FiArrowDown size={12} /> : <FiArrowUp size={12} />}
-                  {order === "desc" ? "Recentes" : "Antigos"}
-                </button>
-
-                <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
-                  Total: {totalMovimentos}
-                </span>
-              </div>
+              <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
+                Total: {totalMovimentos}
+              </span>
             </div>
+
             <table className="w-full text-sm">
               <thead>
                 <tr>
@@ -286,13 +339,21 @@ const Movimentacoes = () => {
               <tbody>
                 {movimentacoes.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-8 text-sm text-[var(--ink-soft)]">
+                    <td
+                      colSpan="6"
+                      className="text-center py-8 text-sm text-[var(--ink-soft)]"
+                    >
                       Nenhuma movimentação encontrada.
                     </td>
                   </tr>
                 ) : (
                   movimentacoes.map((mov, i) => (
-                    <MovimentacaoRow key={mov.id} movimentacao={mov} index={i} abrirModal={abrirModal} />
+                    <MovimentacaoRow
+                      key={mov.id}
+                      movimentacao={mov}
+                      index={i}
+                      abrirModal={abrirModal}
+                    />
                   ))
                 )}
               </tbody>
@@ -330,8 +391,17 @@ const Movimentacoes = () => {
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={lineChartData}>
-                  <XAxis dataKey="label" tick={{ fill: "var(--ink-soft)", fontSize: 11 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
-                  <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
+                    axisLine={{ stroke: "var(--line)" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip
                     contentStyle={{
                       background: "var(--bg-elevated)",
@@ -340,9 +410,21 @@ const Movimentacoes = () => {
                       fontSize: 12,
                     }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
-                  <Line dataKey="Entradas" stroke="var(--ink)" strokeWidth={2} dot={false} />
-                  <Line dataKey="Saidas" stroke="var(--accent)" strokeWidth={2} dot={false} />
+                  <Legend
+                    wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }}
+                  />
+                  <Line
+                    dataKey="Entradas"
+                    stroke="var(--ink)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    dataKey="Saidas"
+                    stroke="var(--accent)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -364,7 +446,9 @@ const Movimentacoes = () => {
                       <Cell key={i} fill={pieColors[i]} />
                     ))}
                   </Pie>
-                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
+                  <Legend
+                    wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }}
+                  />
                   <Tooltip
                     formatter={(value, name) => [`${value} unid.`, name]}
                     contentStyle={{

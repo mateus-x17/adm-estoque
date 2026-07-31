@@ -34,7 +34,10 @@ const Pedidos = () => {
         });
         setUsuarios(response.data || []);
       } catch (error) {
-        console.error("Erro ao carregar usuários para filtro de pedidos:", error);
+        console.error(
+          "Erro ao carregar usuários para filtro de pedidos:",
+          error,
+        );
       }
     };
 
@@ -102,7 +105,9 @@ const Pedidos = () => {
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
             Movimentação
           </span>
-          <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">Pedidos</h1>
+          <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">
+            Pedidos
+          </h1>
           <p className="text-sm text-[var(--ink-soft)] mt-1">
             Gerencie pedidos e registre movimentações de estoque.
           </p>
@@ -123,6 +128,8 @@ const Pedidos = () => {
         setShowFilters={setShowFilters}
         onCreateClick={() => setModalOpen(true)}
         onFilterChange={handleFilterChange}
+        order={order}
+        onToggleOrder={toggleOrder}
       />
 
       <PedidosTableContainer
@@ -130,8 +137,6 @@ const Pedidos = () => {
         totalCount={totalCount}
         loading={loading}
         filterId={filterId}
-        order={order}
-        onToggleOrder={toggleOrder}
       />
 
       {!loading && totalPages > 1 && (
