@@ -107,6 +107,11 @@ const handleResponse = async (response) => {
  */
 const request = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
+
+    console.log("API_BASE_URL:", API_BASE_URL);
+    console.log("Endpoint:", endpoint);
+    console.log("URL final:", url);
+
     const { skipAuth = false, ...fetchOptions } = options;
 
     const config = {
@@ -118,7 +123,7 @@ const request = async (endpoint, options = {}) => {
         const response = await fetch(url, config);
         return await handleResponse(response);
     } catch (error) {
-        console.error(`API Error [${options.method || 'GET'}] ${endpoint}:`, error);
+        console.error(error);
         throw error;
     }
 };
