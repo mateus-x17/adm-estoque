@@ -2,6 +2,7 @@ import React from "react";
 import { formatImageUrl } from "../../utils/imageHelper.js";
 
 const ProdutoRow = ({ produto, index, abrirModal }) => {
+  console.log(produto);
   return (
     <tr
       style={{ animationDelay: `${index * 0.05}s` }}
