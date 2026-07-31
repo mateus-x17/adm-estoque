@@ -3,15 +3,15 @@ const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
   const isEntrada = movimentacao.tipo === "ENTRADA";
 
   const badgeClass = isEntrada
-    ? "border-[var(--teal)]/30 text-[var(--teal)]"
-    : "border-[var(--accent)]/30 text-[var(--accent)]";
+    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+    : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
 
   return (
     <>
       {/* Desktop */}
       <tr
         style={{ animationDelay: `${index * 0.04}s` }}
-        className="hidden md:table-row border-b border-[var(--line)] hover:bg-[var(--line)]/20 transition-colors duration-200 animate-fade-up"
+        className="hidden md:table-row border-b hover:bg-[var(--line)]/20 transition-colors duration-200 animate-fade-up"
       >
         <td className="px-4 py-3 text-sm text-[var(--ink)]">{movimentacao.produto.nome}</td>
         <td className="px-4 py-3 text-center">
@@ -43,7 +43,7 @@ const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
                 {movimentacao.produto.nome}
               </span>
               <span className="font-mono text-xs text-[var(--ink-soft)]">{dataCompacta}</span>
-              <span className={`w-fit px-2 py-0.5 rounded-md border font-mono text-[10px] uppercase ${badgeClass}`}>
+              <span className={`w-fit px-2 py-0.5 rounded-md font-mono text-[10px] uppercase ${badgeClass}`}>
                 {movimentacao.tipo}
               </span>
             </div>

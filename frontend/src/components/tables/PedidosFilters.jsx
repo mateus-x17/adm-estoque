@@ -1,4 +1,5 @@
 import React from "react";
+import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 
 const PedidosFilters = ({
   filterId,
@@ -14,6 +15,8 @@ const PedidosFilters = ({
   setShowFilters,
   onCreateClick,
   onFilterChange,
+  order,
+  onToggleOrder,
 }) => {
   const handleChange = (setter) => (e) => {
     setter(e.target.value);
@@ -81,6 +84,15 @@ const PedidosFilters = ({
               </option>
             ))}
           </select>
+
+          <button
+            onClick={onToggleOrder}
+            className="flex items-center justify-center gap-1.5 font-mono text-xs uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-4 py-2.5 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200 lg:w-40 shrink-0"
+            title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
+          >
+            {order === "desc" ? <FiArrowDown size={13} /> : <FiArrowUp size={13} />}
+            {order === "desc" ? "Recentes" : "Antigos"}
+          </button>
         </section>
       )}
     </div>

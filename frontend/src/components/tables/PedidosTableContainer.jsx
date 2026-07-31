@@ -5,25 +5,13 @@ import PedidoRow from "./PedidoRow.jsx";
 const PedidosTableContainer = ({ pedidos, totalCount, loading, filterId, order, onToggleOrder }) => {
   return (
     <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
-      <div className="p-5 border-b border-[var(--line)] flex justify-between items-center gap-3">
+      <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
         <h2 className="font-display text-base font-semibold text-[var(--ink)]">
           Histórico de pedidos
         </h2>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onToggleOrder}
-            className="flex items-center gap-1.5 font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
-            title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
-          >
-            {order === "desc" ? <FiArrowDown size={12} /> : <FiArrowUp size={12} />}
-            {order === "desc" ? "Recentes" : "Antigos"}
-          </button>
-
-          <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
-            Total: {totalCount}
-          </span>
-        </div>
+        <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
+          Total: {totalCount}
+        </span>
       </div>
 
       {loading ? (
