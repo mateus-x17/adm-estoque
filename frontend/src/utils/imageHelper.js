@@ -10,6 +10,6 @@ export const formatImageUrl = (url) => {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
-  const baseUrl = 'http://localhost:5000';
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };

@@ -12,7 +12,7 @@ const formConfigs = {
       { name: "role", label: "Função", type: "select", options: ["ADMIN", "GERENTE", "OPERADOR"], required: true },
       { name: "imagem", label: "Foto do Usuário", type: "file" },
     ],
-    route: (id) => `http://localhost:5000/users/${id}`,
+    route: (id) => `${import.meta.env.VITE_API_BASE_URL}/users/${id}`,
   },
   configuracoes: {
     fields: [
@@ -37,7 +37,7 @@ const formConfigs = {
         description: "Upload de foto do usuário (JPG, PNG ou WEBP).",
       },
     ],
-    route: () => `http://localhost:5000/users/me`,
+    route: () => `${import.meta.env.VITE_API_BASE_URL}/users/me`,
   },
   configuracoesAdmin: {
     fields: [
@@ -70,7 +70,7 @@ const formConfigs = {
         description: "Upload de foto do usuário (JPG, PNG ou WEBP).",
       },
     ],
-    route: () => `http://localhost:5000/users/me`,
+    route: () => `${import.meta.env.VITE_API_BASE_URL}/users/me`,
   },
   CriarUsuario: {
     fields: [
@@ -80,7 +80,7 @@ const formConfigs = {
       { name: "role", label: "Função", type: "select", options: ["ADMIN", "GERENTE", "OPERADOR"], required: true },
       { name: "imagem", label: "Foto do Usuário", type: "file" },
     ],
-    route: "http://localhost:5000/users",
+    route: `${import.meta.env.VITE_API_BASE_URL}/users`,
   },
   produto: {
     fields: [
@@ -92,7 +92,7 @@ const formConfigs = {
       { name: "fornecedorId", label: "Fornecedor", type: "select", endpoint: "/suppliers", keyName: "fornecedores" },
       { name: "imagem", label: "Imagem do Produto", type: "file" },
     ],
-    route: (id) => `http://localhost:5000/products/${id}`,
+    route: (id) => `${import.meta.env.VITE_API_BASE_URL}/products/${id}`,
   },
   CriarProduto: {
     fields: [
@@ -104,7 +104,7 @@ const formConfigs = {
       { name: "fornecedorId", label: "Fornecedor", type: "select", endpoint: "/suppliers", keyName: "fornecedores" },
       { name: "imagem", label: "Imagem do Produto", type: "file" },
     ],
-    route: "http://localhost:5000/products",
+    route: `${import.meta.env.VITE_API_BASE_URL}/products`,
   },
   fornecedor: {
     fields: [
@@ -113,7 +113,7 @@ const formConfigs = {
       { name: "telefone", label: "Telefone", type: "text", required: true },
       { name: "endereco", label: "Endereço", type: "text", required: true },
     ],
-    route: (id) => `http://localhost:5000/suppliers/${id}`,
+    route: (id) => `${import.meta.env.VITE_API_BASE_URL}/suppliers/${id}`,
   },
   CriarFornecedor: {
     fields: [
@@ -122,7 +122,7 @@ const formConfigs = {
       { name: "telefone", label: "Telefone", type: "text", required: true },
       { name: "endereco", label: "Endereço", type: "text", required: true },
     ],
-    route: "http://localhost:5000/suppliers",
+    route: `${import.meta.env.VITE_API_BASE_URL}/suppliers`,
   },
   CriarPedido: {
     fields: [
@@ -132,7 +132,7 @@ const formConfigs = {
       { name: "observacao", label: "Observação", type: "textarea" },
     ],
     // Special route handling for this one
-    dynamicRoute: (formData) => `http://localhost:5000/products/${formData.produtoId}/adjust`,
+    dynamicRoute: (formData) => `${import.meta.env.VITE_API_BASE_URL}/products/${formData.produtoId}/adjust`,
   }
 }
 
@@ -168,7 +168,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       if (field.type !== "select") return
 
       if (field.endpoint) {
-        const res = await fetch(`http://localhost:5000${field.endpoint}`, {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}${field.endpoint}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
         if (!res.ok) return
