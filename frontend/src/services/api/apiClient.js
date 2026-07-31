@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
  * Handles all HTTP requests with automatic token management
  */
 
-const API_BASE_URL = process.env.API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * Get authentication token from user store
