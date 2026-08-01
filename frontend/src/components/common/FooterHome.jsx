@@ -1,12 +1,17 @@
-import React from 'react'
-
 const FooterHome = () => {
   return (
-    <footer className="w-full p-4 bg-gray-200 dark:bg-gray-800 text-center transition-colors duration-300">
-        <p className="text-sm text-gray-600 dark:text-gray-300">© 2024 Dashboard-ADM. Todos os direitos reservados.</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">Mateus Inácio</p>
+    <footer className="border-t border-[var(--line)] bg-[var(--bg)] transition-colors duration-300">
+      <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2 font-mono text-xs text-[var(--teal)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--teal)] animate-pulse" />
+          SISTEMA OPERACIONAL
+        </div>
+        <p className="text-xs text-[var(--ink-soft)]">
+          © 2024 Estoque.OS · Mateus Inácio
+        </p>
+      </div>
     </footer>
-  )
-}
+  );
+};
 
-export default FooterHome
+export default FooterHome;

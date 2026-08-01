@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/userStore.js";
 import { authApi } from "../../services/api/index.js";
 
+const inputClass =
+  "p-3 rounded-md border border-[var(--line)] bg-transparent text-[var(--ink)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] outline-none transition-colors duration-200";
+
 const RegisterForm = () => {
   const { setUser } = useUserStore();
   const navigate = useNavigate();
@@ -11,16 +14,14 @@ const RegisterForm = () => {
   const [email, setEmail] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState(""); // mensagem de erro
-  const [sucesso, setSucesso] = useState(""); // mensagem de sucesso
-  const [loading, setLoading] = useState(false); // estado de carregamento
-
+  const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const submitForm = async (e) => {
     e.preventDefault();
     setErro("");
 
-    // validação de email
     if (email !== confirmEmail) {
       setErro("Os emails não correspondem");
       return;
@@ -31,25 +32,15 @@ const RegisterForm = () => {
 
     try {
       const data = await authApi.register(dados);
-
-      // registro bem-sucedido
       setSucesso(data.message || "Usuário cadastrado com sucesso! Redirecionando...");
-
-      // limpar formulário
       setNome("");
       setEmail("");
       setConfirmEmail("");
       setSenha("");
-
-      // redirecionar para login após um tempo curto para o usuário ver a mensagem
-      setTimeout(() => {
-        navigate("/auth");
-      }, 2000);
+      setTimeout(() => navigate("/auth"), 2000);
     } catch (error) {
-
       console.error("Erro ao registrar usuário:", error);
       setErro(error.message || "Não foi possível conectar ao servidor.");
-      // limpar formulário
       setNome("");
       setEmail("");
       setConfirmEmail("");
@@ -61,17 +52,14 @@ const RegisterForm = () => {
 
   return (
     <>
-      <form
-        className="w-full max-w-sm flex flex-col gap-4 animate-slideUp"
-        onSubmit={submitForm}
-      >
+      <form className="w-full max-w-sm flex flex-col gap-4 animate-fade-up" onSubmit={submitForm}>
         <input
           type="text"
           placeholder="Nome completo"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          className={inputClass}
         />
         <input
           type="email"
@@ -79,7 +67,7 @@ const RegisterForm = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          className={inputClass}
         />
         <input
           type="email"
@@ -87,7 +75,7 @@ const RegisterForm = () => {
           value={confirmEmail}
           onChange={(e) => setConfirmEmail(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          className={inputClass}
         />
         <input
           type="password"
@@ -95,30 +83,29 @@ const RegisterForm = () => {
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
           required
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          className={inputClass}
         />
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-2 rounded-md bg-[var(--ink)] text-[var(--bg)] font-semibold py-3 text-sm hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Registrando..." : "Registrar"}
         </button>
       </form>
 
       {erro && (
-        <div className="mt-4 p-3 bg-red-100 text-red-700 border border-red-400 rounded-md">
+        <div className="mt-4 w-full max-w-sm p-3 rounded-md border border-red-500/30 bg-red-500/10 text-red-500 text-sm">
           {erro}
         </div>
       )}
 
       {sucesso && (
-        <div className="mt-4 p-3 bg-green-100 text-green-700 border border-green-400 rounded-md">
+        <div className="mt-4 w-full max-w-sm p-3 rounded-md border border-[var(--teal)]/30 bg-[var(--teal)]/10 text-[var(--teal)] text-sm">
           {sucesso}
         </div>
       )}
     </>
-
   );
 };
 

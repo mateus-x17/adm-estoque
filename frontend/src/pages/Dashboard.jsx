@@ -1,5 +1,4 @@
-
-import { Clock } from "lucide-react";
+import { Clock, Download } from "lucide-react";
 import KPISection from "../components/dashboard/KPISection.jsx";
 import StockFlowChart from "../components/dashboard/StockFlowChart.jsx";
 import LowStockAlert from "../components/dashboard/LowStockAlert.jsx";
@@ -8,77 +7,46 @@ import UserStatsCharts from "../components/dashboard/UserStatsCharts.jsx";
 import MontanteGrafic from "../components/dashboard/MontanteGrafic.jsx";
 
 const Dashboard = () => {
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-lg shadow-xl text-xs">
-          <p className="font-bold text-slate-900 dark:text-white mb-2">
-            {label}
-          </p>
-          {payload.map((entry, index) => (
-            <div key={index} className="flex items-center gap-2 mt-1">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: entry.fill }}
-              />
-              <span className="text-slate-500 dark:text-slate-400 capitalize">
-                {entry.name}:
-              </span>
-              <span className="font-semibold dark:text-slate-200">
-                {entry.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
-    <div className="w-full min-h-screen pt-4 pb-12 px-4 md:px-8 space-y-8 max-w-7xl mx-auto">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-6">
+    <div className="w-full min-h-screen pt-4 pb-12 px-4 md:px-8 space-y-8 max-w-7xl mx-auto bg-[var(--bg)] transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-6 border-b border-[var(--line)]">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+            Painel
+          </span>
+          <h1 className="font-display text-3xl font-bold text-[var(--ink)] tracking-tight mt-1">
             Visão Geral
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            Monitoramento em tempo real do seu ecossistema de estoque.
+          <p className="text-sm text-[var(--ink-soft)] mt-1">
+            Monitoramento em tempo real do seu estoque.
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
+          <button className="px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--line)] rounded-md text-sm font-semibold text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Hoje
           </button>
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all">
-            Exportar Relatório
+          <button className="px-4 py-2 bg-[var(--ink)] text-[var(--bg)] rounded-md text-sm font-semibold hover:opacity-90 transition-opacity duration-200 flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Exportar relatório
           </button>
         </div>
       </header>
 
-      {/* KPIs */}
       <KPISection />
 
-      {/* Graficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Fluxo de Mercadorias */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="lg:col-span-2">
           <StockFlowChart />
         </section>
 
         <aside className="flex flex-col gap-6">
-          {/* Alerta de Baixo Estoque */}
           <LowStockAlert />
-          {/* Movimentações Recentes */}
           <RecentMovements />
         </aside>
-
       </div>
 
-      {/* User Stats Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UserStatsCharts type="count" />
         <UserStatsCharts type="value" />
 
@@ -86,7 +54,6 @@ const Dashboard = () => {
           <MontanteGrafic />
         </div>
       </div>
-
     </div>
   );
 };

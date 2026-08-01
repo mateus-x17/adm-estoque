@@ -2,31 +2,22 @@ import React from "react";
 import { formatImageUrl } from "../../utils/imageHelper.js";
 
 const ProdutoRow = ({ produto, index, abrirModal }) => {
-  console.log(produto);
   return (
     <tr
-      style={{ animationDelay: `${index * 0.05}s` }}
-      className="
-        block md:table-row
-        border-b border-gray-200 dark:border-gray-600
-        hover:bg-gray-100 dark:hover:bg-gray-700
-        transition animate-fadeIn
-      "
+      style={{ animationDelay: `${index * 0.04}s` }}
+      className="block md:table-row border-b border-[var(--line)] hover:bg-[var(--line)]/20 transition-colors duration-200 animate-fade-up"
     >
-      {/* Mobile Card */}
+      {/* Mobile card */}
       <td className="block md:hidden p-4 space-y-3">
         <div className="flex items-center gap-4">
           <img
             src={formatImageUrl(produto.imagem) || "/default.png"}
             alt={produto.nome}
-            className="w-16 h-16 rounded-lg object-cover shadow-sm flex-shrink-0"
+            className="w-14 h-14 rounded-md object-cover border border-[var(--line)] flex-shrink-0"
           />
-
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-              {produto.nome}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="font-medium text-[var(--ink)] truncate">{produto.nome}</p>
+            <p className="text-sm text-[var(--ink-soft)]">
               {produto?.categoria?.nome || "—"}
             </p>
           </div>
@@ -34,7 +25,7 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
 
         <button
           onClick={() => abrirModal(produto)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded-lg transition"
+          className="w-full rounded-md border border-[var(--line)] text-sm font-medium py-2 text-[var(--ink)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
         >
           Ver detalhes
         </button>
@@ -45,22 +36,22 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
         <img
           src={formatImageUrl(produto.imagem) || "/default.png"}
           alt={produto.nome}
-          className="w-14 h-14 rounded-lg object-cover shadow-sm"
+          className="w-12 h-12 rounded-md object-cover border border-[var(--line)]"
         />
       </td>
 
-      <td className="hidden md:table-cell px-4 py-3 font-medium text-gray-900 dark:text-white">
+      <td className="hidden md:table-cell px-4 py-3 text-sm font-medium text-[var(--ink)]">
         {produto.nome}
       </td>
 
-      <td className="hidden md:table-cell px-4 py-3 text-gray-700 dark:text-gray-300">
+      <td className="hidden md:table-cell px-4 py-3 text-sm text-[var(--ink-soft)]">
         {produto?.categoria?.nome || "—"}
       </td>
 
       <td className="hidden md:table-cell px-4 py-3 text-center">
         <button
           onClick={() => abrirModal(produto)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+          className="rounded-md border border-[var(--line)] text-sm font-medium px-4 py-1.5 text-[var(--ink)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
         >
           Ver detalhes
         </button>

@@ -3,222 +3,231 @@ import { FiPlus, FiEdit, FiTrash, FiX } from "react-icons/fi";
 import { categoriesApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 
-
-
 const Categorias = () => {
-    const [categorias, setCategorias] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editingId, setEditingId] = useState(null);
-    const [nome, setNome] = useState("");
-    const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
+  const [categorias, setCategorias] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [nome, setNome] = useState("");
+  const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
 
+  const fetchCategorias = async () => {
+    try {
+      const data = await categoriesApi.getCategories();
+      setCategorias(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchCategorias = async () => {
-        try {
-            const data = await categoriesApi.getCategories();
-            setCategorias(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+  useEffect(() => {
+    fetchCategorias();
+  }, []);
 
-    useEffect(() => {
-        fetchCategorias();
-    }, []);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!nome) return;
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!nome) return;
+    try {
+      if (editingId) {
+        console.warn("Update category not implemented in API");
+      } else {
+        await categoriesApi.createCategory({ nome });
+      }
 
-        try {
-            if (editingId) {
-                // Note: The API doesn't have an update endpoint currently, so this will fail
-                // You may need to add this endpoint to your backend
-                console.warn("Update category not implemented in API");
-            } else {
-                await categoriesApi.createCategory({ nome });
-            }
+      setModalOpen(false);
+      setNome("");
+      setEditingId(null);
+      setModalMsg({
+        visible: true,
+        mensagem: `Categoria ${editingId ? "atualizada" : "criada"} com sucesso!`,
+        tipo: "sucesso",
+      });
+      fetchCategorias();
+    } catch (err) {
+      console.error(err);
+      setModalMsg({ visible: true, mensagem: "Erro ao salvar categoria", tipo: "erro" });
+    }
+  };
 
-            setModalOpen(false);
-            setNome("");
-            setEditingId(null);
-            setModalMsg({ visible: true, mensagem: `Categoria ${editingId ? "atualizada" : "criada"} com sucesso!`, tipo: "sucesso" });
-            fetchCategorias();
-        } catch (err) {
-            console.error(err);
-            setModalMsg({ visible: true, mensagem: "Erro ao salvar categoria", tipo: "erro" });
-        }
-    };
+  const handleEdit = (cat) => {
+    setEditingId(cat.id);
+    setNome(cat.nome);
+    setModalOpen(true);
+  };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta categoria?")) return;
 
-    const handleEdit = (cat) => {
-        setEditingId(cat.id);
-        setNome(cat.nome);
-        setModalOpen(true);
-    };
+    try {
+      await categoriesApi.deleteCategory(id);
+      setModalMsg({ visible: true, mensagem: "Categoria excluída com sucesso!", tipo: "sucesso" });
+      fetchCategorias();
+    } catch (err) {
+      console.error(err);
+      setModalMsg({ visible: true, mensagem: "Erro ao excluir categoria", tipo: "erro" });
+    }
+  };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Tem certeza que deseja excluir esta categoria?")) return;
+  const openModal = () => {
+    setEditingId(null);
+    setNome("");
+    setModalOpen(true);
+  };
 
-        try {
-            await categoriesApi.deleteCategory(id);
-            setModalMsg({ visible: true, mensagem: "Categoria excluída com sucesso!", tipo: "sucesso" });
-            fetchCategorias();
-        } catch (err) {
-            console.error(err);
-            setModalMsg({ visible: true, mensagem: "Erro ao excluir categoria", tipo: "erro" });
-        }
-    };
-
-
-    const openModal = () => {
-        setEditingId(null);
-        setNome("");
-        setModalOpen(true);
-    };
-
-    return (
-        <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
-            <header className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                        Categorias
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400">
-                        Gerencie as categorias dos produtos
-                    </p>
-                </div>
-            </header>
-
-            {/* Button */}
-            <div className="flex justify-end">
-                <button
-                    onClick={openModal}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
-                >
-                    <FiPlus /> Nova Categoria
-                </button>
-            </div>
-
-            {/* Lista */}
-            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 mt-8">
-                <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white uppercase font-bold">
-                        <tr>
-                            <th className="px-6 py-4">ID</th>
-                            <th className="px-6 py-4">Nome</th>
-                            <th className="px-6 py-4 text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {loading ? (
-                            <tr>
-                                <td colSpan="3" className="text-center py-6">
-                                    Carregando...
-                                </td>
-                            </tr>
-                        ) : categorias.length === 0 ? (
-                            <tr>
-                                <td colSpan="3" className="text-center py-6">
-                                    Nenhuma categoria encontrada.
-                                </td>
-                            </tr>
-                        ) : (
-                            categorias.map((cat) => (
-                                <tr key={cat.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-6 py-4">#{cat.id}</td>
-                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                                        {cat.nome}
-                                    </td>
-                                    <td className="px-6 py-4 flex justify-center gap-4">
-                                        <button
-                                            onClick={() => handleEdit(cat)}
-                                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                                            title="Editar"
-                                        >
-                                            <FiEdit size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(cat.id)}
-                                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                                            title="Excluir"
-                                        >
-                                            <FiTrash size={18} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Modal */}
-            {modalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-                    onClick={() => setModalOpen(false)}
-                >
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100 p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                                {editingId ? "Editar Categoria" : "Nova Categoria"}
-                            </h2>
-                            <button
-                                onClick={() => setModalOpen(false)}
-                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                            >
-                                <FiX size={24} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    Nome da Categoria
-                                </label>
-                                <input
-                                    type="text"
-                                    value={nome}
-                                    onChange={(e) => setNome(e.target.value)}
-                                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                                    placeholder="Ex: Eletrônicos"
-                                    required
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => setModalOpen(false)}
-                                    className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md hover:shadow-lg transition-all"
-                                >
-                                    Salvar
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {modalMsg.visible && (
-                <ModalMensagem
-                    mensagem={modalMsg.mensagem}
-                    tipo={modalMsg.tipo}
-                    onClose={() => setModalMsg({ visible: false })}
-                />
-            )}
+  return (
+    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-6">
+      <header className="flex justify-between items-center">
+        <div>
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+            Catálogo
+          </span>
+          <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">Categorias</h1>
+          <p className="text-sm text-[var(--ink-soft)] mt-1">
+            Gerencie as categorias dos produtos.
+          </p>
         </div>
 
-    );
+        <button
+          onClick={openModal}
+          className="flex items-center gap-2 bg-[var(--ink)] text-[var(--bg)] px-5 py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity duration-200 whitespace-nowrap"
+        >
+          <FiPlus size={15} /> Nova categoria
+        </button>
+      </header>
+
+      {/* Lista */}
+      <div className="glass-panel rounded-lg overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                ID
+              </th>
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                Nome
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                Ações
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan="3" className="text-center py-8 text-sm text-[var(--ink-soft)]">
+                  Carregando...
+                </td>
+              </tr>
+            ) : categorias.length === 0 ? (
+              <tr>
+                <td colSpan="3" className="text-center py-8 text-sm text-[var(--ink-soft)]">
+                  Nenhuma categoria encontrada.
+                </td>
+              </tr>
+            ) : (
+              categorias.map((cat) => (
+                <tr
+                  key={cat.id}
+                  className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--line)]/20 transition-colors duration-200"
+                >
+                  <td className="px-6 py-3 font-mono text-xs text-[var(--ink-soft)]">
+                    #{cat.id}
+                  </td>
+                  <td className="px-6 py-3 font-medium text-[var(--ink)]">{cat.nome}</td>
+                  <td className="px-6 py-3">
+                    <div className="flex justify-center gap-4">
+                      <button
+                        onClick={() => handleEdit(cat)}
+                        className="text-[var(--ink-soft)] hover:text-[var(--accent)] transition-colors duration-200"
+                        title="Editar"
+                      >
+                        <FiEdit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(cat.id)}
+                        className="text-[var(--ink-soft)] hover:text-[var(--danger)] transition-colors duration-200"
+                        title="Excluir"
+                      >
+                        <FiTrash size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="bg-[var(--bg-elevated)] border border-[var(--line)] w-full max-w-md rounded-lg shadow-xl overflow-hidden p-6 animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
+                {editingId ? "Editar categoria" : "Nova categoria"}
+              </h2>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-[var(--ink-soft)] mb-1.5">
+                  Nome da categoria
+                </label>
+                <input
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                  placeholder="Ex: Eletrônicos"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium rounded-md border border-[var(--line)] text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium rounded-md bg-[var(--ink)] text-[var(--bg)] hover:opacity-90 transition-opacity duration-200"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {modalMsg.visible && (
+        <ModalMensagem
+          mensagem={modalMsg.mensagem}
+          tipo={modalMsg.tipo}
+          onClose={() => setModalMsg({ visible: false })}
+        />
+      )}
+    </div>
+  );
 };
 
 export default Categorias;

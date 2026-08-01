@@ -1,89 +1,80 @@
 const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
-    if (!isOpen || !movimentacao) return null
+  if (!isOpen || !movimentacao) return null;
 
-    const isEntrada = movimentacao.tipo === "ENTRADA"
+  const isEntrada = movimentacao.tipo === "ENTRADA";
+  const badgeClass = isEntrada
+    ? "border-[var(--teal)]/30 text-[var(--teal)]"
+    : "border-[var(--accent)]/30 text-[var(--accent)]";
 
-    return (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
-            <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 space-y-6 shadow-xl">
-                {/* header */}
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                        Detalhes da Movimentação
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                {/* tipo */}
-                <div>
-                    <span
-                        className={`inline-block px-4 py-1.5 rounded-full text-sm font-bold
-              ${isEntrada
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-                            }`}
-                    >
-                        {movimentacao.tipo}
-                    </span>
-                </div>
-
-                {/* infos */}
-                <div className="space-y-3 text-sm">
-                    <div>
-                        <p className="text-slate-500">ID do Pedido</p>
-                        <p className="font-semibold text-slate-900 dark:text-white">
-                            #{movimentacao.id}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="text-slate-500">Produto</p>
-                        <p className="font-semibold text-slate-900 dark:text-white">
-                            {movimentacao.produto.nome}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="text-slate-500">Quantidade</p>
-                        <p className="font-semibold text-slate-900 dark:text-white">
-                            {movimentacao.quantidade}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="text-slate-500">Usuário</p>
-                        <p className="font-semibold text-slate-900 dark:text-white">
-                            {movimentacao.usuario?.nome}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="text-slate-500">Data</p>
-                        <p className="font-semibold text-slate-900 dark:text-white">
-                            {new Date(movimentacao.data).toLocaleString("pt-BR")}
-                        </p>
-                    </div>
-                </div>
-
-                {/* footer */}
-                <div className="flex justify-end">
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2.5 rounded-2xl font-semibold
-                       bg-slate-200 hover:bg-slate-300
-                       dark:bg-slate-800 dark:hover:bg-slate-700"
-                    >
-                        Fechar
-                    </button>
-                </div>
-            </div>
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4">
+      <div className="w-full max-w-lg bg-[var(--bg-elevated)] border border-[var(--line)] rounded-lg p-6 space-y-5 shadow-xl animate-scale-in">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
+            Detalhes da movimentação
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
+          >
+            ✕
+          </button>
         </div>
-    )
-}
+
+        <span className={`inline-block px-3 py-1 rounded-md border font-mono text-xs uppercase ${badgeClass}`}>
+          {movimentacao.tipo}
+        </span>
+
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-wide text-[var(--ink-soft)]">
+              ID do pedido
+            </p>
+            <p className="font-medium text-[var(--ink)] mt-0.5">#{movimentacao.id}</p>
+          </div>
+
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-wide text-[var(--ink-soft)]">
+              Produto
+            </p>
+            <p className="font-medium text-[var(--ink)] mt-0.5">{movimentacao.produto.nome}</p>
+          </div>
+
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-wide text-[var(--ink-soft)]">
+              Quantidade
+            </p>
+            <p className="font-medium text-[var(--ink)] mt-0.5">{movimentacao.quantidade}</p>
+          </div>
+
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-wide text-[var(--ink-soft)]">
+              Usuário
+            </p>
+            <p className="font-medium text-[var(--ink)] mt-0.5">{movimentacao.usuario?.nome}</p>
+          </div>
+
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-wide text-[var(--ink-soft)]">
+              Data
+            </p>
+            <p className="font-medium text-[var(--ink)] mt-0.5">
+              {new Date(movimentacao.data).toLocaleString("pt-BR")}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-md border border-[var(--line)] text-sm font-medium text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default ModalMovimentacao;

@@ -3,68 +3,76 @@ import { Link } from "react-router-dom";
 import LoginForm from "../components/forms/LoginForm.jsx";
 import RegisterForm from "../components/forms/RegisterForm.jsx";
 import { useThemeStore } from "../store/useThemeStore.js";
-import { FiSun, FiMoon } from "react-icons/fi";
+import { FiSun, FiMoon, FiArrowLeft } from "react-icons/fi";
 
 const Auth = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
   const [isLogin, setIsLogin] = useState(true);
 
   useEffect(() => {
-    if (darkMode) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
   return (
-    <div
-      className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
-        darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
-      }`}
-    >
-      {/* Cabeçalho */}
-      <div className="flex absolute top-0 w-full justify-between p-4 z-30">
-        <h1 className="top-4 left-4 ml-8 text-2xl font-bold">
-          <Link to={"/"}>{isLogin ? "Login" : "Registrar"}</Link>
-        </h1>
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-10 transition-colors duration-300">
+      {/* Barra superior */}
+      <div className="fixed top-0 left-0 w-full flex items-center justify-between px-6 py-4 z-30">
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-sm font-medium text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
+        >
+          <FiArrowLeft size={16} />
+          Voltar
+        </Link>
 
         <button
           onClick={toggleDarkMode}
-          className="rounded-full mr-8 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-300"
+          aria-label="Alternar tema"
+          className="rounded-md border border-[var(--line)] p-2 text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
         >
-          {darkMode ? <FiSun className="h-6 w-6" /> : <FiMoon className="h-6 w-6" />}
+          {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
         </button>
       </div>
 
       {/* Card principal */}
-      <div className="relative w-full md:w-[800px] h-auto md:h-[500px] rounded-2xl overflow-hidden shadow-xl bg-white dark:bg-gray-800 mt-20 mb-8 mx-5">
-        {/* Painel gradiente */}
+      <div className="relative w-full md:w-[820px] h-auto md:h-[520px] rounded-lg overflow-hidden border border-[var(--line)] bg-[var(--bg-elevated)] shadow-[0_20px_60px_-30px_rgba(0,0,0,0.35)]">
+        {/* Painel console — mesma assinatura visual da home */}
         <div
           className={`
-            bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex flex-col items-center justify-center p-10 z-20
+            bg-[var(--console-bg)] text-white flex flex-col items-center justify-center p-10 z-20 text-center
             md:absolute md:top-0 md:left-0 md:w-1/2 md:h-full w-full h-auto
             transition-transform duration-700 ease-in-out
             ${isLogin ? "md:translate-x-full" : "md:translate-x-0"}
           `}
         >
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)] mb-3">
+            {isLogin ? "Novo acesso" : "Já tem conta"}
+          </span>
+
           {isLogin ? (
             <>
-              <h2 className="text-3xl font-bold mb-4">Novo por aqui?</h2>
-              <p className="mb-6 text-center">Crie uma conta para começar sua jornada conosco.</p>
+              <h2 className="font-display text-2xl font-bold mb-3">Novo por aqui?</h2>
+              <p className="mb-6 text-sm text-[var(--console-text-soft)] max-w-xs">
+                Crie um acesso para começar a gerenciar seu estoque.
+              </p>
               <button
                 onClick={() => setIsLogin(false)}
-                className="border border-white px-6 py-2 rounded-lg hover:bg-white hover:text-blue-600 transition-all duration-300"
+                className="rounded-md border border-white/30 px-6 py-2 text-sm font-semibold hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
               >
-                Registrar
+                Criar conta
               </button>
             </>
           ) : (
             <>
-              <h2 className="text-3xl font-bold mb-4">Bem-vindo de volta!</h2>
-              <p className="mb-6 text-center">Já tem uma conta? Faça login para continuar.</p>
+              <h2 className="font-display text-2xl font-bold mb-3">Bem-vindo de volta!</h2>
+              <p className="mb-6 text-sm text-[var(--console-text-soft)] max-w-xs">
+                Já tem uma conta? Entre para continuar de onde parou.
+              </p>
               <button
                 onClick={() => setIsLogin(true)}
-                className="border border-white px-6 py-2 rounded-lg hover:bg-white hover:text-blue-600 transition-all duration-300"
+                className="rounded-md border border-white/30 px-6 py-2 text-sm font-semibold hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
               >
-                Login
+                Entrar
               </button>
             </>
           )}
@@ -77,7 +85,6 @@ const Auth = () => {
             ${isLogin ? "md:left-0" : "md:right-0"}
           `}
         >
-          {/* TRACK dos formulários */}
           <div
             className={`
               flex md:flex-row flex-col md:w-[200%] w-full h-full transition-transform duration-700 ease-in-out
@@ -85,15 +92,10 @@ const Auth = () => {
             `}
           >
             {/* Login */}
-            <div
-              className={`
-                w-full md:w-1/2 flex flex-col items-center justify-center p-10 h-full
-                ${isLogin ? "block" : "hidden"} md:block
-              `}
-            >
+            <div className={`w-full md:w-1/2 flex flex-col items-center justify-center p-10 h-full ${isLogin ? "block" : "hidden"} md:block`}>
               <div className="flex flex-col justify-center items-center h-full w-full">
-                <h2 className="text-3xl font-bold mb-4">Bem-vindo de volta!</h2>
-                <p className="text-gray-600 dark:text-gray-300 mb-6 transition-all duration-300">
+                <h2 className="font-display text-2xl font-bold text-[var(--ink)] mb-2">Bem-vindo de volta!</h2>
+                <p className="text-sm text-[var(--ink-soft)] mb-6">
                   Faça login para acessar sua conta.
                 </p>
                 <LoginForm />
@@ -101,15 +103,10 @@ const Auth = () => {
             </div>
 
             {/* Registro */}
-            <div
-              className={`
-                w-full md:w-1/2 flex flex-col items-center justify-center p-10 h-full
-                ${!isLogin ? "block" : "hidden"} md:block
-              `}
-            >
+            <div className={`w-full md:w-1/2 flex flex-col items-center justify-center p-10 h-full ${!isLogin ? "block" : "hidden"} md:block`}>
               <div className="flex flex-col justify-center items-center h-full w-full">
-                <h2 className="text-3xl font-bold mb-4">Crie sua conta</h2>
-                <p className="text-gray-600 dark:text-gray-300 mb-6 transition-all duration-300">
+                <h2 className="font-display text-2xl font-bold text-[var(--ink)] mb-2">Crie sua conta</h2>
+                <p className="text-sm text-[var(--ink-soft)] mb-6">
                   Preencha os dados abaixo para se registrar.
                 </p>
                 <RegisterForm />

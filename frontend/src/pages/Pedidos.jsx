@@ -6,154 +6,144 @@ import PaginationControls from "../components/common/PaginationControls.jsx";
 import { movementsApi, usersApi } from "../services/api/index.js";
 
 const Pedidos = () => {
-    const [pedidos, setPedidos] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [modalOpen, setModalOpen] = useState(false);
+  const [pedidos, setPedidos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
 
-    // Filters
-    const [filterId, setFilterId] = useState("");
-    const [filterDate, setFilterDate] = useState("");
-    const [filterType, setFilterType] = useState("todos");
-    const [showFilters, setShowFilters] = useState(false);
-    const [userFilter, setUserFilter] = useState("");
-    const [usuarios, setUsuarios] = useState([]);
+  const [filterId, setFilterId] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterType, setFilterType] = useState("todos");
+  const [showFilters, setShowFilters] = useState(false);
+  const [userFilter, setUserFilter] = useState("");
+  const [usuarios, setUsuarios] = useState([]);
 
-    // Pagination
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-    // carregar usuários para filtro
-    useEffect(() => {
-        const carregarUsuarios = async () => {
-            try {
-                const response = await usersApi.getUsers({
-                    page: 1,
-                    limit: 100,
-                    search: "",
-                    role: "todos",
-                });
-                setUsuarios(response.data || []);
-            } catch (error) {
-                console.error("Erro ao carregar usuários para filtro de pedidos:", error);
-            }
-        };
-
-        carregarUsuarios();
-    }, []);
-
-    const fetchPedidos = async () => {
-        try {
-            const params = {
-                page: currentPage,
-                limit: itemsPerPage,
-                order: "desc",
-                tipo: filterType !== "todos" ? filterType : undefined,
-                usuarioId: userFilter || undefined,
-                id: filterId || undefined,
-                date: filterDate || undefined,
-            };
-
-            const result = await movementsApi.getMovements(params);
-            const serverData = result.data || [];
-            const pagination = result.pagination || {
-                page: currentPage,
-                limit: itemsPerPage,
-                total: serverData.length,
-                pages: 1,
-            };
-
-            setPedidos(serverData);
-            setTotalPages(pagination.pages || 1);
-            setTotalCount(pagination.total || serverData.length);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
+  useEffect(() => {
+    const carregarUsuarios = async () => {
+      try {
+        const response = await usersApi.getUsers({
+          page: 1,
+          limit: 100,
+          search: "",
+          role: "todos",
+        });
+        setUsuarios(response.data || []);
+      } catch (error) {
+        console.error("Erro ao carregar usuários para filtro de pedidos:", error);
+      }
     };
 
-    // buscar pedidos paginados do backend
-    useEffect(() => {
-        fetchPedidos();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, filterId, filterDate, filterType, userFilter]);
+    carregarUsuarios();
+  }, []);
 
-    const handleItemCreated = () => {
-        if (currentPage === 1) {
-            // já estamos na página 1: setCurrentPage(1) não dispara o useEffect,
-            // então buscamos manualmente
-            setLoading(true);
-            fetchPedidos();
-        } else {
-            setCurrentPage(1); // isso já muda o valor e dispara o useEffect
-        }
-    };
+  const fetchPedidos = async () => {
+    try {
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        order: "desc",
+        tipo: filterType !== "todos" ? filterType : undefined,
+        usuarioId: userFilter || undefined,
+        id: filterId || undefined,
+        date: filterDate || undefined,
+      };
 
-    const handleFilterChange = () => {
-        setCurrentPage(1); // Reset to first page when filters change
-    };
+      const result = await movementsApi.getMovements(params);
+      const serverData = result.data || [];
+      const pagination = result.pagination || {
+        page: currentPage,
+        limit: itemsPerPage,
+        total: serverData.length,
+        pages: 1,
+      };
 
-    return (
-        <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-8">
-            {/* Header */}
-            <header className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                        Pedidos
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400">
-                        Gerencie pedidos e registre movimentações de estoque
-                    </p>
-                </div>
-            </header>
+      setPedidos(serverData);
+      setTotalPages(pagination.pages || 1);
+      setTotalCount(pagination.total || serverData.length);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            {/* Filters Section */}
-            <PedidosFilters
-                filterId={filterId}
-                setFilterId={setFilterId}
-                filterDate={filterDate}
-                setFilterDate={setFilterDate}
-                filterType={filterType}
-                setFilterType={setFilterType}
-                userFilter={userFilter}
-                setUserFilter={setUserFilter}
-                usuarios={usuarios}
-                showFilters={showFilters}
-                setShowFilters={setShowFilters}
-                onCreateClick={() => setModalOpen(true)}
-                onFilterChange={handleFilterChange}
-            />
+  useEffect(() => {
+    fetchPedidos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, filterId, filterDate, filterType, userFilter]);
 
-            {/* Pedidos Table */}
-            <PedidosTableContainer
-                pedidos={pedidos}
-                totalCount={totalCount}
-                loading={loading}
-                filterId={filterId}
-            />
+  const handleItemCreated = () => {
+    if (currentPage === 1) {
+      setLoading(true);
+      fetchPedidos();
+    } else {
+      setCurrentPage(1);
+    }
+  };
 
-            {/* Pagination */}
-            {!loading && totalPages > 1 && (
-                <PaginationControls
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                />
-            )}
+  const handleFilterChange = () => {
+    setCurrentPage(1);
+  };
 
-            {/* Modal Novo Pedido */}
-            {modalOpen && (
-                <EditarItem
-                    type="CriarPedido"
-                    itemData={null}
-                    onClose={() => setModalOpen(false)}
-                    onItemUpdated={handleItemCreated}
-                />
-            )}
+  return (
+    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-6">
+      <header className="flex justify-between items-center">
+        <div>
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+            Movimentação
+          </span>
+          <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">Pedidos</h1>
+          <p className="text-sm text-[var(--ink-soft)] mt-1">
+            Gerencie pedidos e registre movimentações de estoque.
+          </p>
         </div>
-    );
+      </header>
+
+      <PedidosFilters
+        filterId={filterId}
+        setFilterId={setFilterId}
+        filterDate={filterDate}
+        setFilterDate={setFilterDate}
+        filterType={filterType}
+        setFilterType={setFilterType}
+        userFilter={userFilter}
+        setUserFilter={setUserFilter}
+        usuarios={usuarios}
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
+        onCreateClick={() => setModalOpen(true)}
+        onFilterChange={handleFilterChange}
+      />
+
+      <PedidosTableContainer
+        pedidos={pedidos}
+        totalCount={totalCount}
+        loading={loading}
+        filterId={filterId}
+      />
+
+      {!loading && totalPages > 1 && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
+
+      {modalOpen && (
+        <EditarItem
+          type="CriarPedido"
+          itemData={null}
+          onClose={() => setModalOpen(false)}
+          onItemUpdated={handleItemCreated}
+        />
+      )}
+    </div>
+  );
 };
 
 export default Pedidos;

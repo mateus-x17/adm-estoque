@@ -4,6 +4,9 @@ import { useUserStore } from "../../store/userStore.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
 import { authApi } from "../../services/api/index.js";
 
+const inputClass =
+  "p-3 rounded-md border border-[var(--line)] bg-transparent text-[var(--ink)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] outline-none transition-colors duration-200";
+
 const LoginForm = () => {
   const { setUser } = useUserStore();
   const { setToken } = useAuthStore();
@@ -21,13 +24,9 @@ const LoginForm = () => {
 
     try {
       const data = await authApi.login({ email, senha });
-
-      // Salvar user e token
       setUser(data.user);
       setToken(data.token);
-      console.log("Login bem-sucedido. Usuário:", data.user.email);
       navigate("/dashboard");
-
     } catch (error) {
       console.error("Erro ao fazer login:", error);
       setErro(error.message || "Não foi possível conectar ao servidor.");
@@ -36,20 +35,16 @@ const LoginForm = () => {
     }
   };
 
-
   return (
     <>
-      <form
-        className="w-full max-w-sm flex flex-col gap-4 animate-slideUp"
-        onSubmit={submitForm}
-      >
+      <form className="w-full max-w-sm flex flex-col gap-4 animate-fade-up" onSubmit={submitForm}>
         <input
           type="email"
           placeholder="Email"
           value={email}
           required
           onChange={(e) => setEmail(e.target.value)}
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+          className={inputClass}
         />
         <input
           type="password"
@@ -57,21 +52,19 @@ const LoginForm = () => {
           value={senha}
           required
           onChange={(e) => setSenha(e.target.value)}
-          className="p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+          className={inputClass}
         />
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-2 rounded-md bg-[var(--ink)] text-[var(--bg)] font-semibold py-3 text-sm hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Entrando..." : "Entrar"}
         </button>
       </form>
 
-      {/* Modal ou mensagem de erro */}
-      {/*{erro && <ModalMensagem mensagem={erro} onClose={() => setErro("")} />}*/}
       {erro && (
-        <div className="mt-4 p-3 bg-red-100 text-red-700 border border-red-400 rounded-md">
+        <div className="mt-4 w-full max-w-sm p-3 rounded-md border border-red-500/30 bg-red-500/10 text-red-500 text-sm">
           {erro}
         </div>
       )}

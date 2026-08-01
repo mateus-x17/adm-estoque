@@ -1,56 +1,65 @@
 import React from "react";
 import PedidoRow from "./PedidoRow.jsx";
 
-/**
- * Table container for Pedidos with header and count badge
- */
 const PedidosTableContainer = ({ pedidos, totalCount, loading, filterId }) => {
-    return (
-        <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Histórico de Pedidos
-                </h2>
-                <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
-                    Total: {totalCount}
-                </span>
-            </div>
+  return (
+    <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
+      <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
+        <h2 className="font-display text-base font-semibold text-[var(--ink)]">
+          Histórico de pedidos
+        </h2>
+        <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
+          Total: {totalCount}
+        </span>
+      </div>
 
-            <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left text-sm text-slate-600 dark:text-slate-400">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase font-bold text-slate-500 dark:text-slate-300">
-                        <tr>
-                            <th className="hidden md:table-cell px-6 py-4">ID</th>
-                            <th className="hidden md:table-cell px-6 py-4">Produto</th>
-                            <th className="hidden md:table-cell px-6 py-4">Tipo</th>
-                            <th className="hidden md:table-cell px-6 py-4 text-center">Quantidade</th>
-                            <th className="hidden md:table-cell px-6 py-4">Data</th>
-                            <th className="hidden md:table-cell px-6 py-4">Resp.</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {loading ? (
-                            <tr>
-                                <td colSpan="6" className="text-center py-8">
-                                    Carregando...
-                                </td>
-                            </tr>
-                        ) : pedidos.length === 0 ? (
-                            <tr>
-                                <td colSpan="6" className="text-center py-8">
-                                    {filterId ? "Pedido não encontrado." : "Nenhum pedido encontrado."}
-                                </td>
-                            </tr>
-                        ) : (
-                            pedidos.map((ped, index) => (
-                                <PedidoRow key={ped.id} pedido={ped} index={index} />
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
+      <div className="overflow-x-auto flex-1">
+        <table className="w-full text-left text-sm">
+          <thead className="hidden md:table-header-group">
+            <tr>
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                ID
+              </th>
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                Produto
+              </th>
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                Tipo
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                Quantidade
+              </th>
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                Data
+              </th>
+              <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                Resp.
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan="6" className="text-center py-8 text-sm text-[var(--ink-soft)]">
+                  Carregando...
+                </td>
+              </tr>
+            ) : pedidos.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="text-center py-8 text-sm text-[var(--ink-soft)]">
+                  {filterId ? "Pedido não encontrado." : "Nenhum pedido encontrado."}
+                </td>
+              </tr>
+            ) : (
+              pedidos.map((ped, index) => (
+                <PedidoRow key={ped.id} pedido={ped} index={index} />
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
 
 export default PedidosTableContainer;

@@ -1,16 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* criar um background com linear gradiente */
-@layer utilities {
+:root {
+  --bg: #EDEEEC;              /* antes #F5F6F4 — leve tom acinzentado, menos "papel branco" */
+  --bg-elevated: #F6F7F5;     /* antes #FFFFFF puro */
+  --bg-header: rgba(237, 238, 236, 0.85); /* versão translúcida pronta, sem depender do modificador /90 */
+  --ink: #22262C;             /* antes #12151A — um pouco mais suave, menos "tinta preta" */
+  --ink-soft: #5B6472;
+  --line: #DADDE1;
+  --accent: #F2A33D;
+  --teal: #1E8F79;
+  --console-bg: #0E1116;
+  --console-line: #262B33;
+  --console-text-soft: #9AA3AE;
+  --console-text-faint: #5B6472;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(18, 21, 26, 0.06);
+  --danger: #C24A3B;
+  --danger-soft: rgba(194, 74, 59, 0.1);
+}
 
-    /* box shadow Light */
-    .shadowLight-lg {
-        box-shadow: 0 10px 15px -3px rgba(51, 51, 51, 0.493), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    }
-    /* box shadow Dark */
-    .dark .shadowDark-lg {
-        box-shadow: 0 10px 15px -3px rgba(194, 194, 194, 0.384), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    }
+.dark {
+  --bg: #0E1116;
+  --bg-elevated: #161A21;
+  --bg-header: rgba(14, 17, 22, 0.85);
+  --ink: #E8EAED;
+  --ink-soft: #9AA3AE;
+  --line: #262B33;
+  --console-bg: #0A0D11;
+  --console-line: #2E3540;
+  --glass-bg: rgba(22, 26, 33, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --danger: #D9695A;
+  --danger-soft: rgba(217, 105, 90, 0.12);
+}
+
+.dark {
+  --bg: #0E1116;
+  --bg-elevated: #161A21;
+  --ink: #E8EAED;
+  --ink-soft: #9AA3AE;
+  --line: #262B33;
+  --console-bg: #0A0D11;
+  --console-line: #2E3540;
+  --glass-bg: rgba(22, 26, 33, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --danger: #D9695A;
+  --danger-soft: rgba(217, 105, 90, 0.12);
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@layer utilities {
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out both;
+  }
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease-out both;
+  }
+  .glass-panel {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .stat-grid-bg {
+    background-image: radial-gradient(var(--line) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up { animation: none; }
 }

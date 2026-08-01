@@ -9,35 +9,34 @@ function HeaderHome() {
   const { darkMode, toggleDarkMode } = useThemeStore();
 
   const links = [
-    { name: "Dashboard", path: "/dashboard", icon: <HiHome size={20} /> },
-    { name: "Login", path: "/auth", icon: <CgLogIn size={20} /> },
+    { name: "Dashboard", path: "/dashboard", icon: <HiHome size={18} /> },
+    { name: "Login", path: "/auth", icon: <CgLogIn size={18} /> },
   ];
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
   return (
-    <>
-      {/* cabeçalho com links */}
-      <header className="flex justify-between items-center p-4 bg-gray-200 dark:bg-gray-800 transition-all duration-300">
-        <h2 className="text-lg font-semibold dark:text-white">Dashboard-ADM</h2>
+    <header
+      className="sticky top-0 z-40 border-b border-[var(--line)] backdrop-blur transition-colors duration-300"
+      style={{ backgroundColor: "var(--bg-header)" }}
+      >
+      <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
+        <NavLink to="/" className="flex items-baseline gap-1 font-display">
+          <span className="text-lg font-bold tracking-tight text-[var(--ink)]">ESTOQUE</span>
+          <span className="text-lg font-bold tracking-tight text-[var(--accent)] font-mono">.OS</span>
+        </NavLink>
 
-        {/* WRAPPER PARA AMBOS LINKS E DARK MODE */}
-        <div className="flex items-center gap-4">
-          
-          {/* Links e botão dark mode - desktop */}
-          <div className="hidden md:flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          {/* Desktop */}
+          <nav className="hidden md:flex items-center gap-6">
             {links.map((link) => (
               <NavLink
                 key={link.path}
                 to={link.path}
                 end
-                className="flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 dark:text-white"
+                className="flex items-center gap-2 text-sm font-medium text-[var(--ink-soft)] border-b-2 border-transparent hover:border-[var(--accent)] hover:text-[var(--ink)] pb-1 transition-colors duration-200"
               >
                 {link.icon}
                 {link.name}
@@ -45,43 +44,36 @@ function HeaderHome() {
             ))}
             <button
               onClick={toggleDarkMode}
-              className="flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 dark:text-white"
+              aria-label="Alternar tema"
+              className="ml-2 rounded-md border border-[var(--line)] p-2 text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
             >
-              {darkMode ? (
-                <FiSun className="h-6 w-6" />
-              ) : (
-                <FiMoon className="h-6 w-6" />
-              )}
-              {darkMode ? "Light Mode" : "Dark Mode"}
+              {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
             </button>
-          </div>
+          </nav>
 
-          {/* Links e botão dark mode - mobile */}
-          <div className="flex md:hidden items-center gap-4">
+          {/* Mobile */}
+          <div className="flex md:hidden items-center gap-3">
             {links.map((link) => (
               <NavLink
                 key={link.path}
                 to={link.path}
                 end
-                className="flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 dark:text-white"
+                className="p-2 rounded-md text-[var(--ink-soft)] hover:text-[var(--accent)] transition-colors duration-200"
               >
                 {link.icon}
               </NavLink>
             ))}
             <button
               onClick={toggleDarkMode}
-              className="flex items-center gap-3 p-2 rounded-lg transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-700 dark:text-white"
+              aria-label="Alternar tema"
+              className="rounded-md border border-[var(--line)] p-2 text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
             >
-              {darkMode ? (
-                <FiSun className="h-6 w-6" />
-              ) : (
-                <FiMoon className="h-6 w-6" />
-              )}
+              {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
             </button>
           </div>
         </div>
-      </header>
-    </>
+      </div>
+    </header>
   );
 }
 

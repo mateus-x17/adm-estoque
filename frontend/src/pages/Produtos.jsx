@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaBoxOpen, FaSearch } from "react-icons/fa";
 import ModalProduto from "../components/forms/ModalProduto.jsx";
-import ProdutoRow from "../components/tables/ProdutoRow.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
+import ProdutoRow from "../components/tables/ProdutoRow.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
 import { productsApi, categoriesApi } from "../services/api/index.js";
 
@@ -17,17 +17,15 @@ const Produtos = () => {
   const [categorias, setCategorias] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 8;
 
-  // Carregar categorias para o filtro
   useEffect(() => {
     categoriesApi.getCategories()
       .then((res) => setCategorias(res.data || res || []))
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
   const carregarProdutos = async () => {
@@ -57,27 +55,6 @@ const Produtos = () => {
     setCurrentPage(1);
   }, [search, sortPrice, categoriaFiltro]);
 
-  // const atualizarProduto = (produtoAtualizado) => {
-  //   if (!produtoAtualizado) return;
-
-  //   setProdutos((prev) => {
-  //     const existe = prev.some(
-  //       (p) => p.id === produtoAtualizado.id
-  //     );
-
-  //     if (existe) {
-  //       return prev.map((p) =>
-  //         p.id === produtoAtualizado.id
-  //           ? produtoAtualizado
-  //           : p
-  //       );
-  //     }
-
-  //     return [...prev, produtoAtualizado];
-  //   });
-  //   // Trigger reload to make sure pagination and database count matches correctly
-  //   carregarProdutos();
-  // };
   const atualizarProduto = (produtoAtualizado) => {
     if (!produtoAtualizado) return;
 
@@ -89,7 +66,6 @@ const Produtos = () => {
       return [...prev, produtoAtualizado];
     });
 
-    // Mantém o produto aberto no ModalProduto sincronizado com a versão atualizada
     setProdutoSelecionado((prevSel) =>
       prevSel && prevSel.id === produtoAtualizado.id
         ? { ...produtoAtualizado, type: "produto" }
@@ -98,6 +74,7 @@ const Produtos = () => {
 
     carregarProdutos();
   };
+
   const abrirModalProduto = (produto) => {
     setProdutoSelecionado({ ...produto, type: "produto" });
     setEditandoProduto(false);
@@ -111,103 +88,98 @@ const Produtos = () => {
   const produtosFiltrados = produtos;
 
   return (
-    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-          Produtos
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400">
+    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-6">
+      <header className="flex flex-col gap-1">
+        <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+          Catálogo
+        </span>
+        <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Produtos</h1>
+        <p className="text-sm text-[var(--ink-soft)]">
           Gerencie o catálogo, visualize informações e edite produtos.
         </p>
       </header>
 
-      {/* Filtros */}
       <div className="space-y-4">
-        {/* Toolbar externa */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => abrirEditarProduto()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition whitespace-nowrap"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--ink)] text-[var(--bg)] rounded-md text-sm font-semibold hover:opacity-90 transition-opacity duration-200 whitespace-nowrap"
           >
-            <FaBoxOpen />
-            Novo Produto
+            <FaBoxOpen size={14} />
+            Novo produto
           </button>
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            className="text-sm font-medium text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
           >
             {showFilters ? "Ocultar filtros" : "Mostrar filtros"}
           </button>
         </div>
 
         {showFilters && (
-          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-3xl">
-            <div className="p-6 flex flex-col md:flex-row gap-4 w-full">
-              <div className="relative w-full lg:w-80">
-                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Pesquisar por nome"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <select
-                value={categoriaFiltro}
-                onChange={(e) => setCategoriaFiltro(e.target.value)}
-                className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                <option value="" className="bg-white dark:bg-slate-800">Todas as categorias</option>
-                {categorias.map((cat) => (
-                  <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-800">
-                    {cat.nome}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={sortPrice}
-                onChange={(e) => setSortPrice(e.target.value)}
-                className="w-full lg:w-48 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                <option value="" className="bg-white dark:bg-slate-800">Ordenar por preço</option>
-                <option value="asc" className="bg-white dark:bg-slate-800">Menor → Maior</option>
-                <option value="desc" className="bg-white dark:bg-slate-800">Maior → Menor</option>
-              </select>
+          <section className="glass-panel rounded-lg p-5 flex flex-col md:flex-row gap-3 w-full">
+            <div className="relative w-full lg:w-80">
+              <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-soft)]" size={13} />
+              <input
+                type="text"
+                placeholder="Pesquisar por nome"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              />
             </div>
+
+            <select
+              value={categoriaFiltro}
+              onChange={(e) => setCategoriaFiltro(e.target.value)}
+              className="w-full lg:w-48 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+            >
+              <option value="" className="bg-[var(--bg-elevated)]">Todas as categorias</option>
+              {categorias.map((cat) => (
+                <option key={cat.id} value={cat.id} className="bg-[var(--bg-elevated)]">
+                  {cat.nome}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={sortPrice}
+              onChange={(e) => setSortPrice(e.target.value)}
+              className="w-full lg:w-48 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+            >
+              <option value="" className="bg-[var(--bg-elevated)]">Ordenar por preço</option>
+              <option value="asc" className="bg-[var(--bg-elevated)]">Menor → Maior</option>
+              <option value="desc" className="bg-[var(--bg-elevated)]">Maior → Menor</option>
+            </select>
           </section>
         )}
       </div>
 
-      {/* Tabela */}
       {loaded ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/50 rounded-3xl overflow-hidden flex flex-col shadow-sm">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 flex justify-between items-center">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Catálogo de Produtos
+        <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
+          <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
+            <h2 className="font-display text-base font-semibold text-[var(--ink)]">
+              Catálogo de produtos
             </h2>
-            <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full font-semibold">
+            <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
               Total: {totalCount}
             </span>
           </div>
           <div className="h-full overflow-y-auto overflow-x-hidden">
-            <table className="w-full bg-white dark:bg-slate-900 md:table">
-              <thead className="hidden md:table-header-group sticky top-0 bg-slate-100 dark:bg-slate-800 z-10">
+            <table className="w-full md:table">
+              <thead className="hidden md:table-header-group sticky top-0 bg-[var(--bg-elevated)] z-10">
                 <tr>
-                  <th className="px-5 py-4 text-left text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
                     Produto
                   </th>
-                  <th className="px-5 py-4 text-left text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
                     Nome
                   </th>
-                  <th className="px-5 py-4 text-left text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
                     Categoria
                   </th>
-                  <th className="px-5 py-4 text-center text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
                     Ações
                   </th>
                 </tr>
@@ -226,15 +198,12 @@ const Produtos = () => {
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-4 py-20">
-          <div className="w-12 h-12 border-4 border-t-indigo-600 rounded-full animate-spin" />
-          <span className="text-slate-600 dark:text-slate-300">
-            Carregando produtos...
-          </span>
+        <div className="flex items-center justify-center gap-3 py-20">
+          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
+          <span className="text-sm text-[var(--ink-soft)]">Carregando produtos...</span>
         </div>
       )}
 
-      {/* Pagination */}
       {loaded && totalPages > 1 && (
         <PaginationControls
           currentPage={currentPage}

@@ -1,99 +1,81 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Package, Truck, ListTree, TrendingUp } from "lucide-react";
 import { productsApi, suppliersApi, categoriesApi } from "../../services/api/index.js";
 
 export default function KPISection() {
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({
-        totalProdutos: 0,
-        lowStock: 0,
-        totalFornecedores: 0,
-        totalCategorias: 0,
-    });
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalProdutos: 0,
+    lowStock: 0,
+    totalFornecedores: 0,
+    totalCategorias: 0,
+  });
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [statsData, forn, cats] = await Promise.all([
-                    productsApi.getProductStats(),
-                    suppliersApi.getSuppliersCount(),
-                    categoriesApi.getCategoriesCount(),
-                ]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsData, forn, cats] = await Promise.all([
+          productsApi.getProductStats(),
+          suppliersApi.getSuppliersCount(),
+          categoriesApi.getCategoriesCount(),
+        ]);
 
-                setStats({
-                    totalProdutos: statsData.total,
-                    lowStock: statsData.lowStock,
-                    totalFornecedores: forn.count,
-                    totalCategorias: cats.count,
-                });
-            } catch (error) {
-                console.error("Error fetching KPI data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+        setStats({
+          totalProdutos: statsData.total,
+          lowStock: statsData.lowStock,
+          totalFornecedores: forn.count,
+          totalCategorias: cats.count,
+        });
+      } catch (error) {
+        console.error("Error fetching KPI data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        fetchData();
-    }, []);
+    fetchData();
+  }, []);
 
-    const kpis = [
-        {
-            title: "Produtos em Estoque",
-            value: stats.totalProdutos,
-            icon: Package,
-            color: "from-blue-500 to-indigo-600",
-            trend: "Total itens",
-        },
-        {
-            title: "Baixo Estoque",
-            value: stats.lowStock,
-            icon: AlertCircle,
-            color: "from-amber-400 to-orange-500",
-            trend: "Requer atenção",
-        },
-        {
-            title: "Fornecedores Ativos",
-            value: stats.totalFornecedores,
-            icon: Truck,
-            color: "from-emerald-500 to-teal-600",
-            trend: "Parceiros",
-        },
-        {
-            title: "Categorias",
-            value: stats.totalCategorias,
-            icon: ListTree,
-            color: "from-fuchsia-500 to-pink-600",
-            trend: "Segmentos",
-        },
-    ];
+  const lowStockRatio =
+    stats.totalProdutos > 0 ? Math.round((stats.lowStock / stats.totalProdutos) * 100) : 0;
 
-    return (
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {kpis.map((kpi, index) => (
+  const kpis = [
+    { label: "Produtos em estoque", value: stats.totalProdutos, note: "Itens cadastrados" },
+    { label: "Baixo estoque", value: stats.lowStock, note: `${lowStockRatio}% do total`, ratio: lowStockRatio },
+    { label: "Fornecedores ativos", value: stats.totalFornecedores, note: "Parceiros cadastrados" },
+    { label: "Categorias", value: stats.totalCategorias, note: "Segmentos distintos" },
+  ];
+
+  return (
+    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl stat-grid-bg">
+      {kpis.map((kpi, index) => (
+        <div key={index} className="glass-panel rounded-xl p-5">
+          <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-[var(--ink-soft)]">
+            {kpi.label}
+          </span>
+
+          <p className="font-display text-3xl font-bold text-[var(--ink)] mt-2 tabular-nums">
+            {loading ? "···" : kpi.value.toLocaleString("pt-BR")}
+          </p>
+
+          {kpi.ratio !== undefined ? (
+            <div className="mt-3">
+              <div className="h-1 w-full rounded-full bg-[var(--line)] overflow-hidden">
                 <div
-                    key={index}
-                    className="group relative overflow-hidden bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800/50 shadow-sm transition animate-fadeIn">
-                    <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl bg-gradient-to-br ${kpi.color}`}>
-                            <kpi.icon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                                {kpi.title}
-                            </h3>
-                            <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                                {loading ? "..." : kpi.value}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                        <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="text-[11px] font-medium text-emerald-500 uppercase">
-                            {kpi.trend}
-                        </span>
-                    </div>
-                </div>
-            ))}
-        </section>
-    );
+                  className="h-full bg-[var(--ink)] transition-all duration-500"
+                  style={{ width: `${Math.min(kpi.ratio, 100)}%` }}
+                />
+              </div>
+              <span className="font-mono text-[11px] text-[var(--ink-soft)] mt-1.5 block">
+                {kpi.note}
+              </span>
+            </div>
+          ) : (
+            <span className="font-mono text-[11px] text-[var(--ink-soft)] mt-3 block">
+              {kpi.note}
+            </span>
+          )}
+        </div>
+      ))}
+    </section>
+  );
 }
