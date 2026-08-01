@@ -396,7 +396,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       onTransitionEnd={() => closing && onClose()}
     >
       <div
-        className={`absolute right-0 top-0 h-screen w-full max-w-md transform transition-transform duration-300 ${
+        className={`absolute right-0 top-0 h-screen w-[65%] max-w-md transform transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         } bg-[var(--bg-elevated)] border-l border-[var(--line)] shadow-2xl flex flex-col`}
         onClick={(e) => e.stopPropagation()}
