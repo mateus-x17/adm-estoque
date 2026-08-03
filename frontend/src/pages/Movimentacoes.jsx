@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import MovimentacaoRow from "../components/tables/MovimentacaoRow.jsx";
 import ModalMovimentacao from "../components/forms/ModalMovimentacao.jsx";
+import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 import {
   LineChart,
   Line,
@@ -28,6 +29,7 @@ const Movimentacoes = () => {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [userFilter, setUserFilter] = useState("");
   const [usuarios, setUsuarios] = useState([]);
+  const [order, setOrder] = useState("desc"); // ordem da tabela, independente do gráfico de linha
 
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [itensPorPagina] = useState(8);
@@ -45,6 +47,11 @@ const Movimentacoes = () => {
     setModalAberto(true);
   };
 
+  const toggleOrder = () => {
+    setOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+    setPaginaAtual(1);
+  };
+
   useEffect(() => {
     const carregarUsuarios = async () => {
       try {
@@ -59,11 +66,12 @@ const Movimentacoes = () => {
 
   useEffect(() => {
     const fetchMovements = async () => {
+      setLoaded(false);
       try {
         const paramsTable = {
           page: paginaAtual,
           limit: itensPorPagina,
-          order: "desc",
+          order, // ← agora controlado pelo toggle
           search: search || undefined,
           tipo: tipoFiltro || undefined,
           from: fromDate || undefined,
@@ -81,6 +89,8 @@ const Movimentacoes = () => {
           usuarioId: userFilter || undefined,
         };
 
+        // O gráfico de linha precisa de ordem cronológica crescente para
+        // desenhar a série corretamente — não deve seguir o toggle da tabela.
         const paramsLine = {
           limit: "all",
           order: "asc",
@@ -102,7 +112,6 @@ const Movimentacoes = () => {
           pages: 1,
         };
         setMovimentacoes(tableData);
-        setLoaded(true);
         setTotalPaginas(pagination.pages || 1);
         setTotalMovimentos(pagination.total || tableData.length);
 
@@ -138,11 +147,13 @@ const Movimentacoes = () => {
         setLineChartData(sortedLineData);
       } catch (error) {
         console.error("Error fetching movements:", error);
+      } finally {
+        setLoaded(true);
       }
     };
 
     fetchMovements();
-  }, [paginaAtual, itensPorPagina, search, tipoFiltro, fromDate, toDate, userFilter]);
+  }, [paginaAtual, itensPorPagina, search, tipoFiltro, fromDate, toDate, userFilter, order]);
 
   useEffect(() => {
     setPaginaAtual(1);
@@ -220,127 +231,155 @@ const Movimentacoes = () => {
         )}
       </div>
 
-      <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
-        <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
-          <h2 className="font-display text-base font-semibold text-[var(--ink)]">
-            Histórico de movimentações
-          </h2>
-          <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
-            Total: {totalMovimentos}
-          </span>
+      {!loaded ? (
+        <div className="flex items-center justify-center gap-3 py-20">
+          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
+          <span className="text-sm text-[var(--ink-soft)]">Carregando movimentações...</span>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                Produto
-              </th>
-              <th className="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                Tipo
-              </th>
-              <th className="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                Qtd
-              </th>
-              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                Usuário
-              </th>
-              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                Data
-              </th>
-              <th className="md:hidden px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                Ações
-              </th>
-            </tr>
-          </thead>
+      ) : (
+        <>
+          <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-[var(--line)] flex justify-between items-center gap-3">
+              <h2 className="font-display text-base font-semibold text-[var(--ink)]">
+                Histórico de movimentações
+              </h2>
 
-          <tbody>
-            {loaded &&
-              movimentacoes.map((mov, i) => (
-                <MovimentacaoRow key={mov.id} movimentacao={mov} index={i} abrirModal={abrirModal} />
-              ))}
-          </tbody>
-        </table>
-      </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleOrder}
+                  className="flex items-center gap-1.5 font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+                  title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
+                >
+                  {order === "desc" ? <FiArrowDown size={12} /> : <FiArrowUp size={12} />}
+                  {order === "desc" ? "Recentes" : "Antigos"}
+                </button>
 
-      {totalPaginas > 1 && (
-        <div className="flex items-center justify-center gap-3">
-          <button
-            disabled={paginaAtual === 1}
-            onClick={() => setPaginaAtual((p) => p - 1)}
-            className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
-          >
-            Anterior
-          </button>
+                <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
+                  Total: {totalMovimentos}
+                </span>
+              </div>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                    Produto
+                  </th>
+                  <th className="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                    Tipo
+                  </th>
+                  <th className="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                    Qtd
+                  </th>
+                  <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                    Usuário
+                  </th>
+                  <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                    Data
+                  </th>
+                  <th className="md:hidden px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
 
-          <span className="font-mono text-xs text-[var(--ink-soft)]">
-            Página {paginaAtual} de {totalPaginas}
-          </span>
+              <tbody>
+                {movimentacoes.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-8 text-sm text-[var(--ink-soft)]">
+                      Nenhuma movimentação encontrada.
+                    </td>
+                  </tr>
+                ) : (
+                  movimentacoes.map((mov, i) => (
+                    <MovimentacaoRow key={mov.id} movimentacao={mov} index={i} abrirModal={abrirModal} />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-          <button
-            disabled={paginaAtual === totalPaginas}
-            onClick={() => setPaginaAtual((p) => p + 1)}
-            className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
-          >
-            Próximo
-          </button>
-        </div>
-      )}
-
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass-panel rounded-lg p-6">
-          <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-4">
-            Entradas x saídas
-          </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={lineChartData}>
-              <XAxis dataKey="label" tick={{ fill: "var(--ink-soft)", fontSize: 11 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
-              <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--line)",
-                  borderRadius: 6,
-                  fontSize: 12,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
-              <Line dataKey="Entradas" stroke="var(--ink)" strokeWidth={2} dot={false} />
-              <Line dataKey="Saidas" stroke="var(--accent)" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="glass-panel rounded-lg p-6">
-          <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-4">
-            Resumo geral
-          </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                dataKey="value"
-                nameKey="name"
-                outerRadius={90}
-                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+          {totalPaginas > 1 && (
+            <div className="flex items-center justify-center gap-3">
+              <button
+                disabled={paginaAtual === 1}
+                onClick={() => setPaginaAtual((p) => p - 1)}
+                className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
               >
-                {pieChartData.map((_, i) => (
-                  <Cell key={i} fill={pieColors[i]} />
-                ))}
-              </Pie>
-              <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
-              <Tooltip
-                formatter={(value, name) => [`${value} unid.`, name]}
-                contentStyle={{
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--line)",
-                  borderRadius: 6,
-                  fontSize: 12,
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+                Anterior
+              </button>
+
+              <span className="font-mono text-xs text-[var(--ink-soft)]">
+                Página {paginaAtual} de {totalPaginas}
+              </span>
+
+              <button
+                disabled={paginaAtual === totalPaginas}
+                onClick={() => setPaginaAtual((p) => p + 1)}
+                className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
+              >
+                Próximo
+              </button>
+            </div>
+          )}
+
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 glass-panel rounded-lg p-6">
+              <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-4">
+                Entradas x saídas
+              </h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={lineChartData}>
+                  <XAxis dataKey="label" tick={{ fill: "var(--ink-soft)", fontSize: 11 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
+                  <YAxis tick={{ fill: "var(--ink-soft)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--bg-elevated)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 6,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
+                  <Line dataKey="Entradas" stroke="var(--ink)" strokeWidth={2} dot={false} />
+                  <Line dataKey="Saidas" stroke="var(--accent)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="glass-panel rounded-lg p-6">
+              <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-4">
+                Resumo geral
+              </h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={pieChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={90}
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                  >
+                    {pieChartData.map((_, i) => (
+                      <Cell key={i} fill={pieColors[i]} />
+                    ))}
+                  </Pie>
+                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
+                  <Tooltip
+                    formatter={(value, name) => [`${value} unid.`, name]}
+                    contentStyle={{
+                      background: "var(--bg-elevated)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 6,
+                      fontSize: 12,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </>
+      )}
 
       <ModalMovimentacao
         isOpen={modalAberto}

@@ -16,6 +16,7 @@ const Pedidos = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [userFilter, setUserFilter] = useState("");
   const [usuarios, setUsuarios] = useState([]);
+  const [order, setOrder] = useState("desc"); // "desc" = mais recentes primeiro
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -41,11 +42,12 @@ const Pedidos = () => {
   }, []);
 
   const fetchPedidos = async () => {
+    setLoading(true);
     try {
       const params = {
         page: currentPage,
         limit: itemsPerPage,
-        order: "desc",
+        order,
         tipo: filterType !== "todos" ? filterType : undefined,
         usuarioId: userFilter || undefined,
         id: filterId || undefined,
@@ -74,11 +76,10 @@ const Pedidos = () => {
   useEffect(() => {
     fetchPedidos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, filterId, filterDate, filterType, userFilter]);
+  }, [currentPage, filterId, filterDate, filterType, userFilter, order]);
 
   const handleItemCreated = () => {
     if (currentPage === 1) {
-      setLoading(true);
       fetchPedidos();
     } else {
       setCurrentPage(1);
@@ -86,6 +87,11 @@ const Pedidos = () => {
   };
 
   const handleFilterChange = () => {
+    setCurrentPage(1);
+  };
+
+  const toggleOrder = () => {
+    setOrder((prev) => (prev === "desc" ? "asc" : "desc"));
     setCurrentPage(1);
   };
 
@@ -124,6 +130,8 @@ const Pedidos = () => {
         totalCount={totalCount}
         loading={loading}
         filterId={filterId}
+        order={order}
+        onToggleOrder={toggleOrder}
       />
 
       {!loading && totalPages > 1 && (

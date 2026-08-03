@@ -30,6 +30,7 @@ const Produtos = () => {
 
   const carregarProdutos = async () => {
     try {
+      setLoaded(false) //indica que esta carregando dados
       const params = {
         page: currentPage,
         limit: itemsPerPage,

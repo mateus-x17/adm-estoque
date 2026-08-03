@@ -10,8 +10,6 @@ import EditarItem from "../components/forms/EditarItem.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
 import { formatImageUrl } from "../utils/imageHelper.js";
 
-// Só ADMIN recebe destaque visual — é o único nível cuja distinção importa
-// de fato na tela. Os demais ficam neutros, sem "arco-íris por categoria".
 const getRoleStyle = (role) => {
   if (role === "ADMIN") return "border-[var(--accent)]/40 text-[var(--accent)]";
   return "border-[var(--line)] text-[var(--ink-soft)]";
@@ -29,6 +27,7 @@ const Usuarios = () => {
   const { darkMode } = useThemeStore();
 
   const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("todos");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
@@ -48,6 +47,7 @@ const Usuarios = () => {
   };
 
   const carregarUsuarios = async () => {
+    setLoading(true); //indica carregameto de dados
     try {
       const response = await usersApi.getUsers({
         page: paginaAtual,
@@ -68,6 +68,8 @@ const Usuarios = () => {
       });
 
       setTimeout(() => navigate("/dashboard"), 5000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,73 +167,88 @@ const Usuarios = () => {
         />
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {usuarios.map((user) => (
-          <div
-            key={user.id}
-            className="glass-panel rounded-lg p-5 hover:border-[var(--accent)]/30 transition-colors duration-200"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-md overflow-hidden border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] flex items-center justify-center font-semibold text-sm shrink-0">
-                {user.imagem ? (
-                  <img
-                    src={formatImageUrl(user.imagem)}
-                    alt={user.nome}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  getInitials(user.nome)
-                )}
-              </div>
-
-              <div className="min-w-0">
-                <h3 className="font-medium text-[var(--ink)] truncate">{user.nome}</h3>
-                <p className="text-xs text-[var(--ink-soft)] truncate">{user.email}</p>
-              </div>
-            </div>
-
-            <span
-              className={`inline-block px-2.5 py-0.5 rounded-md border font-mono text-[11px] uppercase tracking-wide ${getRoleStyle(user.role)}`}
-            >
-              {user.role}
-            </span>
-
-            <div className="mt-4 font-mono text-[11px] text-[var(--ink-soft)] space-y-0.5">
-              <p>#{user.id}</p>
-              <p>Criado em {new Date(user.createdAt).toLocaleDateString()}</p>
-              <p>Atualizado em {new Date(user.updatedAt).toLocaleDateString()}</p>
-            </div>
-
-            <div className="mt-5 flex gap-2">
-              <button
-                onClick={() => abrirEditarUsuario(user, "usuario")}
-                className="flex-1 py-2 rounded-md border border-[var(--line)] text-sm font-medium text-[var(--ink)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+      {loading ? (
+        <div className="flex items-center justify-center gap-3 py-20">
+          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
+          <span className="text-sm text-[var(--ink-soft)]">Carregando usuários...</span>
+        </div>
+      ) : usuarios.length === 0 ? (
+        <div className="text-center py-20 text-sm text-[var(--ink-soft)]">
+          Nenhum usuário encontrado.
+        </div>
+      ) : (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {usuarios.map((user) => (
+              <div
+                key={user.id}
+                className="glass-panel rounded-lg p-5 hover:border-[var(--accent)]/30 transition-colors duration-200"
               >
-                Editar
-              </button>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-md overflow-hidden border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] flex items-center justify-center font-semibold text-sm shrink-0">
+                    {user.imagem ? (
+                      <img
+                        src={formatImageUrl(user.imagem)}
+                        alt={user.nome}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      getInitials(user.nome)
+                    )}
+                  </div>
 
-              <button
-                onClick={() =>
-                  setModal({
-                    visible: true,
-                    mensagem: `Exclusão de ${user.nome} (simulada pelo sistema)`,
-                    tipo: "sucesso",
-                  })
-                }
-                className="flex-1 py-2 rounded-md border border-[var(--danger)]/30 text-sm font-medium text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors duration-200"
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
-        ))}
-      </section>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-[var(--ink)] truncate">{user.nome}</h3>
+                    <p className="text-xs text-[var(--ink-soft)] truncate">{user.email}</p>
+                  </div>
+                </div>
 
-      <PaginationControls
-        currentPage={paginaAtual}
-        totalPages={totalPaginas}
-        onPageChange={setPaginaAtual}
-      />
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-md border font-mono text-[11px] uppercase tracking-wide ${getRoleStyle(user.role)}`}
+                >
+                  {user.role}
+                </span>
+
+                <div className="mt-4 font-mono text-[11px] text-[var(--ink-soft)] space-y-0.5">
+                  <p>#{user.id}</p>
+                  <p>Criado em {new Date(user.createdAt).toLocaleDateString()}</p>
+                  <p>Atualizado em {new Date(user.updatedAt).toLocaleDateString()}</p>
+                </div>
+
+                <div className="mt-5 flex gap-2">
+                  <button
+                    onClick={() => abrirEditarUsuario(user, "usuario")}
+                    className="flex-1 py-2 rounded-md border border-[var(--line)] text-sm font-medium text-[var(--ink)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+                  >
+                    Editar
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setModal({
+                        visible: true,
+                        mensagem: `Exclusão de ${user.nome} (simulada pelo sistema)`,
+                        tipo: "sucesso",
+                      })
+                    }
+                    className="flex-1 py-2 rounded-md border border-[var(--danger)]/30 text-sm font-medium text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors duration-200"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          {totalPaginas > 1 && (
+            <PaginationControls
+              currentPage={paginaAtual}
+              totalPages={totalPaginas}
+              onPageChange={setPaginaAtual}
+            />
+          )}
+        </>
+      )}
 
       {editarUser.visible && (
         <EditarItem
