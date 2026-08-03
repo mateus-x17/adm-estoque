@@ -1,6 +1,18 @@
 import { prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
 
+/**
+ * Constrói um Date a partir de uma string "YYYY-MM-DD" usando os componentes
+ * de ano/mês/dia diretamente (sem passar pelo parser ISO, que interpreta
+ * a string como UTC e pode deslocar o dia ao reaplicar horários no fuso local).
+ */
+function dateFromYMD(ymd, endOfDay = false) {
+  const [year, month, day] = ymd.split('-').map(Number);
+  return endOfDay
+    ? new Date(year, month - 1, day, 23, 59, 59, 999)
+    : new Date(year, month - 1, day, 0, 0, 0, 0);
+}
+
 export async function listMovementsPaginated(filters = {}) {
   const {
     id,
@@ -31,15 +43,19 @@ export async function listMovementsPaginated(filters = {}) {
       date && date !== 'undefined' && date !== 'null'
         ? {
             data: {
-              gte: new Date(new Date(date).setHours(0, 0, 0, 0)),
-              lte: new Date(new Date(date).setHours(23, 59, 59, 999)),
+              gte: dateFromYMD(date, false),
+              lte: dateFromYMD(date, true),
             },
           }
         : from || to
         ? {
             data: {
-              ...(from && from !== 'undefined' && from !== 'null' ? { gte: new Date(from) } : {}),
-              ...(to && to !== 'undefined' && to !== 'null' ? { lte: new Date(to) } : {}),
+              ...(from && from !== 'undefined' && from !== 'null'
+                ? { gte: dateFromYMD(from, false) }
+                : {}),
+              ...(to && to !== 'undefined' && to !== 'null'
+                ? { lte: dateFromYMD(to, true) }
+                : {}),
             },
           }
         : {},
