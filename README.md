@@ -1,4 +1,4 @@
-# Sistema de Gerenciamento de Estoque
+# Sistema de Gerenciamento de Estoque (Estoque.OS)
 
 ## 1. Visão Geral
 
@@ -13,7 +13,7 @@ O **Sistema de Gerenciamento de Estoque** é uma aplicação web fullstack desen
 - **Movimentações de Estoque:** Registro de entradas e saídas de produtos com atualização automática de saldo, vinculação do operador e adição de observações.
 - **Gestão de Usuários:** Administração de contas e atribuição de funções por administradores.
 - **Upload de Mídias em Nuvem (Cloudinary):** Integração com o Cloudinary para hospedagem de imagens de produtos e avatares de usuários com URLs seguras HTTPS (mantendo gravação local histórica).
-- **Dashboard e Relatórios Estatísticos:** Métricas em tempo real sobre valor total em estoque, número de produtos e alerta automático de estoque baixo (< 10 unidades).
+- **Dashboard e Relatórios Estatísticos:** Métricas sobre valor total em estoque, número de produtos e alerta automático de estoque baixo (< 10 unidades).
 - **Customização Visual:** Suporte nativo a temas Claro e Escuro (Dark/Light mode).
 
 ### 1.3 Valor entregue
