@@ -19,6 +19,11 @@ import { useUserStore } from "../store/userStore.js";
 
 const PIE_COLORS = ["var(--teal)", "var(--danger)"];
 
+// -------------------------------------------------------------------------
+// COMPONENTE TOOLTIP CUSTOMIZADO (Recharts)
+// Responsável por interceptar o hover do mouse no gráfico e renderizar a caixinha
+// Formata dinamicamente os valores exibindo nome da chave e o 'montante' extra caso exista (no caso do PieChart).
+// -------------------------------------------------------------------------
 const ChartTooltip = ({ active, payload, label, isPie }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -53,6 +58,8 @@ const ChartTooltip = ({ active, payload, label, isPie }) => {
 const Movimentacoes = () => {
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  
+  // Resgata o usuário da store (Zustand) global para aplicar restrições de tela baseadas no 'role'
   const currentUser = useUserStore((state) => state.user);
   const canFilterByUser = currentUser?.role === "ADMIN" || currentUser?.role === "GERENTE";
 
@@ -63,8 +70,11 @@ const Movimentacoes = () => {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [userFilter, setUserFilter] = useState("");
   const [usuarios, setUsuarios] = useState([]);
-  const [order, setOrder] = useState("desc"); // ordem da tabela, independente do gráfico de linha
+  
+  // Ordem de listagem visualizada na tabela
+  const [order, setOrder] = useState("desc");
 
+  // Estado da paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [itensPorPagina] = useState(8);
   const [totalPaginas, setTotalPaginas] = useState(1);
@@ -73,6 +83,7 @@ const Movimentacoes = () => {
   const [modalAberto, setModalAberto] = useState(false);
   const [movSelecionada, setMovSelecionada] = useState(null);
 
+  // Armazenamento dos dados formatados exclusivamente para os Gráficos
   const [lineChartData, setLineChartData] = useState([]);
   const [pieChartData, setPieChartData] = useState([]);
 
@@ -86,10 +97,13 @@ const Movimentacoes = () => {
     setPaginaAtual(1);
   };
 
+  // -------------------------------------------------------------------------
+  // Carregamento de lista de usuários (para o Select de Filtros)
+  // Executa apenas uma vez no "Mount" do componente.
+  // -------------------------------------------------------------------------
   useEffect(() => {
     const carregarUsuarios = async () => {
       try {
-        // /users/names retorna [{id, nome}] e é acessível por ADMIN e GERENTE
         const data = await usersApi.getUserNames();
         setUsuarios(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -99,14 +113,20 @@ const Movimentacoes = () => {
     carregarUsuarios();
   }, []);
 
+  // -------------------------------------------------------------------------
+  // CORE LOGIC: fetchMovements
+  // Disparado a cada mudança nos filtros (busca, datas, página, ordenação).
+  // Responsável por montar os objetos de envio para a API, resolver as requisições em paralelo e remodelar os JSONs recebidos para a estrutura gráfica visual do Recharts.
+  // -------------------------------------------------------------------------
   useEffect(() => {
     const fetchMovements = async () => {
       setLoaded(false);
       try {
+        // Os parâmetros que irão popular a TABELA respeitam a paginação visual da tela
         const paramsTable = {
           page: paginaAtual,
           limit: itensPorPagina,
-          order, // ← agora controlado pelo toggle
+          order,
           search: search || undefined,
           tipo: tipoFiltro || undefined,
           from: fromDate || undefined,
@@ -114,6 +134,8 @@ const Movimentacoes = () => {
           usuarioId: userFilter || undefined,
         };
 
+        // Os gráficos precisam da base de dados COMPLETA ignorando paginação. 
+        // Portanto, setamos limit="all" para varrer tudo dentro das datas/filtros selecionados
         const paramsPie = {
           limit: "all",
           order: "desc",
@@ -124,8 +146,8 @@ const Movimentacoes = () => {
           usuarioId: userFilter || undefined,
         };
 
-        // O gráfico de linha precisa de ordem cronológica crescente para
-        // desenhar a série corretamente — não deve seguir o toggle da tabela.
+        // O gráfico de linhas não pode acompanhar o toggle da tabela ("asc" ou "desc"), 
+        // a linha do tempo (Eixo X) precisa NECESSARIAMENTE vir "asc" (antigo -> novo) para desenhar da esquerda para a direita de forma contínua e lógica.
         const paramsLine = {
           limit: "all",
           order: "asc",
@@ -133,12 +155,14 @@ const Movimentacoes = () => {
           to: toDate || undefined,
         };
 
+        // Promise.all permite buscar os dados isolados simultaneamente reduzindo o tempo de carregamento no frontend
         const [tableResult, pieResult, lineResult] = await Promise.all([
           movementsApi.getMovements(paramsTable),
           movementsApi.getMovements(paramsPie),
           movementsApi.getMovements(paramsLine),
         ]);
 
+        // Processa os dados da tabela
         const tableData = tableResult.data || [];
         const pagination = tableResult.pagination || {
           page: paginaAtual,
@@ -150,9 +174,16 @@ const Movimentacoes = () => {
         setTotalPaginas(pagination.pages || 1);
         setTotalMovimentos(pagination.total || tableData.length);
 
+
+        // ---------------------------------------------------------------------
+        // MODELAGEM DADOS PIECHART (Pizza): 
+        // O gráfico precisa de uma contagem simples de Entradas x Saídas e um somatório do seu Montante (R$).
+        // Iteramos a resposta bruta da API e agregamos a quantidade total na mão.
+        // ---------------------------------------------------------------------
         const pieData = pieResult.data || [];
         let pieEntradas = 0, pieSaidas = 0;
         let montanteEntradas = 0, montanteSaidas = 0;
+        
         pieData.forEach((m) => {
           const valor = m.quantidade * Number(m.produto?.preco || 0);
           if (m.tipo === "ENTRADA") {
@@ -163,16 +194,26 @@ const Movimentacoes = () => {
             montanteSaidas += valor;
           }
         });
+        
         setPieChartData([
           { name: "Entradas", value: pieEntradas, montante: montanteEntradas },
           { name: "Saídas", value: pieSaidas, montante: montanteSaidas },
         ]);
 
+
+        // ---------------------------------------------------------------------
+        // MODELAGEM DADOS LINECHART (Linha Temporal):
+        // O LineChart precisa de um array indexado por "dia", no formato: 
+        // [{ date: '2023-01-01', Entradas: 50, Saidas: 20 }, ...]
+        // Criamos um mapa/dicionário (grouped) para agrupar todas as movimentações de um mesmo dia, somando-as num único ponto.
+        // ---------------------------------------------------------------------
         const lineData = lineResult.data || [];
         const grouped = {};
+        
         lineData.forEach((m) => {
           const dateObj = new Date(m.data);
-          const dateKey = dateObj.toISOString().split("T")[0];
+          const dateKey = dateObj.toISOString().split("T")[0]; // extrai o YYYY-MM-DD
+          
           if (!grouped[dateKey]) {
             grouped[dateKey] = {
               date: dateKey,
@@ -184,9 +225,12 @@ const Movimentacoes = () => {
           if (m.tipo === "ENTRADA") grouped[dateKey].Entradas += m.quantidade;
           else grouped[dateKey].Saidas += m.quantidade;
         });
+        
+        // Finaliza ordenando novamente por data pra garantir as quebras e traçados e salva no React
         const sortedLineData = Object.values(grouped).sort(
           (a, b) => new Date(a.date) - new Date(b.date),
         );
+        
         setLineChartData(sortedLineData);
       } catch (error) {
         console.error("Error fetching movements:", error);
@@ -207,6 +251,8 @@ const Movimentacoes = () => {
     order,
   ]);
 
+  // Efeito secundário que observa qualquer alteração num campo de filtro (text, select) 
+  // e força a página da tabela a voltar para 1 para evitar bugar o pagination do backend.
   useEffect(() => {
     setPaginaAtual(1);
   }, [search, tipoFiltro, fromDate, toDate, userFilter]);

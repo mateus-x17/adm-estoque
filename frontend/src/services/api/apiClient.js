@@ -27,11 +27,13 @@ const getToken = () => {
     }
 };
 
-/**
- * Build headers with authentication
- * @param {Object} customHeaders - Custom headers to merge
- * @param {Boolean} skipAuth - If true, don't add auth token
- */
+// -------------------------------------------------------------------------
+// CORE LOGIC: buildHeaders
+// Responsável por acoplar automaticamente o Token JWT nas requisições seguras.
+// 1 - Puxa o token hidratado pelo Zustand que está persistido no localStorage.
+// 2 - Injeta no padrão Bearer.
+// 3 - Ignora a injeção caso a flag skipAuth seja true (ex: Tela de Login).
+// -------------------------------------------------------------------------
 const buildHeaders = (customHeaders = {}, skipAuth = false) => {
     const headers = {
         "Content-Type": "application/json",

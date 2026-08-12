@@ -51,6 +51,9 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Renderização condicional baseada na Role do usuário:
+            O componente UserStatsCharts só é montado no DOM se for ADMIN ou GERENTE. 
+            Ele dispara chamadas de API próprias, protegendo dados sensíveis de operadores. */}
         {canViewUserStats && (
           <>
             <UserStatsCharts type="count" />
@@ -58,6 +61,9 @@ const Dashboard = () => {
           </>
         )}
 
+        {/* Ajuste condicional dinâmico do Tailwind: 
+            Se os gráficos de usuário existirem, o gráfico de Montante vai lá pra baixo esticado (lg:col-span-2)
+            Caso não existam (visão de Operador), ele preenche logo o topo sozinho */}
         <div className={canViewUserStats ? "lg:col-span-2" : "col-span-1 lg:col-span-2"}>
           <MontanteGrafic />
         </div>

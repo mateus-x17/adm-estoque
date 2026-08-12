@@ -1,3 +1,9 @@
+// -------------------------------------------------------------------------
+// Componente Puramente de Apresentação (Read-Only)
+// Não realiza validações de transação (ex: bloqueio de estoque negativo), 
+// estas são tratadas no EditarItem.jsx(CriarPedido) e pelo backend (productController).
+// Serve apenas para detalhamento histórico.
+// -------------------------------------------------------------------------
 const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
   if (!isOpen || !movimentacao) return null;
 

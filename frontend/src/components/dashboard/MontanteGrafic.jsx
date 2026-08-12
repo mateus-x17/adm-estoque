@@ -54,6 +54,12 @@ export default function MontanteGrafic() {
   // Gera lista de anos razoáveis
   const years = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - i));
 
+  // -------------------------------------------------------------------------
+  // CORE LOGIC: fetchData
+  // Monta a regra de negócio do Recharts baseado nas seleções de tempo (mensal ou anual).
+  // 1 - Dispara uma query pesada para a API pedindo limite total ("all") das movimentações dentro daquele range de datas
+  // 2 - Agrupa os resultados dia-a-dia (se mês) ou mês-a-mês (se ano), somando o Montante (Qtd * Preço) 
+  // -------------------------------------------------------------------------
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -61,6 +67,7 @@ export default function MontanteGrafic() {
       try {
         let from, to;
 
+        // Formatação das extremidades de tempo (Data inicial e final ISO) que a API do backend precisa para filtrar
         if (periodType === "month") {
           const [year, month] = selectedMonth.split("-");
           const lastDay = new Date(year, month, 0).getDate();
@@ -71,32 +78,38 @@ export default function MontanteGrafic() {
           to = `${selectedYear}-12-31`;
         }
 
-        // Fetch based on tipo
+        // Caso "AMBOS" esteja selecionado, não envia o tipo para a API (trazendo tanto ENTRADA quanto SAIDA)
         const tipoParam = tipoFiltro === "AMBOS" ? undefined : tipoFiltro;
 
         const res = await movementsApi.getMovements({ limit: "all", from, to, ...(tipoParam ? { tipo: tipoParam } : {}) });
         const data = res.data || [];
 
-        // Group by date
+        // Lógica matemática complexa: 
+        // Em vez de passar os dados brutos, nós criamos um 'dicionário' chamado 'grouped'.
+        // Assim, múltiplas vendas no mesmo dia (ex: 5 saídas diferentes em 12/08) são aglutinadas num ponto só no gráfico de área, criando uma visualização fluida.
         const grouped = {};
         data.forEach((mov) => {
           const d = new Date(mov.data);
+          
+          // Chave de agrupamento exata que também serve para sort() depois
           const rawKey = periodType === "year"
             ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
             : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+          // Label elegante humano ('ago de 2026' ou '12/08') que o Recharts vai renderizar visualmente no tooltip
           const label = periodType === "year"
             ? d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
             : d.toLocaleDateString("pt-BR");
 
           if (!grouped[rawKey]) grouped[rawKey] = { rawKey, data: label, Entradas: 0, Saídas: 0 };
 
+          // Cálculo do Montante absoluto (R$) = Qtd vendida * Preço base
           const valor = mov.quantidade * Number(mov.produto.preco);
           if (mov.tipo === "ENTRADA") grouped[rawKey].Entradas += valor;
           else grouped[rawKey]["Saídas"] += valor;
         });
 
-        // Sort chronologically using rawKey
+        // O Object.values transforma nosso dicionário de volta num array normal e ordena usando o rawKey (yyyy-mm-dd) alfabeticamente/cronologicamente
         const sorted = Object.values(grouped).sort((a, b) => a.rawKey.localeCompare(b.rawKey));
 
         setChartData(sorted);

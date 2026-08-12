@@ -339,6 +339,13 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
     setClosing(true);
   };
 
+  // -------------------------------------------------------------------------
+  // CORE LOGIC: handleSubmit
+  // Orquestrador de submissão universal. Funciona tanto para Editar (PUT) quanto Criar (POST) qualquer entidade.
+  // 1 - Agrupa dados textuais com dados binários (Arquivos/Fotos) usando FormData nativo do Javascript.
+  // 2 - Avalia a necessidade de injetar Token JWT nas requests.
+  // 3 - Verifica se o tipo do envio requer multipart/form-data ou application/json.
+  // -------------------------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("TOKEN", token);
@@ -348,23 +355,21 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       Object.entries(form).forEach(([key, value]) =>
         formData.append(key, value),
       );
+      
+      // Anexa foto caso usuário tenha upado alguma no input type="file"
       if (file) formData.append("imagem", file);
+      // Sinaliza exclusão de foto prévia
       if (removeImage && !file) formData.append("removerImagem", "true");
 
       const method = isCreating ? "POST" : "PUT";
       let url = isCreating ? config.route : config.route(itemData.id);
 
+      // Casos especiais como Pedido/Movimentação que usam rotas customizadas
       if (config.dynamicRoute) {
         url = config.dynamicRoute(form);
       }
 
-      // Special body handling for adjust-quantity which expects JSON, not FormData usually,
-      // but the original code used FormData for everything.
-      // The original Pedidos.jsx used JSON. Let's send JSON if it's adjust-quantity or if no file is present?
-      // Actually, existing backend likely handles FormData for products/users (w/ images).
-      // adjust-quantity might expect JSON. Let's check Pedidos.jsx again in thought.
-      // Pedidos.jsx uses JSON.stringify.
-      // Let's force JSON for CriarPedido or if no file.
+      // Descobre se existe algum campo do tipo 'file' na config deste form específico
       const hasFileField = config.fields.some((field) => field.type === "file");
       let body;
       const headers = {};
@@ -373,6 +378,11 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         headers.Authorization = `Bearer ${token}`;
       }
 
+      // ---------------------------------------------------------------------
+      // Validação Cruzada de Headers/Body
+      // Se for CriarPedido (movimentação de estoque), o backend precisa de application/json puro para tratar a transação.
+      // Do contrário, se tiver arquivo/imagem, envia multipart/form-data via FormData.
+      // ---------------------------------------------------------------------
       if (type === "CriarPedido") {
         headers["Content-Type"] = "application/json";
 
@@ -383,7 +393,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
         body = JSON.stringify(payload);
       } else if (hasFileField) {
-        body = formData;
+        body = formData; // Browser injeta Content-Type multipart automaticamente
       } else {
         headers["Content-Type"] = "application/json";
         body = JSON.stringify(form);

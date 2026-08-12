@@ -28,9 +28,14 @@ const Produtos = () => {
       .catch(() => {});
   }, []);
 
+  // -------------------------------------------------------------------------
+  // CORE LOGIC: carregarProdutos
+  // Acionado no carregamento da tela e sempre que a página atual ou algum filtro (search, sort, category) for alterado.
+  // Mapeia os estados locais para o DTO (Data Transfer Object) esperado pela API.
+  // -------------------------------------------------------------------------
   const carregarProdutos = async () => {
     try {
-      setLoaded(false) //indica que esta carregando dados
+      setLoaded(false) // Indica inicio de load para renderizar spinner animado
       const params = {
         page: currentPage,
         limit: itemsPerPage,
@@ -38,11 +43,12 @@ const Produtos = () => {
         sortPrice: sortPrice || undefined,
         categoriaId: categoriaFiltro || undefined,
       };
+      
       const result = await productsApi.getProducts(params);
       setProdutos(result.data || []);
       setTotalPages(result.pagination?.pages || 1);
       setTotalCount(result.pagination?.total || 0);
-      setLoaded(true);
+      setLoaded(true); // Retira o spinner da tela após sucesso
     } catch (error) {
       console.error(error);
     }
@@ -52,10 +58,16 @@ const Produtos = () => {
     carregarProdutos();
   }, [currentPage, search, sortPrice, categoriaFiltro]);
 
+  // Efeito secundário (Side-effect): Se o usuário digitar algo na busca ou alterar categoria,
+  // a página da tabela é forçada a voltar para "1", impedindo que ele fique numa página vazia (ex: pág 5) de um novo resultado menor.
   useEffect(() => {
     setCurrentPage(1);
   }, [search, sortPrice, categoriaFiltro]);
 
+  // -------------------------------------------------------------------------
+  // Função para injetar a edição/criação de um produto dinamicamente no array atual 
+  // Sem a necessidade de disparar uma recarga inteira da página para mostrar ao usuário.
+  // -------------------------------------------------------------------------
   const atualizarProduto = (produtoAtualizado) => {
     if (!produtoAtualizado) return;
 
@@ -73,6 +85,7 @@ const Produtos = () => {
         : prevSel
     );
 
+    // Refetch final garante que os totais da paginação sejam recalculados corretamente se foi uma inserção nova
     carregarProdutos();
   };
 

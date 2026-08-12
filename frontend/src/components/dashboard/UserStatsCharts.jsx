@@ -73,12 +73,18 @@ export default function UserStatsCharts({ type }) {
   const isValue = type === "value";
   const dataKey = isValue ? "totalValue" : "count";
 
+  // -------------------------------------------------------------------------
+  // Lógica Visual Dinâmica do Tailwind/Recharts
+  // Em vez de cores estáticas, criamos um mapa de opacidade (ranking). 
+  // O usuário que movimenta/vende mais fica com a barra preta (opacidade máxima), os sucessores vão ficando gradativamente mais transparentes (cinza claro).
+  // -------------------------------------------------------------------------
   const sorted = [...userStats].sort((a, b) => b[dataKey] - a[dataKey]);
   const rankOf = new Map(sorted.map((d, i) => [d.name, i]));
+  
   const opacityFor = (name) => {
     const rank = rankOf.get(name) ?? 0;
     const n = Math.max(sorted.length - 1, 1);
-    return 1 - (rank / n) * 0.65;
+    return 1 - (rank / n) * 0.65; // Vai de 1 (100% de preenchimento) até 0.35 (35% na ponta final da lista)
   };
 
   return (

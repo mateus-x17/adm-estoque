@@ -9,6 +9,12 @@ export const movementsApi = {
      * @param {Object} params - Query parameters (order, tipo, etc.)
      */
     getMovements: async (params = {}) => {
+        // ---------------------------------------------------------------------
+        // Limpeza Dinâmica de Parâmetros (Sanitization)
+        // O React costuma enviar undefined ou string vazia quando um filtro é resetado.
+        // O loop varre o objeto 'params' e descarta sujeiras, gerando apenas a querystring real (ex: ?page=1&limit=8)
+        // Isso impede requisições do tipo /movements?search=&tipo=undefined
+        // ---------------------------------------------------------------------
         const cleanParams = {};
         for (const [key, val] of Object.entries(params)) {
             if (val !== undefined && val !== null && val !== '') {
