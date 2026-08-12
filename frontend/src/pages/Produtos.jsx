@@ -167,9 +167,9 @@ const Produtos = () => {
               Total: {totalCount}
             </span>
           </div>
-          <div className="h-full overflow-y-auto overflow-x-hidden">
-            <table className="w-full md:table">
-              <thead className="hidden md:table-header-group sticky top-0 bg-[var(--bg-elevated)] z-10">
+          <div className="w-full">
+            <table className="w-full text-sm">
+              <thead className="hidden md:table-header-group">
                 <tr>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
                     Produto

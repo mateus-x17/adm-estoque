@@ -11,11 +11,11 @@ const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
       {/* Desktop */}
       <tr
         style={{ animationDelay: `${index * 0.04}s` }}
-        className="hidden md:table-row border-b hover:bg-[var(--line)]/20 transition-colors duration-200 animate-fade-up"
+        className="hidden md:table-row border-b border-[var(--line)] hover:bg-[var(--line)]/20 transition-colors duration-200 animate-fade-up"
       >
         <td className="px-4 py-3 text-sm text-[var(--ink)]">{movimentacao.produto.nome}</td>
         <td className="px-4 py-3 text-center">
-          <span className={`px-2.5 py-0.5 rounded-md border font-mono text-[11px] uppercase ${badgeClass}`}>
+          <span className={`px-2.5 py-0.5 rounded-md  font-mono text-[11px] uppercase ${badgeClass}`}>
             {movimentacao.tipo}
           </span>
         </td>

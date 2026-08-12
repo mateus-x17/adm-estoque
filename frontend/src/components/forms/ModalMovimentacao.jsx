@@ -3,8 +3,8 @@ const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
 
   const isEntrada = movimentacao.tipo === "ENTRADA";
   const badgeClass = isEntrada
-    ? "border-[var(--teal)]/30 text-[var(--teal)]"
-    : "border-[var(--accent)]/30 text-[var(--accent)]";
+    ? "border-[var(--teal)] bg-[var(--teal)]/10 text-[var(--teal)]"
+    : "border-[var(--danger)] bg-[var(--danger)]/10 text-[var(--danger)]";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4">
@@ -60,6 +60,15 @@ const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
             </p>
             <p className="font-medium text-[var(--ink)] mt-0.5">
               {new Date(movimentacao.data).toLocaleString("pt-BR")}
+            </p>
+          </div>
+
+          <div className="pt-2 mt-2 border-t border-[var(--line)]">
+            <p className="font-mono text-[11px] uppercase tracking-wide text-[var(--ink-soft)]">
+              Valor Total
+            </p>
+            <p className="font-medium text-[var(--ink)] mt-0.5">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(movimentacao.quantidade * (movimentacao.produto?.preco || 0))}
             </p>
           </div>
         </div>

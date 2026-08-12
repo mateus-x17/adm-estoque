@@ -27,6 +27,14 @@ export const usersApi = {
   },
 
   /**
+   * Get all users id+name (for filters — accessible to ADMIN and GERENTE)
+   */
+  getUserNames: async () => {
+    const response = await apiClient.get("/users/names");
+    return response;
+  },
+
+  /**
    * Create a new user
    */
   createUser: (userData) => apiClient.post("/users", userData),

@@ -5,95 +5,261 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 import { movementsApi } from "../../services/api/index.js";
 
+const ENTRADA_COLOR = "var(--teal)";
+const SAIDA_COLOR = "var(--danger)";
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="glass-panel rounded-md px-3 py-2 min-w-[150px]">
+    <div className="glass-panel rounded-md px-3 py-2 min-w-[160px] space-y-1">
       <p className="font-mono text-[11px] text-[var(--ink-soft)] mb-1">{label}</p>
-      <p className="text-[var(--ink)] font-semibold text-sm">
-        R$ {Number(payload[0]?.value).toFixed(2)}
-      </p>
+      {payload.map((p) => (
+        <p key={p.dataKey} className="font-semibold text-sm" style={{ color: p.stroke }}>
+          {p.name}: R$ {Number(p.value).toFixed(2)}
+        </p>
+      ))}
     </div>
   );
 };
 
+const PERIODO_OPTIONS = [
+  { label: "Mês", value: "month" },
+  { label: "Ano", value: "year" },
+];
+
+const TIPO_OPTIONS = [
+  { label: "Saídas", value: "SAIDA" },
+  { label: "Entradas", value: "ENTRADA" },
+  { label: "Ambos", value: "AMBOS" },
+];
+
 export default function MontanteGrafic() {
-  const [saidaMontanteData, setSaidaMontanteData] = useState([]);
+  const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const currentYear = String(now.getFullYear());
+
+  const [periodType, setPeriodType] = useState("month"); // "month" | "year"
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [tipoFiltro, setTipoFiltro] = useState("SAIDA"); // "SAIDA" | "ENTRADA" | "AMBOS"
+
+  // Gera lista de anos razoáveis
+  const years = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - i));
 
   useEffect(() => {
-    movementsApi.getMovements()
-      .then((movements) => {
-        const saidas = movements.filter((m) => m.tipo === "SAIDA");
+    const fetchData = async () => {
+      setLoading(true);
+      setChartData([]);
+      try {
+        let from, to;
 
-        const saidasPorData = saidas.reduce((acc, mov) => {
-          const data = new Date(mov.data).toLocaleDateString("pt-BR");
-          if (!acc[data]) acc[data] = { data, montante: 0 };
-          acc[data].montante += mov.quantidade * Number(mov.produto.preco);
-          return acc;
-        }, {});
+        if (periodType === "month") {
+          const [year, month] = selectedMonth.split("-");
+          const lastDay = new Date(year, month, 0).getDate();
+          from = `${year}-${month}-01`;
+          to = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+        } else {
+          from = `${selectedYear}-01-01`;
+          to = `${selectedYear}-12-31`;
+        }
 
-        const sorted = Object.values(saidasPorData).sort((a, b) => {
-          const [da, ma, ya] = a.data.split("/");
-          const [db, mb, yb] = b.data.split("/");
-          return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
+        // Fetch based on tipo
+        const tipoParam = tipoFiltro === "AMBOS" ? undefined : tipoFiltro;
+
+        const res = await movementsApi.getMovements({ limit: "all", from, to, ...(tipoParam ? { tipo: tipoParam } : {}) });
+        const data = res.data || [];
+
+        // Group by date
+        const grouped = {};
+        data.forEach((mov) => {
+          const d = new Date(mov.data);
+          const rawKey = periodType === "year"
+            ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+            : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+          const label = periodType === "year"
+            ? d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
+            : d.toLocaleDateString("pt-BR");
+
+          if (!grouped[rawKey]) grouped[rawKey] = { rawKey, data: label, Entradas: 0, Saídas: 0 };
+
+          const valor = mov.quantidade * Number(mov.produto.preco);
+          if (mov.tipo === "ENTRADA") grouped[rawKey].Entradas += valor;
+          else grouped[rawKey]["Saídas"] += valor;
         });
 
-        setSaidaMontanteData(sorted);
-      })
-      .catch(console.error);
-  }, []);
+        // Sort chronologically using rawKey
+        const sorted = Object.values(grouped).sort((a, b) => a.rawKey.localeCompare(b.rawKey));
+
+        setChartData(sorted);
+      } catch (err) {
+        console.error("MontanteGrafic error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [periodType, selectedMonth, selectedYear, tipoFiltro]);
+
+  const showEntradas = tipoFiltro === "ENTRADA" || tipoFiltro === "AMBOS";
+  const showSaidas = tipoFiltro === "SAIDA" || tipoFiltro === "AMBOS";
+
+  const title =
+    tipoFiltro === "AMBOS"
+      ? "Entradas e Saídas ao longo do tempo"
+      : tipoFiltro === "ENTRADA"
+      ? "Montante de entradas ao longo do tempo"
+      : "Montante de saídas ao longo do tempo";
 
   return (
     <div className="glass-panel rounded-xl p-4 sm:p-6">
-      <h2 className="font-display text-base sm:text-lg font-semibold text-[var(--ink)] mb-1">
-        Montante de saídas ao longo do tempo
-      </h2>
-      <p className="font-mono text-xs text-[var(--ink-soft)] mb-6">
-        Valor total em reais de saídas registradas por dia
-      </p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 gap-4">
+        <div>
+          <h2 className="font-display text-base sm:text-lg font-semibold text-[var(--ink)] mb-1">
+            {title}
+          </h2>
+          <p className="font-mono text-xs text-[var(--ink-soft)]">
+            Valor total em reais por dia / mês no período selecionado
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 items-center shrink-0">
+          {/* Tipo filter */}
+          <div className="flex rounded-md border border-[var(--line)] overflow-hidden">
+            {TIPO_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setTipoFiltro(opt.value)}
+                className={`px-3 py-1.5 text-xs font-mono transition-colors duration-200 ${
+                  tipoFiltro === opt.value
+                    ? "bg-[var(--ink)] text-[var(--bg)]"
+                    : "bg-transparent text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Period type toggle */}
+          <div className="flex rounded-md border border-[var(--line)] overflow-hidden">
+            {PERIODO_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPeriodType(opt.value)}
+                className={`px-3 py-1.5 text-xs font-mono transition-colors duration-200 ${
+                  periodType === opt.value
+                    ? "bg-[var(--ink)] text-[var(--bg)]"
+                    : "bg-transparent text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Date selector */}
+          {periodType === "month" ? (
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-3 py-1.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+            />
+          ) : (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="px-3 py-1.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+            >
+              {years.map((y) => (
+                <option key={y} value={y} className="bg-[var(--bg-elevated)] text-[var(--ink)]">
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
 
       <div className="h-[280px] sm:h-[320px] lg:h-[360px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={saidaMontanteData}>
-            <defs>
-              <linearGradient id="gradMontante" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--ink)" stopOpacity={0.18} />
-                <stop offset="100%" stopColor="var(--ink)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
+        {loading ? (
+          <div className="w-full h-full flex items-center justify-center gap-3">
+            <div className="w-5 h-5 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
+            <span className="text-sm text-[var(--ink-soft)]">Carregando...</span>
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="w-full h-full flex items-center justify-center text-sm text-[var(--ink-soft)]">
+            Nenhuma movimentação registrada neste período.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <defs>
+                {showEntradas && (
+                  <linearGradient id="gradEntrada" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#1E8F79" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#1E8F79" stopOpacity={0} />
+                  </linearGradient>
+                )}
+                {showSaidas && (
+                  <linearGradient id="gradSaida" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#C24A3B" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#C24A3B" stopOpacity={0} />
+                  </linearGradient>
+                )}
+              </defs>
 
-            <XAxis
-              dataKey="data"
-              tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
-              axisLine={{ stroke: "var(--line)" }}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v) => `R$${v}`}
-              width={56}
-            />
+              <XAxis
+                dataKey="data"
+                tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
+                axisLine={{ stroke: "var(--line)" }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `R$${v}`}
+                width={60}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: "var(--line)", strokeWidth: 1 }} />
+              {tipoFiltro === "AMBOS" && <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />}
 
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: "var(--line)", strokeWidth: 1 }} />
-
-            <Area
-              type="monotone"
-              dataKey="montante"
-              stroke="var(--ink)"
-              strokeWidth={1.5}
-              fill="url(#gradMontante)"
-              dot={false}
-              activeDot={{ r: 4, fill: "var(--ink)", strokeWidth: 0 }}
-              name="Montante"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+              {showEntradas && (
+                <Area
+                  type="monotone"
+                  dataKey="Entradas"
+                  stroke={ENTRADA_COLOR}
+                  strokeWidth={1.5}
+                  fill="url(#gradEntrada)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: ENTRADA_COLOR, strokeWidth: 0 }}
+                />
+              )}
+              {showSaidas && (
+                <Area
+                  type="monotone"
+                  dataKey="Saídas"
+                  stroke={SAIDA_COLOR}
+                  strokeWidth={1.5}
+                  fill="url(#gradSaida)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: SAIDA_COLOR, strokeWidth: 0 }}
+                />
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

@@ -5,8 +5,12 @@ import LowStockAlert from "../components/dashboard/LowStockAlert.jsx";
 import RecentMovements from "../components/dashboard/RecentMovements.jsx";
 import UserStatsCharts from "../components/dashboard/UserStatsCharts.jsx";
 import MontanteGrafic from "../components/dashboard/MontanteGrafic.jsx";
+import { useUserStore } from "../store/userStore.js";
 
 const Dashboard = () => {
+  const user = useUserStore((state) => state.user);
+  const canViewUserStats = user?.role === "ADMIN" || user?.role === "GERENTE";
+
   return (
     <div className="w-full min-h-screen pt-4 pb-12 px-4 md:px-8 space-y-8 max-w-7xl mx-auto bg-[var(--bg)] transition-colors duration-300">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-6 border-b border-[var(--line)]">
@@ -47,10 +51,14 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UserStatsCharts type="count" />
-        <UserStatsCharts type="value" />
+        {canViewUserStats && (
+          <>
+            <UserStatsCharts type="count" />
+            <UserStatsCharts type="value" />
+          </>
+        )}
 
-        <div className="lg:col-span-2">
+        <div className={canViewUserStats ? "lg:col-span-2" : "col-span-1 lg:col-span-2"}>
           <MontanteGrafic />
         </div>
       </div>

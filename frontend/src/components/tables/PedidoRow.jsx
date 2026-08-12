@@ -10,7 +10,7 @@ const PedidoRow = ({ pedido, index }) => {
             style={{ animationDelay: `${index * 0.05}s` }}
             className="
                 block md:table-row
-                border-b border-gray-200 dark:border-gray-800
+                border-b border-[var(--line)]
                 hover:bg-gray-50 dark:hover:bg-gray-800/30
                 transition animate-fadeIn
             "

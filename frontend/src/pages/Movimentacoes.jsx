@@ -15,12 +15,46 @@ import {
   Cell,
 } from "recharts";
 import { movementsApi, usersApi } from "../services/api/index.js";
+import { useUserStore } from "../store/userStore.js";
 
-const pieColors = ["var(--ink)", "var(--accent)"];
+const PIE_COLORS = ["var(--teal)", "var(--danger)"];
+
+const ChartTooltip = ({ active, payload, label, isPie }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        background: "var(--bg-elevated)",
+        border: "1px solid var(--line)",
+        borderRadius: 8,
+        padding: "8px 12px",
+        minWidth: 140,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+      }}
+    >
+      {label && <p style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 4, fontFamily: "monospace" }}>{label}</p>}
+      {payload.map((p, i) => (
+        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: i < payload.length - 1 ? 6 : 0 }}>
+          <span style={{ fontSize: 12, color: p.color || "var(--ink)", fontWeight: 600 }}>
+            {p.name}: {p.value} unid.
+          </span>
+          {isPie && p.payload?.montante !== undefined && (
+            <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+              Montante: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.payload.montante)}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 
 const Movimentacoes = () => {
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const currentUser = useUserStore((state) => state.user);
+  const canFilterByUser = currentUser?.role === "ADMIN" || currentUser?.role === "GERENTE";
 
   const [search, setSearch] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("");
@@ -55,18 +89,11 @@ const Movimentacoes = () => {
   useEffect(() => {
     const carregarUsuarios = async () => {
       try {
-        const response = await usersApi.getUsers({
-          page: 1,
-          limit: 100,
-          search: "",
-          role: "todos",
-        });
-        setUsuarios(response.data || []);
+        // /users/names retorna [{id, nome}] e é acessível por ADMIN e GERENTE
+        const data = await usersApi.getUserNames();
+        setUsuarios(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error(
-          "Erro ao carregar usuários para filtro de movimentações:",
-          error,
-        );
+        console.error("Erro ao carregar usuários para filtro:", error);
       }
     };
     carregarUsuarios();
@@ -124,15 +151,21 @@ const Movimentacoes = () => {
         setTotalMovimentos(pagination.total || tableData.length);
 
         const pieData = pieResult.data || [];
-        let pieEntradas = 0;
-        let pieSaidas = 0;
+        let pieEntradas = 0, pieSaidas = 0;
+        let montanteEntradas = 0, montanteSaidas = 0;
         pieData.forEach((m) => {
-          if (m.tipo === "ENTRADA") pieEntradas += m.quantidade;
-          else pieSaidas += m.quantidade;
+          const valor = m.quantidade * Number(m.produto?.preco || 0);
+          if (m.tipo === "ENTRADA") {
+            pieEntradas += m.quantidade;
+            montanteEntradas += valor;
+          } else {
+            pieSaidas += m.quantidade;
+            montanteSaidas += valor;
+          }
         });
         setPieChartData([
-          { name: "Entradas", value: pieEntradas },
-          { name: "Saídas", value: pieSaidas },
+          { name: "Entradas", value: pieEntradas, montante: montanteEntradas },
+          { name: "Saídas", value: pieSaidas, montante: montanteSaidas },
         ]);
 
         const lineData = lineResult.data || [];
@@ -237,27 +270,27 @@ const Movimentacoes = () => {
               </option>
             </select>
 
-            <select
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-              className="w-full lg:w-52 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
-            >
-              <option
-                value=""
-                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
+            {canFilterByUser ? (
+              <select
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+                className="w-full lg:w-52 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
               >
-                Todos os usuários
-              </option>
-              {usuarios.map((u) => (
-                <option
-                  key={u.id}
-                  value={u.id}
-                  className="bg-[var(--bg-elevated)] text-[var(--ink)]"
-                >
-                  {u.nome}
+                <option value="" className="bg-[var(--bg-elevated)] text-[var(--ink)]">
+                  Todos os usuários
                 </option>
-              ))}
-            </select>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id} className="bg-[var(--bg-elevated)] text-[var(--ink)]">
+                    {u.nome}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full lg:w-52 px-4 py-2.5 rounded-md border border-[var(--line)] bg-[var(--line)]/20 text-sm text-[var(--ink-soft)] flex items-center gap-2 cursor-not-allowed select-none" title="Apenas Gerentes e Administradores podem filtrar por usuário">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Filtro por usuário restrito
+              </div>
+            )}
 
             <input
               type="date"
@@ -402,26 +435,17 @@ const Movimentacoes = () => {
                     axisLine={false}
                     tickLine={false}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--line)",
-                      borderRadius: 6,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }}
-                  />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
                   <Line
                     dataKey="Entradas"
-                    stroke="var(--ink)"
+                    stroke="var(--teal)"
                     strokeWidth={2}
                     dot={false}
                   />
                   <Line
                     dataKey="Saidas"
-                    stroke="var(--accent)"
+                    stroke="var(--danger)"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -430,34 +454,47 @@ const Movimentacoes = () => {
             </div>
 
             <div className="glass-panel rounded-lg p-6">
-              <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-4">
+              <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-1">
                 Resumo geral
               </h3>
-              <ResponsiveContainer width="100%" height={280}>
+              <p className="font-mono text-xs text-[var(--ink-soft)] mb-4">
+                Quantidade e montante (R$) por tipo
+              </p>
+
+              {/* Legenda manual com montante */}
+              <div className="flex flex-col gap-2 mb-4">
+                {pieChartData.map((entry, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i] }} />
+                      <span className="text-sm text-[var(--ink)]">{entry.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono text-xs text-[var(--ink-soft)]">{entry.value} unid. · </span>
+                      <span className="font-mono text-xs font-semibold text-[var(--ink)]">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(entry.montante || 0)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
                     data={pieChartData}
                     dataKey="value"
                     nameKey="name"
-                    outerRadius={90}
+                    outerRadius={80}
+                    innerRadius={40}
                     label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
                   >
                     {pieChartData.map((_, i) => (
-                      <Cell key={i} fill={pieColors[i]} />
+                      <Cell key={i} fill={PIE_COLORS[i]} />
                     ))}
                   </Pie>
-                  <Legend
-                    wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }}
-                  />
-                  <Tooltip
-                    formatter={(value, name) => [`${value} unid.`, name]}
-                    contentStyle={{
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--line)",
-                      borderRadius: 6,
-                      fontSize: 12,
-                    }}
-                  />
+                  <Tooltip content={<ChartTooltip isPie />} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

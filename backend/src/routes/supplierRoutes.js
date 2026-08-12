@@ -12,12 +12,13 @@ import {
   obterFornecedor,
 } from "../controllers/supplierController.js";
 
+// arquivo de rotas para gestão de fornecedores
 const router = express.Router();
 
-// 🔹 Estatísticas (Deve vir antes das rotas com :id)
+// 1 - Estatísticas (Deve vir antes das rotas com :id para evitar conflito de roteamento)
 router.get("/stats", authMiddleware, getSupplierStats);
 
-// 🔹 Apenas ADMIN e GERENTE podem criar/editar/deletar fornecedores
+// 2 - Rotas destrutivas e de alteração protegidas por RBAC (Apenas ADMIN e GERENTE)
 router.post(
   "/",
   authMiddleware,
@@ -25,6 +26,7 @@ router.post(
   validateRequest({ required: ["nome", "email", "telefone", "endereco"] }),
   criarFornecedor,
 );
+
 router.put(
   "/:id",
   authMiddleware,
@@ -32,6 +34,7 @@ router.put(
   validateRequest({ required: ["nome", "email", "telefone", "endereco"] }),
   atualizarFornecedor,
 );
+
 router.delete(
   "/:id",
   authMiddleware,
@@ -39,9 +42,8 @@ router.delete(
   deletarFornecedor,
 );
 
-// 🔹 Todos podem listar fornecedores
+// 3 - Rotas de leitura (livre para todos logados)
 router.get("/", authMiddleware, listarFornecedores);
-// contagem de fornecedores
 router.get("/count", authMiddleware, countFornecedores);
 router.get("/:id", authMiddleware, obterFornecedor);
 

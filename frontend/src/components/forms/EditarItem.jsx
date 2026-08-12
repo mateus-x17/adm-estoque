@@ -176,7 +176,7 @@ const formConfigs = {
         name: "produtoId",
         label: "Produto",
         type: "select",
-        endpoint: "/products",
+        endpoint: "/products?limit=100",
         keyName: "data",
         required: true,
       },
@@ -199,6 +199,74 @@ const formConfigs = {
     dynamicRoute: (formData) =>
       `${import.meta.env.VITE_API_BASE_URL}/products/${formData.produtoId}/adjust`,
   },
+};
+
+const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..." }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredOptions = (options || []).filter((opt) =>
+    opt.nome?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedOption = (options || []).find((opt) => String(opt.id) === String(value));
+
+  return (
+    <div className="relative">
+      <div
+        className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] cursor-pointer flex justify-between items-center"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className={selectedOption ? "" : "text-[var(--ink-soft)]"}>
+          {selectedOption ? selectedOption.nome : placeholder}
+        </span>
+        <span className="text-[var(--ink-soft)] text-xs">▼</span>
+      </div>
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-[var(--bg-elevated)] border border-[var(--line)] rounded-md shadow-lg max-h-60 flex flex-col">
+          <div className="p-2 border-b border-[var(--line)] sticky top-0 bg-[var(--bg-elevated)]">
+            <input
+              type="text"
+              className="w-full rounded bg-transparent border border-[var(--line)] px-2 py-1.5 text-xs text-[var(--ink)] focus:border-[var(--accent)] outline-none"
+              placeholder="Buscar..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="overflow-y-auto">
+            <div
+              className="px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--line)]/30 cursor-pointer"
+              onClick={() => {
+                onChange("");
+                setIsOpen(false);
+                setSearchTerm("");
+              }}
+            >
+              Nenhum
+            </div>
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => (
+                <div
+                  key={opt.id}
+                  className="px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--line)]/30 cursor-pointer"
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                    setSearchTerm("");
+                  }}
+                >
+                  {opt.nome}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-[var(--ink-soft)]">Nenhum resultado</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
@@ -418,25 +486,12 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                 ) : null}
 
                 {field.type === "select" ? (
-                  <select
-                    name={field.name}
+                  <SearchableSelect
+                    options={selectOptions[field.name]}
                     value={form[field.name]}
-                    onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
-                    className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
-                  >
-                    <option value="" className="bg-[var(--bg-elevated)] text-[var(--ink)]">
-                      Selecione
-                    </option>
-                    {selectOptions[field.name]?.map((opt) => (
-                      <option
-                        key={opt.id}
-                        value={opt.id}
-                        className="bg-[var(--bg-elevated)] text-[var(--ink)]"
-                      >
-                        {opt.nome}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setForm({ ...form, [field.name]: val })}
+                    placeholder="Selecione..."
+                  />
                 ) : field.type === "textarea" ? (
                   <textarea
                     name={field.name}

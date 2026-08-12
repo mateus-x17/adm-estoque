@@ -34,7 +34,7 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated }) {
               <img
                 src={formatImageUrl(produtoSelecionado.imagem)}
                 alt={produtoSelecionado.nome}
-                className="w-36 h-36 object-cover rounded-lg border border-[var(--line)] mb-4"
+                className="w-full max-w-[200px] aspect-square object-contain bg-[var(--bg)] p-2 rounded-lg border border-[var(--line)] mb-4"
               />
             )}
 

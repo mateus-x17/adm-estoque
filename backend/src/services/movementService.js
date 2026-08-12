@@ -13,6 +13,12 @@ function dateFromYMD(ymd, endOfDay = false) {
     : new Date(year, month - 1, day, 0, 0, 0, 0);
 }
 
+// serviço focado na busca super completa e relatorial de movimentações de estoque
+// 1 - Recebe um objeto de filtros que pode conter diversos parâmetros simultâneos
+// 2 - Constrói um array 'where.AND' condicionalmente, adicionando apenas os filtros que o usuário preencheu (ID, data específica, range de datas, produto, tipo, usuário)
+// 3 - Lida dinamicamente com paginação, limitando o limite a 100 itens para evitar sobrecarga (ou aceitando 'all' em casos excepcionais de relatórios)
+// 4 - Dispara paralelamente via Promise.all duas queries ao Prisma: uma pra buscar a página de dados com paginação (skip, take) e relações (include) e outra para contar o total absoluto dos filtros para criar páginas
+// 5 - Retorna um objeto JSON padronizado com os dados em 'data' e os metadados de paginação em 'pagination'
 export async function listMovementsPaginated(filters = {}) {
   const {
     id,
@@ -74,7 +80,7 @@ export async function listMovementsPaginated(filters = {}) {
             produto: {
               nome: {
                 contains: search,
-                mode: "insensitive",
+                mode: "insensitive", // busca sem distinção entre maiúscula e minúscula
               },
             },
           }
@@ -89,6 +95,7 @@ export async function listMovementsPaginated(filters = {}) {
 
   const orderBy = { data: order === 'asc' ? 'asc' : 'desc' };
 
+  // executa chamadas pesadas ao DB em paralelo (Promise.all) em vez de em série para melhorar performance (TTFB)
   const [movements, total] = await Promise.all([
     prisma.movimento.findMany({
       where,
@@ -111,6 +118,7 @@ export async function listMovementsPaginated(filters = {}) {
   };
 }
 
+// serviço extra para agregar estatísticas de usuário baseado no histórico de movimentações geral
 export async function getUserStatsAggregated() {
   const stats = await prisma.movimento.groupBy({
     by: ['usuarioId'],

@@ -30,9 +30,18 @@ export const movementsApi = {
 
     /**
      * Get user statistics (movement counts and values per user)
+     * @param {Object} params - Optional filters { from, to }
      */
-    getUserStats: async () => {
-        const response = await apiClient.get("/movements/user-stats");
+    getUserStats: async (params = {}) => {
+        const cleanParams = {};
+        for (const [key, val] of Object.entries(params)) {
+            if (val !== undefined && val !== null && val !== '') {
+                cleanParams[key] = val;
+            }
+        }
+        const queryString = new URLSearchParams(cleanParams).toString();
+        const endpoint = queryString ? `/movements/user-stats?${queryString}` : "/movements/user-stats";
+        const response = await apiClient.get(endpoint);
         return response.data || response;
     },
 

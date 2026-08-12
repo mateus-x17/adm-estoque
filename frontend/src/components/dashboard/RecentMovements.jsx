@@ -21,16 +21,14 @@ export default function RecentMovements() {
           return (
             <div
               key={mov.id}
-              className={`flex items-center gap-3 py-3 ${
-                i !== arr.length - 1 ? "border-b border-[var(--line)]" : ""
-              }`}
+              className={`flex items-center hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-200 cursor-pointer rounded-md gap-3 py-3 px-2 -mx-2 ${i !== arr.length - 1 ? "border-b border-[var(--line)]" : ""
+                }`}
             >
               <div
-                className={`w-8 h-8 rounded-md flex items-center justify-center border ${
-                  isEntrada
-                    ? "border-[var(--teal)]/30 text-[var(--teal)]"
-                    : "border-red-400/30 text-red-500"
-                }`}
+                className={`w-8 h-8 rounded-md flex items-center justify-center border ${isEntrada
+                  ? "border-green-400/30 text-[var(--teal)]"
+                  : "border-red-400/30 text-red-500"
+                  }`}
               >
                 {isEntrada ? (
                   <ArrowUpRight className="w-4 h-4" />
