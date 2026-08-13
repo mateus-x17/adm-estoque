@@ -19,16 +19,15 @@ function HeaderHome() {
 
   return (
     <header
-      className="sticky top-0 z-40 border-b border-[var(--line)] backdrop-blur transition-colors duration-300"
-      style={{ backgroundColor: "var(--bg-header)" }}
-      >
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
+      className="sticky top-4 z-40 mx-4 md:mx-auto max-w-6xl border border-[var(--color-border)] rounded-full bg-[var(--color-bg)]/80 backdrop-blur-md transition-colors duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+    >
+      <div className="flex items-center justify-between px-6 py-4">
         <NavLink to="/" className="flex items-baseline gap-1 font-display">
-          <span className="text-lg font-bold tracking-tight text-[var(--ink)]">ESTOQUE</span>
-          <span className="text-lg font-bold tracking-tight text-[var(--accent)] font-mono">.OS</span>
+          <span className="text-xl font-bold tracking-tight text-text-primary">ESTOQUE</span>
+          <span className="text-xl font-bold tracking-tight text-accent-purple font-mono">.OS</span>
         </NavLink>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           {/* Desktop */}
           <nav className="hidden md:flex items-center gap-6">
             {links.map((link) => (
@@ -36,7 +35,7 @@ function HeaderHome() {
                 key={link.path}
                 to={link.path}
                 end
-                className="flex items-center gap-2 text-sm font-medium text-[var(--ink-soft)] border-b-2 border-transparent hover:border-[var(--accent)] hover:text-[var(--ink)] pb-1 transition-colors duration-200"
+                className="flex items-center gap-2 text-sm font-medium text-text-secondary border-b-2 border-transparent hover:border-accent-purple hover:text-text-primary pb-1 transition-all duration-300"
               >
                 {link.icon}
                 {link.name}
@@ -45,7 +44,7 @@ function HeaderHome() {
             <button
               onClick={toggleDarkMode}
               aria-label="Alternar tema"
-              className="ml-2 rounded-md border border-[var(--line)] p-2 text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+              className="ml-2 rounded-full border border-[var(--color-border-light)] p-2.5 text-text-secondary hover:border-accent-purple hover:text-accent-purple bg-[var(--color-surface)] transition-all duration-300"
             >
               {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
             </button>
@@ -58,7 +57,7 @@ function HeaderHome() {
                 key={link.path}
                 to={link.path}
                 end
-                className="p-2 rounded-md text-[var(--ink-soft)] hover:text-[var(--accent)] transition-colors duration-200"
+                className="p-2.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border-light)] text-text-secondary hover:text-accent-purple hover:border-accent-purple transition-all duration-300"
               >
                 {link.icon}
               </NavLink>
@@ -66,7 +65,7 @@ function HeaderHome() {
             <button
               onClick={toggleDarkMode}
               aria-label="Alternar tema"
-              className="rounded-md border border-[var(--line)] p-2 text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+              className="p-2.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border-light)] text-text-secondary hover:text-accent-purple hover:border-accent-purple transition-all duration-300"
             >
               {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
             </button>

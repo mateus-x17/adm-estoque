@@ -1,64 +1,56 @@
-import React from "react";
-import { FiArrowDown, FiArrowUp } from "react-icons/fi";
+import React, { useState } from "react";
 import PedidoRow from "./PedidoRow.jsx";
+import ModalPedido from "../forms/ModalPedido.jsx";
 
-const PedidosTableContainer = ({ pedidos, totalCount, loading, filterId, order, onToggleOrder }) => {
+const PedidosTableContainer = ({ pedidos, totalCount, loading, filterId }) => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
+
+  const abrirModal = (pedido) => {
+    setPedidoSelecionado(pedido);
+    setModalOpen(true);
+  };
+
+  const fecharModal = () => {
+    setModalOpen(false);
+    setPedidoSelecionado(null);
+  };
+
   return (
-    <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
-      <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
-        <h2 className="font-display text-base font-semibold text-[var(--ink)]">
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="font-display text-lg font-semibold text-text-primary">
           Histórico de pedidos
         </h2>
-        <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
+        <span className="font-mono text-[11px] uppercase text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-1">
           Total: {totalCount}
         </span>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center gap-3 py-20">
-          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--ink-soft)]">Carregando pedidos...</span>
+          <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-text-secondary">Carregando pedidos...</span>
         </div>
       ) : (
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left text-sm">
-            <thead className="hidden md:table-header-group">
-              <tr>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                  Produto
-                </th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                  Quantidade
-                </th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                  Data
-                </th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                  Resp.
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pedidos.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-8 text-sm text-[var(--ink-soft)]">
-                    {filterId ? "Pedido não encontrado." : "Nenhum pedido encontrado."}
-                  </td>
-                </tr>
-              ) : (
-                pedidos.map((ped, index) => (
-                  <PedidoRow key={ped.id} pedido={ped} index={index} />
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-3">
+          {pedidos.length === 0 ? (
+            <div className="glass-card p-8 text-center text-sm text-text-secondary">
+              {filterId ? "Pedido não encontrado." : "Nenhum pedido encontrado."}
+            </div>
+          ) : (
+            pedidos.map((ped, index) => (
+              <PedidoRow key={ped.id} pedido={ped} index={index} onClick={() => abrirModal(ped)} />
+            ))
+          )}
         </div>
+      )}
+
+      {modalOpen && (
+        <ModalPedido
+          pedido={pedidoSelecionado}
+          fecharModal={fecharModal}
+        />
       )}
     </div>
   );

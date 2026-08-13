@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FaUser, FaShieldAlt } from "react-icons/fa";
+import { User, Shield } from "lucide-react";
 import { useThemeStore } from "../store/useThemeStore.js";
 import { usersApi } from "../services/api/users.api.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
@@ -64,21 +64,23 @@ function Configuracoes() {
   }, []);
 
   return (
-    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-10 max-w-screen-2xl mx-auto space-y-6">
-      <header>
-        <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
-          Conta
-        </span>
-        <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">
-          Configurações
-        </h1>
-        <p className="text-sm text-[var(--ink-soft)] mt-1">
-          Atualize seus dados de conta e gerencie suas preferências.
-        </p>
+    <div className="w-full min-h-screen pt-4 pb-12 px-4 md:px-10 max-w-screen-2xl mx-auto space-y-6 transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
+        <div>
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
+            Conta
+          </span>
+          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">
+            Configurações
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Atualize seus dados de conta e gerencie suas preferências.
+          </p>
+        </div>
       </header>
 
       {loading ? (
-        <div className="glass-panel rounded-lg p-6 text-sm text-[var(--ink-soft)]">
+        <div className="glass-card rounded-2xl p-6 text-sm text-text-secondary text-center">
           Carregando…
         </div>
       ) : (
@@ -87,47 +89,47 @@ function Configuracoes() {
             <section className="grid gap-6 lg:grid-cols-12">
               {/* Resumo do usuário */}
               <div className="lg:col-span-5 xl:col-span-4">
-                <div className="glass-panel rounded-lg p-6">
-                  <div className="flex items-center gap-4">
+                <div className="glass-card hover-card rounded-3xl p-8 border border-[var(--color-border)] shadow-sm">
+                  <div className="flex items-center gap-5 mb-8">
                     {me.imagem ? (
                       <img
                         src={formatImageUrl(me.imagem)}
                         alt="Foto do usuário"
-                        className="w-20 h-20 rounded-lg object-cover border border-[var(--line)]"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-[var(--color-border)] shadow-md"
                       />
                     ) : (
-                      <div className="w-20 h-20 rounded-lg border border-[var(--line)] text-[var(--ink-soft)] flex items-center justify-center">
-                        <FaUser size={26} />
+                      <div className="w-24 h-24 rounded-full border-4 border-[var(--color-border)] bg-[var(--color-surface)] text-text-secondary flex items-center justify-center shadow-md">
+                        <User size={32} strokeWidth={1.5} />
                       </div>
                     )}
 
                     <div className="min-w-0">
-                      <h2 className="font-display text-lg font-semibold text-[var(--ink)] truncate">
+                      <h2 className="font-display text-xl font-semibold text-text-primary truncate">
                         {me.nome}
                       </h2>
-                      <p className="text-sm text-[var(--ink-soft)] truncate">{me.email}</p>
+                      <p className="text-sm text-text-secondary truncate mt-1">{me.email}</p>
                     </div>
                   </div>
 
-                  <div className="mt-6 flex flex-col gap-3">
-                    <div className="rounded-lg border border-[var(--line)] p-4">
-                      <div className="flex items-center gap-2 text-[var(--ink)]">
-                        <FaShieldAlt className="text-[var(--accent)]" size={14} />
-                        <p className="text-sm font-medium">{fieldMeta.role.label}</p>
+                  <div className="flex flex-col gap-4">
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-5">
+                      <div className="flex items-center gap-2 text-text-primary mb-2">
+                        <Shield className="text-accent-purple" size={16} strokeWidth={1.5} />
+                        <p className="text-sm font-semibold">{fieldMeta.role.label}</p>
                       </div>
-                      <p className="mt-1 text-xs text-[var(--ink-soft)]">
+                      <p className="text-xs text-text-secondary leading-relaxed mb-4">
                         {fieldMeta.role.description}
                       </p>
-                      <p className="mt-3 inline-flex items-center rounded-md border border-[var(--accent)]/30 px-2.5 py-1 font-mono text-xs uppercase text-[var(--accent)]">
+                      <span className="inline-flex items-center rounded-full border border-accent-purple/30 bg-accent-purple/10 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-accent-purple">
                         {me.role}
-                      </p>
+                      </span>
                     </div>
 
                     <button
                       onClick={() => setEditOpen(true)}
-                      className="w-full px-5 py-2.5 bg-[var(--ink)] text-[var(--bg)] rounded-md font-semibold text-sm hover:opacity-90 transition-opacity duration-200"
+                      className="btn-primary w-full py-3 mt-2"
                     >
-                      Editar
+                      Editar Perfil
                     </button>
                   </div>
                 </div>
@@ -135,58 +137,58 @@ function Configuracoes() {
 
               {/* Informações detalhadas */}
               <div className="lg:col-span-7 xl:col-span-8">
-                <div className="glass-panel rounded-lg p-6">
-                  <h3 className="font-display text-base font-semibold text-[var(--ink)]">
+                <div className="glass-card hover-card rounded-3xl p-8 border border-[var(--color-border)] shadow-sm h-full">
+                  <h3 className="font-display text-lg font-semibold text-text-primary">
                     Informações da conta
                   </h3>
-                  <p className="mt-1 text-sm text-[var(--ink-soft)]">
+                  <p className="mt-2 text-sm text-text-secondary">
                     Confira seus dados atuais. Use o botão editar para atualizá-los.
                   </p>
 
-                  <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg border border-[var(--line)] p-5">
-                      <p className="text-sm font-medium text-[var(--ink)]">
+                  <div className="mt-8 grid gap-6 md:grid-cols-2">
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-6 hover:bg-white/5 transition-colors">
+                      <p className="text-sm font-semibold text-text-primary mb-1">
                         {fieldMeta.nome.label}
                       </p>
-                      <p className="mt-1 text-xs text-[var(--ink-soft)]">
+                      <p className="text-xs text-text-secondary mb-4 line-clamp-2 min-h-[32px]">
                         {fieldMeta.nome.description}
                       </p>
-                      <p className="mt-4 text-sm font-medium text-[var(--ink)] break-words">
+                      <p className="text-sm font-medium text-text-primary break-words bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
                         {me.nome}
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-[var(--line)] p-5">
-                      <p className="text-sm font-medium text-[var(--ink)]">
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-6 hover:bg-white/5 transition-colors">
+                      <p className="text-sm font-semibold text-text-primary mb-1">
                         {fieldMeta.email.label}
                       </p>
-                      <p className="mt-1 text-xs text-[var(--ink-soft)]">
+                      <p className="text-xs text-text-secondary mb-4 line-clamp-2 min-h-[32px]">
                         {fieldMeta.email.description}
                       </p>
-                      <p className="mt-4 text-sm font-medium text-[var(--ink)] break-words">
+                      <p className="text-sm font-medium text-text-primary break-words bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
                         {me.email}
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-[var(--line)] p-5 md:col-span-2">
-                      <p className="text-sm font-medium text-[var(--ink)]">
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-6 md:col-span-2 hover:bg-white/5 transition-colors">
+                      <p className="text-sm font-semibold text-text-primary mb-1">
                         {fieldMeta.imagem.label}
                       </p>
-                      <p className="mt-1 text-xs text-[var(--ink-soft)]">
+                      <p className="text-xs text-text-secondary mb-4">
                         {fieldMeta.imagem.description}
                       </p>
-                      <div className="mt-4 flex items-center gap-3">
+                      <div className="flex items-center gap-4 bg-[var(--color-bg)] px-5 py-3 rounded-xl border border-[var(--color-border-light)] w-fit">
                         <span
-                          className={`inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-xs uppercase ${
+                          className={`inline-flex items-center rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wider ${
                             me.imagem
-                              ? "border-[var(--teal)]/30 text-[var(--teal)]"
-                              : "border-[var(--line)] text-[var(--ink-soft)]"
+                              ? "bg-accent-green/10 text-accent-green border border-accent-green/20"
+                              : "bg-[var(--color-surface)] text-text-secondary border border-[var(--color-border-light)]"
                           }`}
                         >
                           {me.imagem ? "Disponível" : "Não cadastrada"}
                         </span>
-                        <span className="text-xs text-[var(--ink-soft)]">
-                          (Você pode trocar no formulário de edição)
+                        <span className="text-xs text-text-secondary">
+                          (Você pode alterar através do formulário)
                         </span>
                       </div>
                     </div>

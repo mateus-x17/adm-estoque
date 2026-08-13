@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FaUser, FaSearch } from "react-icons/fa";
+import { FiPlus } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 import { useThemeStore } from "../store/useThemeStore.js";
@@ -11,8 +12,8 @@ import PaginationControls from "../components/common/PaginationControls.jsx";
 import { formatImageUrl } from "../utils/imageHelper.js";
 
 const getRoleStyle = (role) => {
-  if (role === "ADMIN") return "border-[var(--accent)]/40 text-[var(--accent)]";
-  return "border-[var(--line)] text-[var(--ink-soft)]";
+  if (role === "ADMIN") return "bg-accent-purple/10 text-accent-purple border-accent-purple/20";
+  return "bg-white/5 text-text-secondary border-white/10";
 };
 
 const getInitials = (name) =>
@@ -82,58 +83,60 @@ const Usuarios = () => {
   }, [search, filterRole]);
 
   return (
-    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-6">
-      <header className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
-          Acesso
-        </span>
-        <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Usuários</h1>
-        <p className="text-sm text-[var(--ink-soft)]">
-          Gerencie permissões, visualize perfis e administre acessos ao sistema.
-        </p>
+    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
+        <div>
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
+            Acesso
+          </span>
+          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">Usuários</h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Gerencie permissões, visualize perfis e administre acessos ao sistema.
+          </p>
+        </div>
       </header>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <button
             onClick={() => abrirEditarUsuario(null, "CriarUsuario")}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--ink)] text-[var(--bg)] rounded-md text-sm font-semibold hover:opacity-90 transition-opacity duration-200 whitespace-nowrap"
+            className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
           >
-            <FaUser size={14} />
-            Novo usuário
+            <FiPlus size={14} />
+            Novo Usuário
           </button>
 
           <button
             onClick={() => setFiltrosAbertos(!filtrosAbertos)}
-            className="text-sm font-medium text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
+            className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
           >
             {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
           </button>
         </div>
 
         {filtrosAbertos && (
-          <section className="glass-panel rounded-lg">
+          <section className="glass-card animate-fade-up">
             <div className="p-5 flex flex-col lg:flex-row gap-3">
               <div className="relative w-full lg:w-1/3">
-                <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-soft)]" size={13} />
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" size={13} />
                 <input
                   type="text"
                   placeholder="Pesquisar por nome"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                  className="w-full pl-10 pr-5 py-2.5 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200"
                 />
               </div>
 
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="w-full lg:w-48 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                className="w-full lg:w-48 px-5 py-2.5 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
               >
-                <option value="todos" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Todos</option>
-                <option value="admin" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Admin</option>
-                <option value="gerente" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Gerente</option>
-                <option value="operador" className="bg-[var(--bg-elevated)] text-[var(--ink)]">Operador</option>
+                <option value="todos">Todos</option>
+                <option value="admin">Admin</option>
+                <option value="gerente">Gerente</option>
+                <option value="operador">Operador</option>
               </select>
 
               <select
@@ -142,17 +145,17 @@ const Usuarios = () => {
                   setPaginaAtual(1);
                   setUsuariosPorPagina(Number(e.target.value));
                 }}
-                className="w-full lg:w-40 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                className="w-full lg:w-40 px-5 py-2.5 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
               >
-                <option value={10} className="bg-[var(--bg-elevated)] text-[var(--ink)]">10 por página</option>
-                <option value={15} className="bg-[var(--bg-elevated)] text-[var(--ink)]">15 por página</option>
-                <option value={25} className="bg-[var(--bg-elevated)] text-[var(--ink)]">25 por página</option>
-                <option value={30} className="bg-[var(--bg-elevated)] text-[var(--ink)]">30 por página</option>
-                <option value={50} className="bg-[var(--bg-elevated)] text-[var(--ink)]">50 por página</option>
+                <option value={10}>10 por página</option>
+                <option value={15}>15 por página</option>
+                <option value={25}>25 por página</option>
+                <option value={30}>30 por página</option>
+                <option value={50}>50 por página</option>
               </select>
             </div>
 
-            <p className="px-5 pb-4 font-mono text-xs text-center text-[var(--ink-soft)]">
+            <p className="px-5 pb-4 font-mono text-xs text-center text-text-secondary">
               {totalUsuarios} usuário(s) encontrado(s)
             </p>
           </section>
@@ -169,11 +172,11 @@ const Usuarios = () => {
 
       {loading ? (
         <div className="flex items-center justify-center gap-3 py-20">
-          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--ink-soft)]">Carregando usuários...</span>
+          <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-text-secondary">Carregando usuários...</span>
         </div>
       ) : usuarios.length === 0 ? (
-        <div className="text-center py-20 text-sm text-[var(--ink-soft)]">
+        <div className="glass-card text-center p-8 text-sm text-text-secondary">
           Nenhum usuário encontrado.
         </div>
       ) : (
@@ -182,10 +185,10 @@ const Usuarios = () => {
             {usuarios.map((user) => (
               <div
                 key={user.id}
-                className="glass-panel rounded-lg p-5 hover:border-[var(--accent)]/30 transition-colors duration-200"
+                className="glass-card hover-card flex flex-col p-5"
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-11 h-11 rounded-md overflow-hidden border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] flex items-center justify-center font-semibold text-sm shrink-0">
+                  <div className="w-12 h-12 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-primary flex items-center justify-center font-semibold text-sm shrink-0">
                     {user.imagem ? (
                       <img
                         src={formatImageUrl(user.imagem)}
@@ -198,27 +201,29 @@ const Usuarios = () => {
                   </div>
 
                   <div className="min-w-0">
-                    <h3 className="font-medium text-[var(--ink)] truncate">{user.nome}</h3>
-                    <p className="text-xs text-[var(--ink-soft)] truncate">{user.email}</p>
+                    <h3 className="font-medium text-text-primary truncate">{user.nome}</h3>
+                    <p className="text-xs text-text-secondary truncate">{user.email}</p>
                   </div>
                 </div>
 
-                <span
-                  className={`inline-block px-2.5 py-0.5 rounded-md border font-mono text-[11px] uppercase tracking-wide ${getRoleStyle(user.role)}`}
-                >
-                  {user.role}
-                </span>
-
-                <div className="mt-4 font-mono text-[11px] text-[var(--ink-soft)] space-y-0.5">
-                  <p>#{user.id}</p>
-                  <p>Criado em {new Date(user.createdAt).toLocaleDateString()}</p>
-                  <p>Atualizado em {new Date(user.updatedAt).toLocaleDateString()}</p>
+                <div className="mb-4">
+                  <span
+                    className={`inline-block px-2 py-0.5 rounded-full border font-mono text-[10px] uppercase tracking-wide ${getRoleStyle(user.role)}`}
+                  >
+                    {user.role}
+                  </span>
                 </div>
 
-                <div className="mt-5 flex gap-2">
+                <div className="font-mono text-[11px] text-text-secondary space-y-1 mb-4">
+                  <p>ID: <span className="text-text-primary">#{user.id}</span></p>
+                  <p>Criado: <span className="text-text-primary">{new Date(user.createdAt).toLocaleDateString()}</span></p>
+                  <p>Atualizado: <span className="text-text-primary">{new Date(user.updatedAt).toLocaleDateString()}</span></p>
+                </div>
+
+                <div className="mt-auto flex gap-2 pt-4 border-t border-[var(--color-border)]">
                   <button
                     onClick={() => abrirEditarUsuario(user, "usuario")}
-                    className="flex-1 py-2 rounded-md border border-[var(--line)] text-sm font-medium text-[var(--ink)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+                    className="flex-1 btn-secondary py-2 text-xs font-semibold"
                   >
                     Editar
                   </button>
@@ -231,7 +236,7 @@ const Usuarios = () => {
                         tipo: "sucesso",
                       })
                     }
-                    className="flex-1 py-2 rounded-md border border-[var(--danger)]/30 text-sm font-medium text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors duration-200"
+                    className="flex-1 px-4 py-2 rounded-full text-xs font-semibold bg-accent-red/10 text-accent-red hover:bg-accent-red/20 transition-all duration-300"
                   >
                     Excluir
                   </button>

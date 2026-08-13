@@ -66,33 +66,35 @@ const Fornecedores = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-6">
-      <header className="flex justify-between items-center">
+    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
         <div>
-          <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Parceiros
           </span>
-          <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">Fornecedores</h1>
-          <p className="text-sm text-[var(--ink-soft)] mt-1">
+          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">
+            Fornecedores
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
             Gerencie parceiros e visualize métricas de desempenho.
           </p>
         </div>
 
         <button
           onClick={openNewModal}
-          className="flex items-center gap-2 bg-[var(--ink)] text-[var(--bg)] px-5 py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity duration-200 whitespace-nowrap"
+          className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
         >
-          <FiPlus size={15} /> Novo fornecedor
+          <FiPlus size={14} /> Novo fornecedor
         </button>
       </header>
 
       {loading ? (
         <div className="flex items-center justify-center gap-3 py-20">
-          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--ink-soft)]">Carregando fornecedores...</span>
+          <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-text-secondary">Carregando fornecedores...</span>
         </div>
       ) : (
-        <>
+        <div className="space-y-8">
           <FornecedorDashboard stats={stats} loading={loading} />
 
           <FornecedoresTable
@@ -102,7 +104,7 @@ const Fornecedores = () => {
             onDelete={handleDelete}
             onOpenDetails={(fornecedor) => setFornecedorSelecionado(fornecedor)}
           />
-        </>
+        </div>
       )}
 
       {modalOpen && (

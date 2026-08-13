@@ -12,25 +12,25 @@ const Dashboard = () => {
   const canViewUserStats = user?.role === "ADMIN" || user?.role === "GERENTE";
 
   return (
-    <div className="w-full min-h-screen pt-4 pb-12 px-4 md:px-8 space-y-8 max-w-7xl mx-auto bg-[var(--bg)] transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-6 border-b border-[var(--line)]">
+    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
         <div>
-          <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Painel
           </span>
-          <h1 className="font-display text-3xl font-bold text-[var(--ink)] tracking-tight mt-1">
+          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">
             Visão Geral
           </h1>
-          <p className="text-sm text-[var(--ink-soft)] mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             Monitoramento em tempo real do seu estoque.
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--line)] rounded-md text-sm font-semibold text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 flex items-center gap-2">
+          <button className="btn-secondary px-4 py-2 text-xs font-semibold flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Hoje
           </button>
-          <button className="px-4 py-2 bg-[var(--ink)] text-[var(--bg)] rounded-md text-sm font-semibold hover:opacity-90 transition-opacity duration-200 flex items-center gap-2">
+          <button className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2">
             <Download className="w-4 h-4" />
             Exportar relatório
           </button>
@@ -51,9 +51,6 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Renderização condicional baseada na Role do usuário:
-            O componente UserStatsCharts só é montado no DOM se for ADMIN ou GERENTE. 
-            Ele dispara chamadas de API próprias, protegendo dados sensíveis de operadores. */}
         {canViewUserStats && (
           <>
             <UserStatsCharts type="count" />
@@ -61,9 +58,6 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* Ajuste condicional dinâmico do Tailwind: 
-            Se os gráficos de usuário existirem, o gráfico de Montante vai lá pra baixo esticado (lg:col-span-2)
-            Caso não existam (visão de Operador), ele preenche logo o topo sozinho */}
         <div className={canViewUserStats ? "lg:col-span-2" : "col-span-1 lg:col-span-2"}>
           <MontanteGrafic />
         </div>

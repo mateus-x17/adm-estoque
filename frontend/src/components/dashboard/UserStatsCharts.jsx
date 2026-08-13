@@ -19,9 +19,9 @@ const CustomTooltip = ({ active, payload, label, isValue }) => {
   if (!active || !payload?.length) return null;
   const val = payload[0]?.value;
   return (
-    <div className="glass-panel rounded-md px-3 py-2 min-w-[130px]">
-      <p className="font-mono text-[11px] text-[var(--ink-soft)] mb-1 truncate">{label}</p>
-      <p className="text-[var(--ink)] font-semibold text-sm">
+    <div className="glass-card px-3 py-2 min-w-[130px] shadow-xl">
+      <p className="font-mono text-[11px] text-text-secondary mb-1 truncate">{label}</p>
+      <p className="text-text-primary font-semibold text-sm">
         {isValue ? `R$ ${Number(val).toFixed(2)}` : val}
       </p>
     </div>
@@ -73,45 +73,37 @@ export default function UserStatsCharts({ type }) {
   const isValue = type === "value";
   const dataKey = isValue ? "totalValue" : "count";
 
-  // -------------------------------------------------------------------------
-  // Lógica Visual Dinâmica do Tailwind/Recharts
-  // Em vez de cores estáticas, criamos um mapa de opacidade (ranking). 
-  // O usuário que movimenta/vende mais fica com a barra preta (opacidade máxima), os sucessores vão ficando gradativamente mais transparentes (cinza claro).
-  // -------------------------------------------------------------------------
   const sorted = [...userStats].sort((a, b) => b[dataKey] - a[dataKey]);
   const rankOf = new Map(sorted.map((d, i) => [d.name, i]));
   
   const opacityFor = (name) => {
     const rank = rankOf.get(name) ?? 0;
     const n = Math.max(sorted.length - 1, 1);
-    return 1 - (rank / n) * 0.65; // Vai de 1 (100% de preenchimento) até 0.35 (35% na ponta final da lista)
+    return 1 - (rank / n) * 0.65;
   };
 
   return (
-    <div className="glass-panel rounded-xl p-4 sm:p-6 flex flex-col gap-4">
-      {/* Header row */}
+    <div className="glass-card p-4 sm:p-6 flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         <div>
-          <h2 className="font-display text-base font-semibold text-[var(--ink)] mb-0.5">
+          <h2 className="font-display text-base font-semibold text-text-primary mb-0.5">
             {isValue ? "Valor movimentado por usuário" : "Movimentações por usuário"}
           </h2>
-          <p className="font-mono text-xs text-[var(--ink-soft)]">
+          <p className="font-secondary text-xs text-text-secondary">
             {isValue ? "Total em reais de saídas registradas" : "Quantidade total de movimentações"}
           </p>
         </div>
 
-        {/* Filters row — wraps on mobile */}
         <div className="flex flex-wrap gap-2 items-center">
-          {/* Period type toggle */}
-          <div className="flex rounded-md border border-[var(--line)] overflow-hidden">
+          <div className="flex rounded-md border border-[var(--color-border-light)] overflow-hidden">
             {PERIODO_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setPeriodType(opt.value)}
                 className={`px-3 py-1.5 text-xs font-mono transition-colors duration-200 ${
                   periodType === opt.value
-                    ? "bg-[var(--ink)] text-[var(--bg)]"
-                    : "bg-transparent text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                    ? "bg-accent-purple text-white"
+                    : "bg-transparent text-text-secondary hover:text-text-primary"
                 }`}
               >
                 {opt.label}
@@ -119,22 +111,21 @@ export default function UserStatsCharts({ type }) {
             ))}
           </div>
 
-          {/* Date selector */}
           {periodType === "month" ? (
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-1.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="px-3 py-1.5 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             />
           ) : (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="px-3 py-1.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="px-3 py-1.5 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
               {years.map((y) => (
-                <option key={y} value={y} className="bg-[var(--bg-elevated)] text-[var(--ink)]">
+                <option key={y} value={y} className="bg-[var(--color-surface)] text-text-primary">
                   {y}
                 </option>
               ))}
@@ -143,34 +134,33 @@ export default function UserStatsCharts({ type }) {
         </div>
       </div>
 
-      {/* Chart */}
       <div className="h-[220px] sm:h-[240px]">
         {loading ? (
           <div className="w-full h-full flex items-center justify-center gap-3">
-            <div className="w-5 h-5 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
-            <span className="text-sm text-[var(--ink-soft)]">Carregando...</span>
+            <div className="w-5 h-5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-text-secondary">Carregando...</span>
           </div>
         ) : userStats.length === 0 ? (
-          <div className="w-full h-full flex items-center justify-center text-sm text-[var(--ink-soft)]">
+          <div className="w-full h-full flex items-center justify-center text-sm text-text-secondary">
             Nenhuma movimentação no período.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={userStats} barCategoryGap="40%">
+            <BarChart data={userStats} barCategoryGap="30%">
               <XAxis
                 dataKey="name"
-                tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
-                axisLine={{ stroke: "var(--line)" }}
+                tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
+                axisLine={{ stroke: "var(--color-border-light)" }}
                 tickLine={false}
               />
               <YAxis hide />
               <Tooltip
                 content={<CustomTooltip isValue={isValue} />}
-                cursor={{ fill: "var(--line)", opacity: 0.3 }}
+                cursor={{ fill: "var(--color-border-light)", opacity: 0.3 }}
               />
               <Bar dataKey={dataKey} radius={[4, 4, 0, 0]}>
                 {userStats.map((entry, i) => (
-                  <Cell key={i} fill="var(--ink)" fillOpacity={opacityFor(entry.name)} />
+                  <Cell key={i} fill="var(--color-chart-1)" fillOpacity={opacityFor(entry.name)} />
                 ))}
               </Bar>
             </BarChart>

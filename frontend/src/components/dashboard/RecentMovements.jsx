@@ -10,43 +10,43 @@ export default function RecentMovements() {
   }, []);
 
   return (
-    <div className="bg-[var(--bg-elevated)] rounded-lg border border-[var(--line)] p-6">
-      <h2 className="font-display text-base font-semibold text-[var(--ink)] mb-4">
+    <div className="glass-card p-6 h-full flex flex-col">
+      <h2 className="font-display text-base font-semibold text-text-primary mb-4">
         Movimentações recentes
       </h2>
 
-      <div>
+      <div className="flex-1">
         {movementsData.slice(0, 5).map((mov, i, arr) => {
           const isEntrada = mov.tipo === "ENTRADA";
           return (
             <div
               key={mov.id}
-              className={`flex items-center hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-200 cursor-pointer rounded-md gap-3 py-3 px-2 -mx-2 ${i !== arr.length - 1 ? "border-b border-[var(--line)]" : ""
+              className={`flex items-center hover:bg-white/5 transition-all duration-200 cursor-pointer rounded-lg gap-3 py-3 px-2 -mx-2 ${i !== arr.length - 1 ? "border-b border-[var(--color-border-light)]" : ""
                 }`}
             >
               <div
-                className={`w-8 h-8 rounded-md flex items-center justify-center border ${isEntrada
-                  ? "border-green-400/30 text-[var(--teal)]"
-                  : "border-red-400/30 text-red-500"
+                className={`w-8 h-8 rounded-xl flex items-center justify-center border ${isEntrada
+                  ? "border-accent-green/20 text-accent-green bg-accent-green/5"
+                  : "border-accent-red/20 text-accent-red bg-accent-red/5"
                   }`}
               >
                 {isEntrada ? (
-                  <ArrowUpRight className="w-4 h-4" />
+                  <ArrowUpRight className="w-4 h-4" strokeWidth={1.5} />
                 ) : (
-                  <ArrowDownRight className="w-4 h-4" />
+                  <ArrowDownRight className="w-4 h-4" strokeWidth={1.5} />
                 )}
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--ink)] truncate">
+                <p className="text-sm font-semibold text-text-primary truncate">
                   {mov.produto.nome}
                 </p>
-                <p className="font-mono text-xs text-[var(--ink-soft)]">
+                <p className="font-mono text-xs text-text-secondary mt-0.5">
                   {mov.tipo} · {mov.quantidade}
                 </p>
               </div>
 
-              <span className="font-mono text-xs text-[var(--ink-soft)] shrink-0">
+              <span className="font-mono text-[11px] text-text-secondary shrink-0">
                 {new Date(mov.data).toLocaleDateString("pt-BR")}
               </span>
             </div>

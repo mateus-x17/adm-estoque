@@ -1,64 +1,57 @@
 import React from "react";
+import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 
-const PedidoRow = ({ pedido, index }) => {
-    const dataCompacta = new Date(pedido.data).toLocaleDateString("pt-BR");
-    const horaCompacta = new Date(pedido.data).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
-    const isEntrada = pedido.tipo === "ENTRADA";
+const PedidoRow = ({ pedido, index, onClick }) => {
+  const dataCompacta = new Date(pedido.data).toLocaleDateString("pt-BR");
+  const horaCompacta = new Date(pedido.data).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
+  const isEntrada = pedido.tipo === "ENTRADA";
 
-    return (
-        <tr
-            style={{ animationDelay: `${index * 0.05}s` }}
-            className="
-                block md:table-row
-                border-b border-[var(--line)]
-                hover:bg-gray-50 dark:hover:bg-gray-800/30
-                transition animate-fadeIn
-            "
-        >
-            {/* Mobile Card */}
-            <td className="block md:hidden p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">{pedido.produto?.nome}</p>
-                        <p className="text-xs text-gray-500">#{pedido.id} • {dataCompacta} {horaCompacta}</p>
-                    </div>
-                    <span
-                        className={`px-2 py-1 rounded-full text-xs font-bold ${isEntrada
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                            : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-                            }`}
-                    >
-                        {pedido.tipo}
-                    </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Qtd: <span className="font-bold text-gray-900 dark:text-white">{pedido.quantidade}</span></span>
-                    <span className="text-gray-500 text-xs">Resp: {pedido.usuario?.nome}</span>
-                </div>
-            </td>
+  const badgeClass = isEntrada
+    ? "bg-accent-green/10 text-accent-green border-accent-green"
+    : "bg-accent-red/10 text-accent-red border-accent-red";
+    
+  const Icon = isEntrada ? FiArrowDownRight : FiArrowUpRight;
+  const iconColor = isEntrada ? "text-accent-green" : "text-accent-red";
+  const iconBg = isEntrada ? "bg-accent-green/10 border-accent-green" : "bg-accent-red/10 border-accent-red";
 
-            {/* Desktop Cells */}
-            <td className="hidden md:table-cell px-6 py-4 font-mono text-xs text-gray-500">#{pedido.id}</td>
-            <td className="hidden md:table-cell px-6 py-4 font-medium text-slate-900 dark:text-white">
-                {pedido.produto?.nome}
-            </td>
-            <td className="hidden md:table-cell px-6 py-4">
-                <span
-                    className={`px-2 py-1 rounded-full text-xs font-bold ${isEntrada
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                        : "bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400"
-                        }`}
-                >
-                    {pedido.tipo}
-                </span>
-            </td>
-            <td className="hidden md:table-cell px-6 py-4 text-center font-bold text-slate-700 dark:text-slate-300">{pedido.quantidade}</td>
-            <td className="hidden md:table-cell px-6 py-4 text-slate-600 dark:text-slate-400">
-                {dataCompacta} <span className="text-xs opacity-70">{horaCompacta}</span>
-            </td>
-            <td className="hidden md:table-cell px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{pedido.usuario?.nome}</td>
-        </tr>
-    );
+  return (
+    <div
+      onClick={onClick}
+      style={{ animationDelay: `${index * 0.04}s` }}
+      className="glass-card hover-card flex flex-row items-center justify-between p-4 gap-4 animate-fade-up cursor-pointer"
+    >
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center border shrink-0 hidden sm:flex ${iconBg} ${iconColor}`}>
+          <Icon size={18} strokeWidth={2} />
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold text-text-primary text-sm break-words">
+              {pedido.produto?.nome}
+            </p>
+            <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase border shrink-0 ${badgeClass}`}>
+              {pedido.tipo}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+            <p className="text-xs font-mono text-text-secondary">
+              ID: <span className="font-semibold text-text-primary">#{pedido.id}</span>
+            </p>
+            <span className="w-1 h-1 rounded-full bg-[var(--color-border-light)] hidden sm:block"></span>
+            <p className="text-xs font-mono text-text-secondary">
+              Resp: <span className="text-text-primary">{pedido.usuario?.nome}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-end justify-center shrink-0 pl-3 border-l border-[var(--color-border-light)]">
+        <p className="font-mono text-xs text-text-secondary">{dataCompacta}</p>
+        <p className="font-mono text-[10px] text-text-secondary opacity-70 mt-0.5">{horaCompacta}</p>
+      </div>
+    </div>
+  );
 };
 
 export default PedidoRow;

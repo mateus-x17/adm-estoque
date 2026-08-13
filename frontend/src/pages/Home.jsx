@@ -59,9 +59,9 @@ const stockFeed = [
 ];
 
 const statusStyle = {
-  teal: "text-[var(--teal)] bg-[var(--teal)]/10",
-  amber: "text-[var(--accent)] bg-[var(--accent)]/10",
-  red: "text-red-400 bg-red-400/10",
+  teal: "text-accent-green bg-accent-green/10 border border-accent-green/20",
+  amber: "text-accent-yellow bg-accent-yellow/10 border border-accent-yellow/20",
+  red: "text-accent-red bg-accent-red/10 border border-accent-red/20",
 };
 
 const Home = () => {
@@ -70,29 +70,33 @@ const Home = () => {
       <HeaderHome />
 
       {/* Hero */}
-      <section className="border-b border-[var(--line)] bg-[var(--bg)] transition-colors duration-300">
-        <div className="max-w-6xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-14 items-center">
+      <section className="relative border-b border-[var(--color-border)] bg-background transition-colors duration-300 overflow-hidden">
+        {/* Gradients */}
+        <div className="absolute top-[-20%] left-[20%] w-[50%] h-[50%] bg-accent-purple/20 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[40%] h-[40%] bg-accent-pink/10 rounded-full blur-[150px] pointer-events-none" />
+
+        <div className="relative max-w-6xl mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-14 items-center z-10">
           <div className="animate-fade-up">
-            <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+            <span className="inline-block font-mono text-xs tracking-[0.2em] uppercase text-accent-pink bg-accent-pink/10 px-3 py-1 rounded-full mb-6 border border-accent-pink/20">
               Plataforma de gestão de estoque
             </span>
-            <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-[var(--ink)] leading-[1.1] mt-4 mb-6">
-              Seu estoque, sob controle total.
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-text-primary leading-[1.1] mb-6">
+              Seu estoque,<br />sob <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-purple to-accent-pink">controle total.</span>
             </h1>
-            <p className="text-base md:text-lg text-[var(--ink-soft)] max-w-md mb-8">
-              Produtos, categorias, fornecedores e movimentações — organizados em um só painel,
-              com histórico completo de cada operação.
+            <p className="text-base md:text-lg text-text-secondary max-w-md mb-8 leading-relaxed">
+              Produtos, categorias, fornecedores e movimentações — organizados em um só painel
+              com estética premium e usabilidade incomparável.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-4">
               <Link
                 to="/auth"
-                className="rounded-md bg-[var(--ink)] text-[var(--bg)] px-6 py-3 text-sm font-semibold hover:opacity-90 transition-opacity"
+                className="btn-primary px-8 py-3.5 text-sm"
               >
                 Entrar na plataforma
               </Link>
               <Link
                 to="/auth"
-                className="rounded-md border border-[var(--line)] px-6 py-3 text-sm font-semibold text-[var(--ink)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+                className="btn-secondary px-8 py-3.5 text-sm"
               >
                 Criar conta
               </Link>
@@ -100,32 +104,34 @@ const Home = () => {
           </div>
 
           {/* Painel de operação — elemento assinatura */}
-          <div className="rounded-lg border border-[var(--console-line)] bg-[var(--console-bg)] p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.6)]">
-            <div className="flex items-center justify-between mb-4 pb-4 border-b border-[var(--console-line)]">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[var(--teal)] animate-pulse" />
-                <span className="font-mono text-xs uppercase tracking-wider text-[var(--console-text-soft)]">
+          <div className="glass-card border border-[var(--color-border)] p-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] rounded-3xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+            
+            <div className="relative flex items-center justify-between mb-6 pb-5 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-accent-green shadow-[0_0_10px_var(--color-accent-green)] animate-pulse" />
+                <span className="font-mono text-xs uppercase tracking-wider text-text-secondary">
                   Painel · tempo real
                 </span>
               </div>
-              <span className="font-mono text-xs text-[var(--console-text-faint)]">#OP-2481</span>
+              <span className="font-mono text-xs text-text-secondary bg-[var(--color-surface)] px-2 py-1 rounded-md border border-[var(--color-border-light)]">#OP-2481</span>
             </div>
 
-            <div>
+            <div className="relative space-y-1">
               {stockFeed.map((item, i) => (
                 <div
                   key={item.sku}
-                  className={`flex items-center justify-between py-2.5 ${
-                    i !== stockFeed.length - 1 ? "border-b border-[var(--console-line)]/60" : ""
+                  className={`flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors ${
+                    i !== stockFeed.length - 1 ? "border-b border-[var(--color-border-light)]" : ""
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-mono text-xs text-[var(--console-text-faint)]">{item.sku}</span>
-                    <span className="text-sm text-white/90 truncate">{item.name}</span>
+                  <div className="flex items-center gap-4 min-w-0">
+                    <span className="font-mono text-xs text-text-secondary w-20">{item.sku}</span>
+                    <span className="text-sm font-medium text-text-primary truncate">{item.name}</span>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="font-mono text-xs text-white/60">{item.qty}</span>
-                    <span className={`rounded px-2 py-0.5 text-[10px] font-mono uppercase ${statusStyle[item.tone]}`}>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <span className="font-mono text-xs text-text-secondary text-right w-12">{item.qty}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide w-28 text-center ${statusStyle[item.tone]}`}>
                       {item.status}
                     </span>
                   </div>
@@ -137,33 +143,35 @@ const Home = () => {
       </section>
 
       {/* Funcionalidades */}
-      <section className="bg-[var(--bg)] py-20 px-6 transition-colors duration-300">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-12 max-w-xl">
-            <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+      <section className="relative bg-background py-24 px-6 transition-colors duration-300">
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="mb-16 max-w-xl text-center md:text-left mx-auto md:mx-0">
+            <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-purple bg-accent-purple/10 px-3 py-1 rounded-full border border-accent-purple/20">
               Módulos do sistema
             </span>
-            <h2 className="font-display text-3xl font-bold text-[var(--ink)] mt-3">
-              Tudo que a operação precisa, em um lugar.
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-text-primary mt-6 tracking-tight">
+              Tudo que a operação precisa,<br className="hidden md:block"/>em um lugar.
             </h2>
           </div>
 
-          <div className="grid gap-px sm:grid-cols-2 lg:grid-cols-3 bg-[var(--line)] border border-[var(--line)] rounded-lg overflow-hidden">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
               <div
                 key={feature.tag}
-                className="group bg-[var(--bg)] hover:bg-[var(--bg-elevated)] p-6 transition-colors duration-200"
+                className="group glass-card hover-card p-8 rounded-3xl transition-all duration-300 border border-[var(--color-border-light)]"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-[var(--ink)]">{feature.icon}</div>
-                  <span className="font-mono text-[10px] tracking-wider text-[var(--ink-soft)] border border-[var(--line)] rounded px-1.5 py-0.5 group-hover:border-[var(--accent)] group-hover:text-[var(--accent)] transition-colors duration-200">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="text-text-primary p-3 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)] group-hover:scale-110 group-hover:text-accent-purple transition-all duration-300 shadow-sm">
+                    {feature.icon}
+                  </div>
+                  <span className="font-mono text-[10px] tracking-wider text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-1 group-hover:border-accent-purple/30 group-hover:bg-accent-purple/10 group-hover:text-accent-purple transition-all duration-300">
                     {feature.tag}
                   </span>
                 </div>
-                <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-1.5">
+                <h3 className="font-display text-lg font-semibold text-text-primary mb-2 group-hover:text-accent-purple transition-colors duration-300">
                   {feature.title}
                 </h3>
-                <p className="text-sm text-[var(--ink-soft)] leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -173,22 +181,24 @@ const Home = () => {
       </section>
 
       {/* CTA final */}
-      <section className="bg-[var(--bg)] px-6 pb-20 transition-colors duration-300">
-        <div className="max-w-6xl mx-auto rounded-lg border border-[var(--console-line)] bg-[var(--console-bg)] px-8 py-10 md:px-12 md:py-12 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h3 className="font-display text-2xl font-bold text-white mb-2">
-              Pronto para organizar seu estoque?
+      <section className="bg-background px-6 pb-24 transition-colors duration-300 relative">
+        <div className="max-w-6xl mx-auto glass-card rounded-3xl border border-[var(--color-border)] px-8 py-12 md:px-16 md:py-16 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-[0_20px_40px_-15px_rgba(0,0,0,0.3)]">
+          <div className="absolute inset-0 bg-gradient-to-r from-accent-purple/10 to-accent-pink/10 pointer-events-none" />
+          
+          <div className="relative z-10 text-center md:text-left">
+            <h3 className="font-display text-3xl font-bold text-text-primary mb-4 tracking-tight">
+              Pronto para evoluir seu estoque?
             </h3>
-            <p className="text-[var(--console-text-soft)] text-sm max-w-md">
+            <p className="text-text-secondary text-base max-w-lg leading-relaxed">
               Entre com sua conta ou crie um novo acesso para começar a gerenciar produtos,
-              fornecedores e movimentações agora.
+              fornecedores e movimentações com a melhor experiência.
             </p>
           </div>
           <Link
             to="/auth"
-            className="shrink-0 rounded-md bg-[var(--accent)] px-6 py-3 text-sm font-semibold text-[#1a1206] hover:opacity-90 transition-opacity"
+            className="shrink-0 btn-primary px-8 py-4 text-sm relative z-10 shadow-lg shadow-accent-purple/20 hover:shadow-accent-purple/40"
           >
-            Entrar / Criar conta
+            Começar agora
           </Link>
         </div>
       </section>

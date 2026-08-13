@@ -9,9 +9,6 @@ const Layout = () => {
   const navigate = useNavigate();
   const { user } = useUserStore();
 
-  // Verifique se o usuário estiver logado - usamos o useEffect para redirecionar se não estiver
-  // o useEffect depende de 'user' e 'navigate'
-  // evita erros de renderização condicional
   useEffect(() => {
     if (!user || !user.nome) {
       alert("Por favor, efetue o login primeiro.");
@@ -19,21 +16,22 @@ const Layout = () => {
     }
   }, [user, navigate]);
 
-  // Enquanto o usuário não estiver definido, pode retornar null ou um loader
   if (!user || !user.nome) {
     return null;
   }
 
   return (
-    <div className="h-screen flex md:flex-row flex-col overflow-hidden">
+    <div className="h-screen w-full flex overflow-hidden bg-background">
+      {/* Sidebar fixa à esquerda (Desktop) */}
       <aside className="hidden md:flex h-full">
         <Sidebar closeSidebar={() => { }} />
       </aside>
 
-      <div className="flex flex-col flex-1 h-full">
+      {/* Área Principal */}
+      <div className="flex flex-col flex-1 h-full min-w-0 overflow-hidden">
         <Header />
         <NotificationContainer />
-        <main className="flex-1 overflow-y-auto bg-gray-200 dark:bg-gray-900 transition-colors duration-200">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
           <Outlet />
         </main>
       </div>

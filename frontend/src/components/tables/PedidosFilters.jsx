@@ -1,5 +1,5 @@
 import React from "react";
-import { FiArrowDown, FiArrowUp } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiPlus } from "react-icons/fi";
 
 const PedidosFilters = ({
   filterId,
@@ -24,29 +24,29 @@ const PedidosFilters = ({
   };
 
   const inputClass =
-    "w-full px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200";
-  const optionClass = "bg-[var(--bg-elevated)] text-[var(--ink)]";
+    "w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <button
           onClick={onCreateClick}
-          className="px-5 py-2.5 rounded-md bg-[var(--ink)] text-[var(--bg)] text-sm font-semibold hover:opacity-90 transition-opacity duration-200"
+          className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
         >
+          <FiPlus size={14} />
           Novo pedido
         </button>
 
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="text-sm font-medium text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
+          className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
         >
           {showFilters ? "Ocultar filtros" : "Mostrar filtros"}
         </button>
       </div>
 
       {showFilters && (
-        <section className="glass-panel rounded-lg p-5 flex flex-col lg:flex-row gap-3">
+        <section className="glass-card p-5 flex flex-col lg:flex-row gap-3 animate-fade-up">
           <input
             type="text"
             placeholder="ID do pedido"
@@ -67,9 +67,9 @@ const PedidosFilters = ({
             onChange={handleChange(setFilterType)}
             className={`lg:w-40 ${inputClass}`}
           >
-            <option value="todos" className={optionClass}>Todos</option>
-            <option value="ENTRADA" className={optionClass}>Entrada</option>
-            <option value="SAIDA" className={optionClass}>Saída</option>
+            <option value="todos">Todos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SAIDA">Saída</option>
           </select>
 
           <select
@@ -77,9 +77,9 @@ const PedidosFilters = ({
             onChange={handleChange(setUserFilter)}
             className={`lg:w-52 ${inputClass}`}
           >
-            <option value="" className={optionClass}>Todos os usuários</option>
+            <option value="">Todos os usuários</option>
             {usuarios.map((u) => (
-              <option key={u.id} value={u.id} className={optionClass}>
+              <option key={u.id} value={u.id}>
                 {u.nome}
               </option>
             ))}
@@ -87,10 +87,10 @@ const PedidosFilters = ({
 
           <button
             onClick={onToggleOrder}
-            className="flex items-center justify-center gap-1.5 font-mono text-xs uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-4 py-2.5 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200 lg:w-40 shrink-0"
+            className="btn-secondary px-4 py-2 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 lg:w-40 shrink-0"
             title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
           >
-            {order === "desc" ? <FiArrowDown size={13} /> : <FiArrowUp size={13} />}
+            {order === "desc" ? <FiArrowDown size={14} /> : <FiArrowUp size={14} />}
             {order === "desc" ? "Recentes" : "Antigos"}
           </button>
         </section>

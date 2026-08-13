@@ -1,44 +1,49 @@
-import React from 'react'
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { FiCheck, FiX } from "react-icons/fi";
 
-function ModalMensagem({ mensagem, tipo, onClose }) {
-  const isSucesso = tipo === 'sucesso'
+function ModalMensagem({ mensagem, tipo, onClose, autoCloseTime = 4000 }) {
+  const isSucesso = tipo === 'sucesso';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-lg bg-[var(--bg-elevated)] border border-[var(--line)] shadow-xl p-6 animate-scale-in">
-        <div className="flex items-center gap-3 mb-4">
-          <div
-            className={`flex items-center justify-center w-9 h-9 rounded-md border ${
-              isSucesso
-                ? 'border-[var(--teal)]/30 text-[var(--teal)]'
-                : 'border-[var(--danger)]/30 text-[var(--danger)]'
-            }`}
-          >
-            {isSucesso ? '✓' : '✕'}
-          </div>
+  useEffect(() => {
+    if (autoCloseTime > 0 && onClose) {
+      const timer = setTimeout(onClose, autoCloseTime);
+      return () => clearTimeout(timer);
+    }
+  }, [autoCloseTime, onClose]);
 
-          <h2 className="font-display text-base font-semibold text-[var(--ink)]">
-            {isSucesso ? 'Operação realizada' : 'Ocorreu um erro'}
+  return createPortal(
+    <div className="fixed top-6 right-6 z-[9999] animate-scale-in pointer-events-auto">
+      <div className="flex items-center gap-4 bg-[var(--color-bg)] border border-[var(--color-border-light)] rounded-2xl p-4 shadow-2xl min-w-[300px] max-w-sm">
+        <div
+          className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full border ${
+            isSucesso
+              ? 'border-accent-green/30 bg-accent-green/10 text-accent-green'
+              : 'border-accent-red/30 bg-accent-red/10 text-accent-red'
+          }`}
+        >
+          {isSucesso ? <FiCheck size={18} /> : <FiX size={18} />}
+        </div>
+        
+        <div className="flex-1 min-w-0 pr-2">
+          <h2 className="font-display text-sm font-semibold text-text-primary mb-0.5">
+            {isSucesso ? 'Sucesso' : 'Erro'}
           </h2>
+          <p className="text-xs text-text-secondary leading-snug break-words">
+            {mensagem}
+          </p>
         </div>
 
-        <p className="text-sm text-[var(--ink-soft)] mb-6">{mensagem}</p>
-
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className={`px-5 py-2 rounded-md text-sm font-medium transition-opacity duration-200 hover:opacity-90 ${
-              isSucesso
-                ? 'bg-[var(--teal)] text-white'
-                : 'bg-[var(--danger)] text-white'
-            }`}
-          >
-            Fechar
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-text-secondary hover:text-text-primary hover:bg-[var(--color-surface)] transition-colors"
+        >
+          <FiX size={16} />
+        </button>
       </div>
-    </div>
-  )
+    </div>,
+    document.body
+  );
 }
 
-export default ModalMensagem
+export default ModalMensagem;

@@ -10,23 +10,23 @@ const PaginationControls = ({ currentPage, totalPages, onPageChange }) => {
   };
 
   return (
-    <div className="flex items-center justify-center gap-3">
+    <div className="flex items-center justify-center gap-4 mt-8">
       <button
         disabled={currentPage === 1}
         onClick={() => goToPage(currentPage - 1)}
-        className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
+        className="px-5 py-2.5 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm font-semibold text-text-primary hover:border-accent-purple/50 transition-colors duration-300 disabled:opacity-40 disabled:hover:border-[var(--color-border-light)]"
       >
         Anterior
       </button>
 
-      <span className="font-mono text-xs text-[var(--ink-soft)]">
+      <span className="font-mono text-xs text-text-secondary">
         Página {currentPage} de {totalPages}
       </span>
 
       <button
         disabled={currentPage === totalPages}
         onClick={() => goToPage(currentPage + 1)}
-        className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
+        className="px-5 py-2.5 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm font-semibold text-text-primary hover:border-accent-purple/50 transition-colors duration-300 disabled:opacity-40 disabled:hover:border-[var(--color-border-light)]"
       >
         Próximo
       </button>

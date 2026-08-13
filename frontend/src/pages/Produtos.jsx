@@ -28,14 +28,9 @@ const Produtos = () => {
       .catch(() => {});
   }, []);
 
-  // -------------------------------------------------------------------------
-  // CORE LOGIC: carregarProdutos
-  // Acionado no carregamento da tela e sempre que a página atual ou algum filtro (search, sort, category) for alterado.
-  // Mapeia os estados locais para o DTO (Data Transfer Object) esperado pela API.
-  // -------------------------------------------------------------------------
   const carregarProdutos = async () => {
     try {
-      setLoaded(false) // Indica inicio de load para renderizar spinner animado
+      setLoaded(false)
       const params = {
         page: currentPage,
         limit: itemsPerPage,
@@ -48,7 +43,7 @@ const Produtos = () => {
       setProdutos(result.data || []);
       setTotalPages(result.pagination?.pages || 1);
       setTotalCount(result.pagination?.total || 0);
-      setLoaded(true); // Retira o spinner da tela após sucesso
+      setLoaded(true);
     } catch (error) {
       console.error(error);
     }
@@ -58,16 +53,10 @@ const Produtos = () => {
     carregarProdutos();
   }, [currentPage, search, sortPrice, categoriaFiltro]);
 
-  // Efeito secundário (Side-effect): Se o usuário digitar algo na busca ou alterar categoria,
-  // a página da tabela é forçada a voltar para "1", impedindo que ele fique numa página vazia (ex: pág 5) de um novo resultado menor.
   useEffect(() => {
     setCurrentPage(1);
   }, [search, sortPrice, categoriaFiltro]);
 
-  // -------------------------------------------------------------------------
-  // Função para injetar a edição/criação de um produto dinamicamente no array atual 
-  // Sem a necessidade de disparar uma recarga inteira da página para mostrar ao usuário.
-  // -------------------------------------------------------------------------
   const atualizarProduto = (produtoAtualizado) => {
     if (!produtoAtualizado) return;
 
@@ -85,7 +74,6 @@ const Produtos = () => {
         : prevSel
     );
 
-    // Refetch final garante que os totais da paginação sejam recalculados corretamente se foi uma inserção nova
     carregarProdutos();
   };
 
@@ -102,13 +90,13 @@ const Produtos = () => {
   const produtosFiltrados = produtos;
 
   return (
-    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-6">
+    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
       <header className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
+        <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
           Catálogo
         </span>
-        <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Produtos</h1>
-        <p className="text-sm text-[var(--ink-soft)]">
+        <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">Produtos</h1>
+        <p className="text-sm text-text-secondary mt-1">
           Gerencie o catálogo, visualize informações e edite produtos.
         </p>
       </header>
@@ -117,7 +105,7 @@ const Produtos = () => {
         <div className="flex items-center justify-between">
           <button
             onClick={() => abrirEditarProduto()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--ink)] text-[var(--bg)] rounded-md text-sm font-semibold hover:opacity-90 transition-opacity duration-200 whitespace-nowrap"
+            className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
           >
             <FaBoxOpen size={14} />
             Novo produto
@@ -125,33 +113,33 @@ const Produtos = () => {
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="text-sm font-medium text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
+            className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
           >
             {showFilters ? "Ocultar filtros" : "Mostrar filtros"}
           </button>
         </div>
 
         {showFilters && (
-          <section className="glass-panel rounded-lg p-5 flex flex-col md:flex-row gap-3 w-full">
+          <section className="glass-card p-5 flex flex-col md:flex-row gap-3 w-full animate-fade-up">
             <div className="relative w-full lg:w-80">
-              <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-soft)]" size={13} />
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" size={14} />
               <input
                 type="text"
                 placeholder="Pesquisar por nome"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                className="w-full pl-10 pr-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200"
               />
             </div>
 
             <select
               value={categoriaFiltro}
               onChange={(e) => setCategoriaFiltro(e.target.value)}
-              className="w-full lg:w-48 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="w-full lg:w-48 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
-              <option value="" className="bg-[var(--bg-elevated)]">Todas as categorias</option>
+              <option value="">Todas as categorias</option>
               {categorias.map((cat) => (
-                <option key={cat.id} value={cat.id} className="bg-[var(--bg-elevated)]">
+                <option key={cat.id} value={cat.id}>
                   {cat.nome}
                 </option>
               ))}
@@ -160,61 +148,48 @@ const Produtos = () => {
             <select
               value={sortPrice}
               onChange={(e) => setSortPrice(e.target.value)}
-              className="w-full lg:w-48 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="w-full lg:w-48 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
-              <option value="" className="bg-[var(--bg-elevated)]">Ordenar por preço</option>
-              <option value="asc" className="bg-[var(--bg-elevated)]">Menor → Maior</option>
-              <option value="desc" className="bg-[var(--bg-elevated)]">Maior → Menor</option>
+              <option value="">Ordenar por preço</option>
+              <option value="asc">Menor → Maior</option>
+              <option value="desc">Maior → Menor</option>
             </select>
           </section>
         )}
       </div>
 
       {loaded ? (
-        <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
-            <h2 className="font-display text-base font-semibold text-[var(--ink)]">
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-display text-lg font-semibold text-text-primary">
               Catálogo de produtos
             </h2>
-            <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
+            <span className="font-mono text-[11px] uppercase text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-1">
               Total: {totalCount}
             </span>
           </div>
-          <div className="w-full">
-            <table className="w-full text-sm">
-              <thead className="hidden md:table-header-group">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Produto
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Nome
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Categoria
-                  </th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {produtosFiltrados.map((produto, index) => (
-                  <ProdutoRow
-                    key={produto.id}
-                    produto={produto}
-                    index={index}
-                    abrirModal={abrirModalProduto}
-                  />
-                ))}
-              </tbody>
-            </table>
+          
+          <div className="flex flex-col gap-3">
+            {produtosFiltrados.length === 0 ? (
+              <div className="glass-card p-8 text-center text-sm text-text-secondary">
+                Nenhum produto encontrado.
+              </div>
+            ) : (
+              produtosFiltrados.map((produto, index) => (
+                <ProdutoRow
+                  key={produto.id}
+                  produto={produto}
+                  index={index}
+                  abrirModal={abrirModalProduto}
+                />
+              ))
+            )}
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-center gap-3 py-20">
-          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--ink-soft)]">Carregando produtos...</span>
+          <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-text-secondary">Carregando produtos...</span>
         </div>
       )}
 

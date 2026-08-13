@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useThemeStore } from "../../store/useThemeStore.js";
-import { FiSun, FiMoon, FiMenu } from "react-icons/fi";
+import { Sun, Moon, Menu } from "lucide-react";
 import Sidebar from "./Sidebar.jsx";
 
 const Header = () => {
@@ -30,18 +30,18 @@ const Header = () => {
 
   return (
     <>
-      <header className="flex justify-between items-center px-4 py-3 bg-[var(--bg-elevated)] border-b border-[var(--line)] text-[var(--ink)] transition-colors duration-300 sticky top-0 z-30 md:hidden">
+      <header className="glass-card flex justify-between items-center px-4 py-3 mx-4 mt-4 mb-2 border border-[var(--color-border-light)] rounded-full text-text-primary transition-colors duration-300 sticky top-4 z-30 shadow-lg md:hidden">
         <button
           onClick={openSidebar}
           aria-label="Abrir menu"
-          className="p-2 rounded-md text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--line)]/25 transition-colors duration-200"
+          className="p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-[var(--color-border-light)] transition-all duration-200"
         >
-          <FiMenu size={22} />
+          <Menu size={22} strokeWidth={1.5} />
         </button>
 
         <div className="flex items-baseline gap-1 font-display">
           <span className="text-base font-bold tracking-tight">ESTOQUE</span>
-          <span className="text-base font-bold tracking-tight text-[var(--accent)] font-mono">
+          <span className="text-base font-bold tracking-tight text-accent-pink font-secondary">
             .OS
           </span>
         </div>
@@ -49,12 +49,12 @@ const Header = () => {
         <button
           onClick={toggleDarkMode}
           aria-label="Alternar tema"
-          className="rounded-md border border-[var(--line)] p-2 text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200"
+          className="rounded-xl border border-[var(--color-border)] p-2 text-text-secondary hover:border-accent-purple hover:text-accent-purple transition-all duration-200"
         >
           {darkMode ? (
-            <FiSun className="h-4 w-4" />
+            <Sun size={18} strokeWidth={1.5} />
           ) : (
-            <FiMoon className="h-4 w-4" />
+            <Moon size={18} strokeWidth={1.5} />
           )}
         </button>
       </header>
@@ -62,7 +62,7 @@ const Header = () => {
       {(sidebarOpen || isAnimatingOut) && (
         <div className="fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-black/50 transition-opacity duration-300"
+            className="fixed inset-0 bg-black/60 transition-opacity duration-300 backdrop-blur-sm"
             onClick={closeSidebar}
           />
           <div className="relative h-full">

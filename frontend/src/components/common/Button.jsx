@@ -8,15 +8,15 @@ export const Button = ({
   ...props
 }) => {
   const styles = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-700',
-    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
+    primary: 'btn-primary',
+    secondary: 'btn-secondary',
+    danger: 'rounded-full bg-accent-red/10 text-accent-red hover:bg-accent-red/20 font-semibold transition-all duration-300',
   };
 
   return (
     <button
       disabled={disabled}
-      className={`px-4 py-2 rounded-xl font-semibold transition ${styles[variant]} ${className}`}
+      className={`${styles[variant]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       {...props}
     >
       {children}

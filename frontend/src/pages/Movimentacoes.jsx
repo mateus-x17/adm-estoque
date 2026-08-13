@@ -17,34 +17,27 @@ import {
 import { movementsApi, usersApi } from "../services/api/index.js";
 import { useUserStore } from "../store/userStore.js";
 
-const PIE_COLORS = ["var(--teal)", "var(--danger)"];
+const PIE_COLORS = ["var(--color-chart-3)", "var(--color-chart-4)"];
 
-// -------------------------------------------------------------------------
-// COMPONENTE TOOLTIP CUSTOMIZADO (Recharts)
-// Responsável por interceptar o hover do mouse no gráfico e renderizar a caixinha
-// Formata dinamicamente os valores exibindo nome da chave e o 'montante' extra caso exista (no caso do PieChart).
-// -------------------------------------------------------------------------
 const ChartTooltip = ({ active, payload, label, isPie }) => {
   if (!active || !payload?.length) return null;
   return (
     <div
+      className="glass-card"
       style={{
-        background: "var(--bg-elevated)",
-        border: "1px solid var(--line)",
-        borderRadius: 8,
         padding: "8px 12px",
         minWidth: 140,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
       }}
     >
-      {label && <p style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 4, fontFamily: "monospace" }}>{label}</p>}
+      {label && <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4, fontFamily: "monospace" }}>{label}</p>}
       {payload.map((p, i) => (
         <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: i < payload.length - 1 ? 6 : 0 }}>
-          <span style={{ fontSize: 12, color: p.color || "var(--ink)", fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: p.color || "var(--color-text-primary)", fontWeight: 600 }}>
             {p.name}: {p.value} unid.
           </span>
           {isPie && p.payload?.montante !== undefined && (
-            <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
               Montante: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.payload.montante)}
             </span>
           )}
@@ -54,12 +47,10 @@ const ChartTooltip = ({ active, payload, label, isPie }) => {
   );
 };
 
-
 const Movimentacoes = () => {
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loaded, setLoaded] = useState(false);
   
-  // Resgata o usuário da store (Zustand) global para aplicar restrições de tela baseadas no 'role'
   const currentUser = useUserStore((state) => state.user);
   const canFilterByUser = currentUser?.role === "ADMIN" || currentUser?.role === "GERENTE";
 
@@ -71,10 +62,8 @@ const Movimentacoes = () => {
   const [userFilter, setUserFilter] = useState("");
   const [usuarios, setUsuarios] = useState([]);
   
-  // Ordem de listagem visualizada na tabela
   const [order, setOrder] = useState("desc");
 
-  // Estado da paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [itensPorPagina] = useState(8);
   const [totalPaginas, setTotalPaginas] = useState(1);
@@ -83,7 +72,6 @@ const Movimentacoes = () => {
   const [modalAberto, setModalAberto] = useState(false);
   const [movSelecionada, setMovSelecionada] = useState(null);
 
-  // Armazenamento dos dados formatados exclusivamente para os Gráficos
   const [lineChartData, setLineChartData] = useState([]);
   const [pieChartData, setPieChartData] = useState([]);
 
@@ -97,10 +85,6 @@ const Movimentacoes = () => {
     setPaginaAtual(1);
   };
 
-  // -------------------------------------------------------------------------
-  // Carregamento de lista de usuários (para o Select de Filtros)
-  // Executa apenas uma vez no "Mount" do componente.
-  // -------------------------------------------------------------------------
   useEffect(() => {
     const carregarUsuarios = async () => {
       try {
@@ -113,16 +97,10 @@ const Movimentacoes = () => {
     carregarUsuarios();
   }, []);
 
-  // -------------------------------------------------------------------------
-  // CORE LOGIC: fetchMovements
-  // Disparado a cada mudança nos filtros (busca, datas, página, ordenação).
-  // Responsável por montar os objetos de envio para a API, resolver as requisições em paralelo e remodelar os JSONs recebidos para a estrutura gráfica visual do Recharts.
-  // -------------------------------------------------------------------------
   useEffect(() => {
     const fetchMovements = async () => {
       setLoaded(false);
       try {
-        // Os parâmetros que irão popular a TABELA respeitam a paginação visual da tela
         const paramsTable = {
           page: paginaAtual,
           limit: itensPorPagina,
@@ -134,8 +112,6 @@ const Movimentacoes = () => {
           usuarioId: userFilter || undefined,
         };
 
-        // Os gráficos precisam da base de dados COMPLETA ignorando paginação. 
-        // Portanto, setamos limit="all" para varrer tudo dentro das datas/filtros selecionados
         const paramsPie = {
           limit: "all",
           order: "desc",
@@ -146,8 +122,6 @@ const Movimentacoes = () => {
           usuarioId: userFilter || undefined,
         };
 
-        // O gráfico de linhas não pode acompanhar o toggle da tabela ("asc" ou "desc"), 
-        // a linha do tempo (Eixo X) precisa NECESSARIAMENTE vir "asc" (antigo -> novo) para desenhar da esquerda para a direita de forma contínua e lógica.
         const paramsLine = {
           limit: "all",
           order: "asc",
@@ -155,14 +129,12 @@ const Movimentacoes = () => {
           to: toDate || undefined,
         };
 
-        // Promise.all permite buscar os dados isolados simultaneamente reduzindo o tempo de carregamento no frontend
         const [tableResult, pieResult, lineResult] = await Promise.all([
           movementsApi.getMovements(paramsTable),
           movementsApi.getMovements(paramsPie),
           movementsApi.getMovements(paramsLine),
         ]);
 
-        // Processa os dados da tabela
         const tableData = tableResult.data || [];
         const pagination = tableResult.pagination || {
           page: paginaAtual,
@@ -175,11 +147,6 @@ const Movimentacoes = () => {
         setTotalMovimentos(pagination.total || tableData.length);
 
 
-        // ---------------------------------------------------------------------
-        // MODELAGEM DADOS PIECHART (Pizza): 
-        // O gráfico precisa de uma contagem simples de Entradas x Saídas e um somatório do seu Montante (R$).
-        // Iteramos a resposta bruta da API e agregamos a quantidade total na mão.
-        // ---------------------------------------------------------------------
         const pieData = pieResult.data || [];
         let pieEntradas = 0, pieSaidas = 0;
         let montanteEntradas = 0, montanteSaidas = 0;
@@ -201,18 +168,12 @@ const Movimentacoes = () => {
         ]);
 
 
-        // ---------------------------------------------------------------------
-        // MODELAGEM DADOS LINECHART (Linha Temporal):
-        // O LineChart precisa de um array indexado por "dia", no formato: 
-        // [{ date: '2023-01-01', Entradas: 50, Saidas: 20 }, ...]
-        // Criamos um mapa/dicionário (grouped) para agrupar todas as movimentações de um mesmo dia, somando-as num único ponto.
-        // ---------------------------------------------------------------------
         const lineData = lineResult.data || [];
         const grouped = {};
         
         lineData.forEach((m) => {
           const dateObj = new Date(m.data);
-          const dateKey = dateObj.toISOString().split("T")[0]; // extrai o YYYY-MM-DD
+          const dateKey = dateObj.toISOString().split("T")[0]; 
           
           if (!grouped[dateKey]) {
             grouped[dateKey] = {
@@ -226,7 +187,6 @@ const Movimentacoes = () => {
           else grouped[dateKey].Saidas += m.quantidade;
         });
         
-        // Finaliza ordenando novamente por data pra garantir as quebras e traçados e salva no React
         const sortedLineData = Object.values(grouped).sort(
           (a, b) => new Date(a.date) - new Date(b.date),
         );
@@ -251,90 +211,73 @@ const Movimentacoes = () => {
     order,
   ]);
 
-  // Efeito secundário que observa qualquer alteração num campo de filtro (text, select) 
-  // e força a página da tabela a voltar para 1 para evitar bugar o pagination do backend.
   useEffect(() => {
     setPaginaAtual(1);
   }, [search, tipoFiltro, fromDate, toDate, userFilter]);
 
   return (
-    <div className="w-full min-h-screen pt-6 pb-12 px-4 md:px-8 max-w-7xl mx-auto space-y-6">
-      <header>
-        <span className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--accent)]">
-          Estoque
-        </span>
-        <h1 className="font-display text-3xl font-bold text-[var(--ink)] mt-1">
-          Movimentações
-        </h1>
-        <p className="text-sm text-[var(--ink-soft)] mt-1">
-          Controle de entradas e saídas de produtos.
-        </p>
+    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
+        <div>
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
+            Estoque
+          </span>
+          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">
+            Movimentações
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Controle de entradas e saídas de produtos.
+          </p>
+        </div>
       </header>
 
       <div className="space-y-4">
         <div className="flex items-center justify-end">
           <button
             onClick={() => setFiltrosAbertos(!filtrosAbertos)}
-            className="text-sm font-medium text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors duration-200"
+            className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
           >
             {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
           </button>
         </div>
 
         {filtrosAbertos && (
-          <section className="glass-panel rounded-lg p-5 flex flex-col lg:flex-row gap-3">
+          <section className="glass-card p-5 flex flex-col lg:flex-row gap-3 animate-fade-up">
             <input
               type="text"
               placeholder="Buscar produto"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full lg:w-1/3 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="w-full lg:w-1/3 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200"
             />
 
             <select
               value={tipoFiltro}
               onChange={(e) => setTipoFiltro(e.target.value)}
-              className="w-full lg:w-40 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="w-full lg:w-40 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
-              <option
-                value=""
-                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
-              >
-                Todos
-              </option>
-              <option
-                value="ENTRADA"
-                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
-              >
-                Entrada
-              </option>
-              <option
-                value="SAIDA"
-                className="bg-[var(--bg-elevated)] text-[var(--ink)]"
-              >
-                Saída
-              </option>
+              <option value="">Todos</option>
+              <option value="ENTRADA">Entrada</option>
+              <option value="SAIDA">Saída</option>
             </select>
 
             {canFilterByUser ? (
               <select
                 value={userFilter}
                 onChange={(e) => setUserFilter(e.target.value)}
-                className="w-full lg:w-52 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                className="w-full lg:w-52 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
               >
-                <option value="" className="bg-[var(--bg-elevated)] text-[var(--ink)]">
-                  Todos os usuários
-                </option>
+                <option value="">Todos os usuários</option>
                 {usuarios.map((u) => (
-                  <option key={u.id} value={u.id} className="bg-[var(--bg-elevated)] text-[var(--ink)]">
+                  <option key={u.id} value={u.id}>
                     {u.nome}
                   </option>
                 ))}
               </select>
             ) : (
-              <div className="w-full lg:w-52 px-4 py-2.5 rounded-md border border-[var(--line)] bg-[var(--line)]/20 text-sm text-[var(--ink-soft)] flex items-center gap-2 cursor-not-allowed select-none" title="Apenas Gerentes e Administradores podem filtrar por usuário">
+              <div className="w-full lg:w-52 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-white/5 text-xs text-text-secondary flex items-center gap-2 cursor-not-allowed select-none" title="Apenas Gerentes e Administradores podem filtrar por usuário">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Filtro por usuário restrito
+                Filtro restrito
               </div>
             )}
 
@@ -342,30 +285,22 @@ const Movimentacoes = () => {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="w-full lg:w-44 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="w-full lg:w-44 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             />
 
             <input
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="w-full lg:w-44 px-4 py-2.5 rounded-md border border-[var(--line)] bg-transparent text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+              className="w-full lg:w-44 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             />
 
             <button
               onClick={toggleOrder}
-              className="flex items-center justify-center gap-1.5 font-mono text-xs uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-4 py-2.5 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-200 lg:w-40 shrink-0"
-              title={
-                order === "desc"
-                  ? "Mostrando mais recentes primeiro"
-                  : "Mostrando mais antigos primeiro"
-              }
+              className="btn-secondary px-4 py-2 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 lg:w-40 shrink-0"
+              title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
             >
-              {order === "desc" ? (
-                <FiArrowDown size={13} />
-              ) : (
-                <FiArrowUp size={13} />
-              )}
+              {order === "desc" ? <FiArrowDown size={14} /> : <FiArrowUp size={14} />}
               {order === "desc" ? "Recentes" : "Antigos"}
             </button>
           </section>
@@ -374,124 +309,92 @@ const Movimentacoes = () => {
 
       {!loaded ? (
         <div className="flex items-center justify-center gap-3 py-20">
-          <div className="w-6 h-6 border-2 border-[var(--line)] border-t-[var(--ink)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--ink-soft)]">
-            Carregando movimentações...
-          </span>
+          <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-text-secondary">Carregando movimentações...</span>
         </div>
       ) : (
-        <>
-          <div className="glass-panel rounded-lg overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-[var(--line)] flex justify-between items-center">
-              <h2 className="font-display text-base font-semibold text-[var(--ink)]">
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="font-display text-lg font-semibold text-text-primary">
                 Histórico de movimentações
               </h2>
-              <span className="font-mono text-[11px] uppercase text-[var(--ink-soft)] border border-[var(--line)] rounded-md px-2.5 py-1">
+              <span className="font-mono text-[11px] uppercase text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-1">
                 Total: {totalMovimentos}
               </span>
             </div>
 
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Produto
-                  </th>
-                  <th className="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Tipo
-                  </th>
-                  <th className="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Qtd
-                  </th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Usuário
-                  </th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Data
-                  </th>
-                  <th className="md:hidden px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--ink-soft)] border-b border-[var(--line)]">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {movimentacoes.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="text-center py-8 text-sm text-[var(--ink-soft)]"
-                    >
-                      Nenhuma movimentação encontrada.
-                    </td>
-                  </tr>
-                ) : (
-                  movimentacoes.map((mov, i) => (
-                    <MovimentacaoRow
-                      key={mov.id}
-                      movimentacao={mov}
-                      index={i}
-                      abrirModal={abrirModal}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
+            <div className="flex flex-col gap-3">
+              {movimentacoes.length === 0 ? (
+                <div className="glass-card p-8 text-center text-sm text-text-secondary">
+                  Nenhuma movimentação encontrada.
+                </div>
+              ) : (
+                movimentacoes.map((mov, i) => (
+                  <MovimentacaoRow
+                    key={mov.id}
+                    movimentacao={mov}
+                    index={i}
+                    abrirModal={abrirModal}
+                  />
+                ))
+              )}
+            </div>
           </div>
 
           {totalPaginas > 1 && (
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-4 pt-4">
               <button
                 disabled={paginaAtual === 1}
                 onClick={() => setPaginaAtual((p) => p - 1)}
-                className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
+                className="btn-secondary px-4 py-2 text-xs font-semibold disabled:opacity-40 disabled:hover:border-[var(--color-border-light)] disabled:hover:text-text-primary"
               >
                 Anterior
               </button>
 
-              <span className="font-mono text-xs text-[var(--ink-soft)]">
-                Página {paginaAtual} de {totalPaginas}
+              <span className="font-mono text-xs text-text-secondary">
+                Página <span className="text-text-primary font-medium">{paginaAtual}</span> de {totalPaginas}
               </span>
 
               <button
                 disabled={paginaAtual === totalPaginas}
                 onClick={() => setPaginaAtual((p) => p + 1)}
-                className="px-4 py-2 rounded-md border border-[var(--line)] text-sm text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200 disabled:opacity-40 disabled:hover:border-[var(--line)]"
+                className="btn-secondary px-4 py-2 text-xs font-semibold disabled:opacity-40 disabled:hover:border-[var(--color-border-light)] disabled:hover:text-text-primary"
               >
                 Próximo
               </button>
             </div>
           )}
 
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 glass-panel rounded-lg p-6">
-              <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-4">
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6">
+            <div className="lg:col-span-2 glass-card p-6">
+              <h3 className="font-display text-lg font-semibold text-text-primary mb-6">
                 Entradas x saídas
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={lineChartData}>
                   <XAxis
                     dataKey="label"
-                    tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
-                    axisLine={{ stroke: "var(--line)" }}
+                    tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
+                    axisLine={{ stroke: "var(--color-border)" }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: "var(--ink-soft)", fontSize: 11 }}
+                    tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-soft)" }} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-text-secondary)" }} />
                   <Line
                     dataKey="Entradas"
-                    stroke="var(--teal)"
+                    stroke="var(--color-chart-3)"
                     strokeWidth={2}
                     dot={false}
                   />
                   <Line
                     dataKey="Saidas"
-                    stroke="var(--danger)"
+                    stroke="var(--color-chart-4)"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -499,25 +402,24 @@ const Movimentacoes = () => {
               </ResponsiveContainer>
             </div>
 
-            <div className="glass-panel rounded-lg p-6">
-              <h3 className="font-display text-base font-semibold text-[var(--ink)] mb-1">
+            <div className="glass-card p-6">
+              <h3 className="font-display text-lg font-semibold text-text-primary mb-1">
                 Resumo geral
               </h3>
-              <p className="font-mono text-xs text-[var(--ink-soft)] mb-4">
+              <p className="font-mono text-xs text-text-secondary mb-6">
                 Quantidade e montante (R$) por tipo
               </p>
 
-              {/* Legenda manual com montante */}
-              <div className="flex flex-col gap-2 mb-4">
+              <div className="flex flex-col gap-3 mb-6">
                 {pieChartData.map((entry, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i] }} />
-                      <span className="text-sm text-[var(--ink)]">{entry.name}</span>
+                      <span className="text-sm font-medium text-text-primary">{entry.name}</span>
                     </div>
                     <div className="text-right">
-                      <span className="font-mono text-xs text-[var(--ink-soft)]">{entry.value} unid. · </span>
-                      <span className="font-mono text-xs font-semibold text-[var(--ink)]">
+                      <span className="font-mono text-xs text-text-secondary">{entry.value} unid. · </span>
+                      <span className="font-mono text-xs font-semibold text-text-primary">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(entry.montante || 0)}
                       </span>
                     </div>
@@ -525,19 +427,19 @@ const Movimentacoes = () => {
                 ))}
               </div>
 
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={pieChartData}
                     dataKey="value"
                     nameKey="name"
-                    outerRadius={80}
-                    innerRadius={40}
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    outerRadius={70}
+                    innerRadius={45}
+                    label={false}
                     labelLine={false}
                   >
                     {pieChartData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i]} />
+                      <Cell key={i} fill={PIE_COLORS[i]} stroke="rgba(255,255,255,0.05)" strokeWidth={2} />
                     ))}
                   </Pie>
                   <Tooltip content={<ChartTooltip isPie />} />
@@ -545,7 +447,7 @@ const Movimentacoes = () => {
               </ResponsiveContainer>
             </div>
           </section>
-        </>
+        </div>
       )}
 
       <ModalMovimentacao

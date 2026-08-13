@@ -214,29 +214,29 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
   return (
     <div className="relative">
       <div
-        className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] cursor-pointer flex justify-between items-center"
+        className="w-full rounded-full bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs text-text-primary cursor-pointer flex justify-between items-center transition-colors hover:border-accent-purple/50"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className={selectedOption ? "" : "text-[var(--ink-soft)]"}>
+        <span className={selectedOption ? "" : "text-text-secondary"}>
           {selectedOption ? selectedOption.nome : placeholder}
         </span>
-        <span className="text-[var(--ink-soft)] text-xs">▼</span>
+        <span className="text-text-secondary text-xs">▼</span>
       </div>
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-[var(--bg-elevated)] border border-[var(--line)] rounded-md shadow-lg max-h-60 flex flex-col">
-          <div className="p-2 border-b border-[var(--line)] sticky top-0 bg-[var(--bg-elevated)]">
+        <div className="absolute z-10 w-full mt-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] max-h-60 flex flex-col overflow-hidden">
+          <div className="p-2 border-b border-[var(--color-border)] sticky top-0 bg-[var(--color-surface)]">
             <input
               type="text"
-              className="w-full rounded bg-transparent border border-[var(--line)] px-2 py-1.5 text-xs text-[var(--ink)] focus:border-[var(--accent)] outline-none"
+              className="w-full rounded-full bg-[var(--color-bg)] border border-[var(--color-border-light)] px-4 py-2 text-xs text-text-primary focus:border-accent-purple outline-none transition-colors"
               placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto py-1 bg-[var(--color-surface)]">
             <div
-              className="px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--line)]/30 cursor-pointer"
+              className="px-4 py-2 text-xs text-text-primary hover:bg-white/5 cursor-pointer transition-colors"
               onClick={() => {
                 onChange("");
                 setIsOpen(false);
@@ -249,7 +249,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
               filteredOptions.map((opt) => (
                 <div
                   key={opt.id}
-                  className="px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--line)]/30 cursor-pointer"
+                  className="px-4 py-2 text-xs text-text-primary hover:bg-white/5 cursor-pointer transition-colors"
                   onClick={() => {
                     onChange(opt.id);
                     setIsOpen(false);
@@ -260,7 +260,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
                 </div>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-[var(--ink-soft)]">Nenhum resultado</div>
+              <div className="px-4 py-2 text-xs text-text-secondary">Nenhum resultado</div>
             )}
           </div>
         </div>
@@ -469,30 +469,30 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
   return createPortal(
       <div
-        className={`fixed inset-0 z-50 bg-black/50 transition-opacity ${closing ? "opacity-0" : "opacity-100"}`}
+        className={`fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${closing ? "opacity-0" : "opacity-100"}`}
         onClick={handleClose}
         onTransitionEnd={() => closing && onClose()}
       >
         <div
-          className={`absolute right-0 top-0 h-[100dvh] w-[65%] max-w-md transform transition-transform duration-300 ${
+          className={`absolute right-0 top-0 h-[100dvh] w-[90%] md:w-[65%] max-w-md transform transition-transform duration-300 ${
             open ? "translate-x-0" : "translate-x-full"
-          } bg-[var(--bg-elevated)] border-l border-[var(--line)] shadow-2xl flex flex-col`}
+          } bg-[var(--color-bg)] border-l border-[var(--color-border-light)] shadow-[-10px_0_40px_rgba(0,0,0,0.5)] flex flex-col`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6 border-b border-[var(--line)] shrink-0">
-            <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
+          <div className="p-6 border-b border-[var(--color-border-light)] shrink-0">
+            <h2 className="font-display text-lg font-semibold text-text-primary">
               {panelTitle}
             </h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5 custom-scrollbar">
             {config.fields.map((field) => (
               <div key={field.name}>
-                <label className="block text-sm mb-1 text-[var(--ink-soft)]">
+                <label className="block text-sm font-medium mb-1.5 text-text-primary">
                   {field.label}
                 </label>
                 {field.description ? (
-                  <p className="text-xs mb-2 text-[var(--ink-soft)]">{field.description}</p>
+                  <p className="text-xs mb-3 text-text-secondary">{field.description}</p>
                 ) : null}
 
                 {field.type === "select" ? (
@@ -505,20 +505,20 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                 ) : field.type === "textarea" ? (
                   <textarea
                     name={field.name}
-                    rows={3}
+                    rows={4}
                     value={form[field.name]}
                     onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
-                    className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm resize-none text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                    className="w-full rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs resize-none text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
                   />
                 ) : field.type === "file" ? (
-                  <div>
+                  <div className="p-4 rounded-xl border border-[var(--color-border-light)] bg-white/5">
                     {!isCreating && itemData?.imagem && !removeImage && !file ? (
-                      <div className="mb-4 flex flex-col items-start gap-2">
-                        <p className="text-xs text-[var(--ink-soft)]">Foto atual:</p>
+                      <div className="mb-4 flex flex-col items-start gap-3">
+                        <p className="text-xs font-medium text-text-secondary">Foto atual:</p>
                         <img
                           src={formatImageUrl(itemData.imagem)}
                           alt="Preview"
-                          className="w-28 h-28 object-cover rounded-md border border-[var(--line)]"
+                          className="w-24 h-24 object-cover rounded-full border-2 border-[var(--color-border)]"
                         />
                         <button
                           type="button"
@@ -526,7 +526,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                             setRemoveImage(true);
                             setFile(null);
                           }}
-                          className="text-sm font-medium text-[var(--danger)] hover:opacity-80 transition-opacity duration-200"
+                          className="text-xs font-semibold text-accent-red hover:opacity-80 transition-opacity duration-200"
                         >
                           Remover foto
                         </button>
@@ -538,7 +538,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                         setFile(e.target.files[0]);
                         setRemoveImage(false);
                       }}
-                      className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)]"
+                      className="w-full text-xs text-text-secondary file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-accent-purple/10 file:text-accent-purple hover:file:bg-accent-purple/20 transition-colors"
                     />
                   </div>
                 ) : (
@@ -547,25 +547,25 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                     name={field.name}
                     value={form[field.name]}
                     onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
-                    className="w-full rounded-md bg-transparent border border-[var(--line)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--accent)] outline-none transition-colors duration-200"
+                    className="w-full rounded-full bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
                   />
                 )}
               </div>
             ))}
           </form>
 
-          <div className="p-4 border-t border-[var(--line)] flex justify-end gap-3 shrink-0">
+          <div className="p-6 border-t border-[var(--color-border-light)] bg-[var(--color-bg)] flex justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-sm rounded-md border border-[var(--line)] text-[var(--ink)] hover:border-[var(--accent)] transition-colors duration-200"
+              className="btn-secondary px-4 py-2 text-xs font-semibold"
             >
               Cancelar
             </button>
             <button
               type="submit"
               onClick={handleSubmit}
-              className="px-4 py-2 text-sm rounded-md bg-[var(--ink)] text-[var(--bg)] font-medium hover:opacity-90 transition-opacity duration-200"
+              className="btn-primary px-4 py-2 text-xs font-semibold"
             >
               Salvar
             </button>

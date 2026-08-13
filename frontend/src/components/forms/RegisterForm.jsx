@@ -4,7 +4,7 @@ import { useUserStore } from "../../store/userStore.js";
 import { authApi } from "../../services/api/index.js";
 
 const inputClass =
-  "p-3 rounded-md border border-[var(--line)] bg-transparent text-[var(--ink)] placeholder:text-[var(--ink-soft)] focus:border-[var(--accent)] outline-none transition-colors duration-200";
+  "w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200";
 
 const RegisterForm = () => {
   const { setUser } = useUserStore();
@@ -88,20 +88,20 @@ const RegisterForm = () => {
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 rounded-md bg-[var(--ink)] text-[var(--bg)] font-semibold py-3 text-sm hover:opacity-90 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary mt-4 w-full py-2 text-xs font-semibold"
         >
           {loading ? "Registrando..." : "Registrar"}
         </button>
       </form>
 
       {erro && (
-        <div className="mt-4 w-full max-w-sm p-3 rounded-md border border-red-500/30 bg-red-500/10 text-red-500 text-sm">
+        <div className="mt-4 w-full max-w-sm p-4 rounded-xl border border-accent-red/20 bg-accent-red/10 text-accent-red text-sm text-center">
           {erro}
         </div>
       )}
 
       {sucesso && (
-        <div className="mt-4 w-full max-w-sm p-3 rounded-md border border-[var(--teal)]/30 bg-[var(--teal)]/10 text-[var(--teal)] text-sm">
+        <div className="mt-4 w-full max-w-sm p-4 rounded-xl border border-accent-green/20 bg-accent-green/10 text-accent-green text-sm text-center">
           {sucesso}
         </div>
       )}

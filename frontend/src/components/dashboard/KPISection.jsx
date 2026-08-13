@@ -46,31 +46,31 @@ export default function KPISection() {
   ];
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl stat-grid-bg">
+    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-0">
       {kpis.map((kpi, index) => (
-        <div key={index} className="glass-panel rounded-xl p-5">
-          <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-[var(--ink-soft)]">
+        <div key={index} className="glass-card hover-card p-6 flex flex-col justify-between">
+          <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-text-secondary">
             {kpi.label}
           </span>
 
-          <p className="font-display text-3xl font-bold text-[var(--ink)] mt-2 tabular-nums">
+          <p className="font-display text-4xl font-bold text-text-primary mt-3 tabular-nums">
             {loading ? "···" : kpi.value.toLocaleString("pt-BR")}
           </p>
 
           {kpi.ratio !== undefined ? (
-            <div className="mt-3">
-              <div className="h-1 w-full rounded-full bg-[var(--line)] overflow-hidden">
+            <div className="mt-4">
+              <div className="h-1.5 w-full rounded-full bg-[var(--color-border-light)] overflow-hidden">
                 <div
-                  className="h-full bg-[var(--ink)] transition-all duration-500"
+                  className="h-full bg-accent-pink transition-all duration-1000 ease-out"
                   style={{ width: `${Math.min(kpi.ratio, 100)}%` }}
                 />
               </div>
-              <span className="font-mono text-[11px] text-[var(--ink-soft)] mt-1.5 block">
+              <span className="font-secondary text-xs text-text-secondary mt-2 block">
                 {kpi.note}
               </span>
             </div>
           ) : (
-            <span className="font-mono text-[11px] text-[var(--ink-soft)] mt-3 block">
+            <span className="font-secondary text-xs text-text-secondary mt-4 block">
               {kpi.note}
             </span>
           )}

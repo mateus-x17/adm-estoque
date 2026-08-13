@@ -1,56 +1,99 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: #EDEEEC;              /* antes #F5F6F4 — leve tom acinzentado, menos "papel branco" */
-  --bg-elevated: #F6F7F5;     /* antes #FFFFFF puro */
-  --bg-header: rgba(237, 238, 236, 0.85); /* versão translúcida pronta, sem depender do modificador /90 */
-  --ink: #22262C;             /* antes #12151A — um pouco mais suave, menos "tinta preta" */
-  --ink-soft: #5B6472;
-  --line: #DADDE1;
-  --accent: #F2A33D;
-  --teal: #1E8F79;
-  --console-bg: #0E1116;
-  --console-line: #262B33;
-  --console-text-soft: #9AA3AE;
-  --console-text-faint: #5B6472;
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(18, 21, 26, 0.06);
-  --danger: #C24A3B;
-  --danger-soft: rgba(194, 74, 59, 0.1);
-}
+@layer base {
+  :root {
+    /* ==========================================================================
+       DESIGN SYSTEM - VARIÁVEIS DE COR (LIGHT MODE)
+       ========================================================================== */
+    --color-bg: #F5F5F7;            
+    --color-surface: rgba(255, 255, 255, 0.7);       
+    --color-card: rgba(255, 255, 255, 0.8);          
+    
+    --color-border: rgba(0, 0, 0, 0.1); 
+    --color-border-light: rgba(0, 0, 0, 0.05); 
+    
+    --color-text-primary: #101018;  
+    --color-text-secondary: #5A5A6A;
+    
+    /* Cores de Destaque */
+    --color-accent-pink: #F1A7FF;   
+    --color-accent-lilac: #D28BFF;  
+    --color-accent-purple: #9D5CFF; 
+    --color-accent-green: #35D07F;  
+    --color-accent-red: #D9695A;    
+    
+    /* Cores específicas para Gráficos (Dashboard) */
+    --color-chart-1: #9D5CFF; /* Roxo principal */
+    --color-chart-2: #F1A7FF; /* Rosa */
+    --color-chart-3: #35D07F; /* Verde (Entradas) */
+    --color-chart-4: #D9695A; /* Vermelho (Saídas) */
+    --color-chart-5: #D28BFF; /* Lilás */
+    
+    /* Efeitos de Fundo Glassmorphism (Light) */
+    --glass-bg-container: rgba(255, 255, 255, 0.75); 
+    --glass-bg-card: rgba(255, 255, 255, 0.5);      
+    --glass-bg-card-hover: rgba(255, 255, 255, 1);
+  }
 
-.dark {
-  --bg: #0A0D12;
-  --bg-elevated: #11151C;
-  --bg-header: rgba(10, 13, 18, 0.85);
-  --ink: #E8EAED;
-  --ink-soft: #8B94A0;
-  --line: #1F252E;
-  --console-bg: #050608;
-  --console-line: #1A2028;
-  --glass-bg: rgba(17, 21, 28, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.04);
-  --danger: #D9695A;
-  --danger-soft: rgba(217, 105, 90, 0.12);
+  .dark {
+    /* ==========================================================================
+       DESIGN SYSTEM - VARIÁVEIS DE COR (DARK MODE)
+       ========================================================================== */
+    --color-bg: #07070B;            
+    --color-surface: #101018;       
+    --color-card: #14141C;          
+    
+    --color-border: rgba(255, 255, 255, 0.08); 
+    --color-border-light: rgba(255, 255, 255, 0.04); 
+    
+    --color-text-primary: #F5F5F7;  
+    --color-text-secondary: #A3A3AE;
+    
+    /* Cores de Destaque */
+    --color-accent-pink: #F1A7FF;   
+    --color-accent-lilac: #D28BFF;  
+    --color-accent-purple: #9D5CFF; 
+    --color-accent-green: #35D07F;  
+    --color-accent-red: #D9695A;
+    
+    /* Cores específicas para Gráficos (Dashboard) */
+    --color-chart-1: #9D5CFF;
+    --color-chart-2: #F1A7FF;
+    --color-chart-3: #35D07F;
+    --color-chart-4: #D9695A;
+    --color-chart-5: #D28BFF;
+    --glass-bg-container: rgba(18, 18, 24, 0.82); 
+    --glass-bg-card: rgba(12, 12, 18, 0.92);      
+    --glass-bg-card-hover: rgba(20, 20, 28, 0.95);
+  }
 }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  /* Textura de noise e gradientes radiais globais */
+  background-image: 
+    radial-gradient(circle at top right, rgba(180, 120, 255, 0.10), transparent 45%),
+    radial-gradient(circle at bottom left, rgba(255, 90, 180, 0.08), transparent 35%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+  background-attachment: fixed;
 }
 
 .font-display {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-.font-mono {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+.font-secondary {
+  font-family: 'Manrope', system-ui, sans-serif;
 }
 
 @layer utilities {
+  /* Animações antigas mantidas para retrocompatibilidade onde não houver substituição imediata */
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: none; }
@@ -59,7 +102,7 @@ body {
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
   }
-   @keyframes slideInLeft {
+  @keyframes slideInLeft {
     from { transform: translateX(-100%); }
     to { transform: translateX(0); }
   }
@@ -79,21 +122,84 @@ body {
   .animate-fade-up {
     animation: fadeUp 0.6s ease-out both;
   }
-  .glass-panel {
-    background-color: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 1rem; /* rounded-2xl */
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+
+  /* Novas Classes do Design System */
+  
+  /* Container Principal */
+  .glass-container {
+    background-color: var(--glass-bg-container);
+    border: 1px solid var(--color-border);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border-radius: 28px;
   }
 
-  .stat-grid-bg {
-    background-image: radial-gradient(var(--line) 1px, transparent 1px);
-    background-size: 22px 22px;
+  /* Cards Padrão */
+  .glass-card {
+    background-color: var(--glass-bg-card);
+    border: 1px solid var(--color-border-light);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-radius: 22px;
+    box-shadow: 0 0 28px rgba(214, 132, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
   }
-}
+  
+  /* Hover sutil nos cards (microinterações) */
+  .hover-card:hover {
+    transform: translateY(-2px);
+    background-color: var(--glass-bg-card-hover);
+    box-shadow: 0 0 32px rgba(214, 132, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-up { animation: none; }
+  /* Botão Primário Gradient */
+  .btn-primary {
+    background: linear-gradient(135deg, var(--color-accent-pink), var(--color-accent-lilac), var(--color-accent-purple));
+    color: white;
+    border-radius: 999px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 0 15px rgba(210, 139, 255, 0.2);
+  }
+  
+  .btn-primary:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(210, 139, 255, 0.35);
+  }
+
+  /* Botão Secundário Glass */
+  .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: 999px;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    transform: scale(1.02);
+  }
+  
+  /* Inputs / Pill format */
+  .input-pill {
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    height: 48px;
+    color: var(--color-text-primary);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+  
+  .input-pill:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  /* Formato Cápsula para Chips/Tabs ativos */
+  .chip-active {
+    background: linear-gradient(135deg, var(--color-accent-pink), var(--color-accent-lilac), var(--color-accent-purple));
+    border-radius: 14px;
+    color: white;
+  }
 }
