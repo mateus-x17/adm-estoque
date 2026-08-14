@@ -89,7 +89,7 @@ function Configuracoes() {
             <section className="grid gap-6 lg:grid-cols-12">
               {/* Resumo do usuário */}
               <div className="lg:col-span-5 xl:col-span-4">
-                <div className="glass-card hover-card rounded-3xl p-8 border border-[var(--color-border)] shadow-sm">
+                <div className="glass-card hover-card rounded-3xl p-5 md:p-8 border border-[var(--color-border)] shadow-sm">
                   <div className="flex items-center gap-5 mb-8">
                     {me.imagem ? (
                       <img
@@ -137,7 +137,7 @@ function Configuracoes() {
 
               {/* Informações detalhadas */}
               <div className="lg:col-span-7 xl:col-span-8">
-                <div className="glass-card hover-card rounded-3xl p-8 border border-[var(--color-border)] shadow-sm h-full">
+                <div className="glass-card hover-card rounded-3xl p-5 md:p-8 border border-[var(--color-border)] shadow-sm h-full">
                   <h3 className="font-display text-lg font-semibold text-text-primary">
                     Informações da conta
                   </h3>
@@ -153,7 +153,7 @@ function Configuracoes() {
                       <p className="text-xs text-text-secondary mb-4 line-clamp-2 min-h-[32px]">
                         {fieldMeta.nome.description}
                       </p>
-                      <p className="text-sm font-medium text-text-primary break-words bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
+                      <p className="text-sm font-medium text-text-primary break-all bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
                         {me.nome}
                       </p>
                     </div>
@@ -165,7 +165,7 @@ function Configuracoes() {
                       <p className="text-xs text-text-secondary mb-4 line-clamp-2 min-h-[32px]">
                         {fieldMeta.email.description}
                       </p>
-                      <p className="text-sm font-medium text-text-primary break-words bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
+                      <p className="text-sm font-medium text-text-primary break-all bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
                         {me.email}
                       </p>
                     </div>
@@ -177,7 +177,7 @@ function Configuracoes() {
                       <p className="text-xs text-text-secondary mb-4">
                         {fieldMeta.imagem.description}
                       </p>
-                      <div className="flex items-center gap-4 bg-[var(--color-bg)] px-5 py-3 rounded-xl border border-[var(--color-border-light)] w-fit">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 bg-[var(--color-bg)] px-4 sm:px-5 py-3 rounded-xl border border-[var(--color-border-light)] w-full sm:w-fit">
                         <span
                           className={`inline-flex items-center rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wider ${
                             me.imagem
