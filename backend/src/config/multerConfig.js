@@ -46,10 +46,10 @@ const storage = multer.diskStorage({
 // 2 - Extrai e converte a extensão do arquivo enviado para letras minúsculas
 // 3 - Se a extensão for válida, permite o upload (cb(null, true)), caso contrário, retorna um erro
 function fileFilter(req, file, cb) {
-  const extensoesPermitidas = /jpeg|jpg|webp|png/;
+  const extensoesPermitidas = /jpeg|jpg|webp|jfif|png/;
   const ext = path.extname(file.originalname).toLowerCase();
   if (extensoesPermitidas.test(ext)) cb(null, true);
-  else cb(new Error("Tipo de arquivo inválido. Apenas jpg, jpeg, png, webp."));
+  else cb(new Error("Tipo de arquivo inválido. Apenas jpg, jpeg, jfif, png, webp."));
 }
 
 // 4 - Exporta o objeto de upload do Multer, juntando as configurações de armazenamento, o filtro de tipo e o limite de tamanho (5MB)

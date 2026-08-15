@@ -9,33 +9,38 @@
     /* ==========================================================================
        DESIGN SYSTEM - VARIÁVEIS DE COR (LIGHT MODE)
        ========================================================================== */
-    --color-bg: #F5F5F7;            
-    --color-surface: rgba(255, 255, 255, 0.7);       
-    --color-card: rgba(255, 255, 255, 0.8);          
-    
-    --color-border: rgba(0, 0, 0, 0.1); 
-    --color-border-light: rgba(0, 0, 0, 0.05); 
-    
-    --color-text-primary: #101018;  
+    --color-bg: #F5F5F7;
+    --color-surface: rgba(255, 255, 255, 0.7);
+    --color-card: rgba(255, 255, 255, 0.8);
+
+    --color-border: rgba(0, 0, 0, 0.1);
+    --color-border-light: rgba(0, 0, 0, 0.05);
+
+    --color-text-primary: #101018;
     --color-text-secondary: #5A5A6A;
-    
+
     /* Cores de Destaque */
-    --color-accent-pink: #F1A7FF;   
-    --color-accent-lilac: #D28BFF;  
-    --color-accent-purple: #9D5CFF; 
-    --color-accent-green: #35D07F;  
-    --color-accent-red: #D9695A;    
-    
+    --color-accent-pink: #F1A7FF;
+    --color-accent-lilac: #D28BFF;
+    --color-accent-purple: #9D5CFF;
+    --color-accent-green: #35D07F;
+    --color-accent-red: #D9695A;
+
     /* Cores específicas para Gráficos (Dashboard) */
-    --color-chart-1: #9D5CFF; /* Roxo principal */
-    --color-chart-2: #F1A7FF; /* Rosa */
-    --color-chart-3: #35D07F; /* Verde (Entradas) */
-    --color-chart-4: #D9695A; /* Vermelho (Saídas) */
-    --color-chart-5: #D28BFF; /* Lilás */
-    
+    --color-chart-1: #9D5CFF;
+    /* Roxo principal */
+    --color-chart-2: #F1A7FF;
+    /* Rosa */
+    --color-chart-3: #35D07F;
+    /* Verde (Entradas) */
+    --color-chart-4: #D9695A;
+    /* Vermelho (Saídas) */
+    --color-chart-5: #D28BFF;
+    /* Lilás */
+
     /* Efeitos de Fundo Glassmorphism (Light) */
-    --glass-bg-container: rgba(255, 255, 255, 0.75); 
-    --glass-bg-card: rgba(255, 255, 255, 0.5);      
+    --glass-bg-container: rgba(255, 255, 255, 0.75);
+    --glass-bg-card: rgba(255, 255, 255, 0.5);
     --glass-bg-card-hover: rgba(255, 255, 255, 1);
   }
 
@@ -43,31 +48,31 @@
     /* ==========================================================================
        DESIGN SYSTEM - VARIÁVEIS DE COR (DARK MODE)
        ========================================================================== */
-    --color-bg: #07070B;            
-    --color-surface: #101018;       
-    --color-card: #14141C;          
-    
-    --color-border: rgba(255, 255, 255, 0.08); 
-    --color-border-light: rgba(255, 255, 255, 0.04); 
-    
-    --color-text-primary: #F5F5F7;  
+    --color-bg: #07070B;
+    --color-surface: #101018;
+    --color-card: #14141C;
+
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-light: rgba(255, 255, 255, 0.04);
+
+    --color-text-primary: #F5F5F7;
     --color-text-secondary: #A3A3AE;
-    
+
     /* Cores de Destaque */
-    --color-accent-pink: #F1A7FF;   
-    --color-accent-lilac: #D28BFF;  
-    --color-accent-purple: #9D5CFF; 
-    --color-accent-green: #35D07F;  
+    --color-accent-pink: #F1A7FF;
+    --color-accent-lilac: #D28BFF;
+    --color-accent-purple: #9D5CFF;
+    --color-accent-green: #35D07F;
     --color-accent-red: #D9695A;
-    
+
     /* Cores específicas para Gráficos (Dashboard) */
     --color-chart-1: #9D5CFF;
     --color-chart-2: #F1A7FF;
     --color-chart-3: #35D07F;
     --color-chart-4: #D9695A;
     --color-chart-5: #D28BFF;
-    --glass-bg-container: rgba(18, 18, 24, 0.82); 
-    --glass-bg-card: rgba(12, 12, 18, 0.92);      
+    --glass-bg-container: rgba(18, 18, 24, 0.82);
+    --glass-bg-card: rgba(12, 12, 18, 0.92);
     --glass-bg-card-hover: rgba(20, 20, 28, 0.95);
   }
 }
@@ -77,7 +82,7 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   /* Textura de noise e gradientes radiais globais */
-  background-image: 
+  background-image:
     radial-gradient(circle at top right, rgba(180, 120, 255, 0.10), transparent 45%),
     radial-gradient(circle at bottom left, rgba(255, 90, 180, 0.08), transparent 35%),
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
@@ -93,38 +98,70 @@ body {
 }
 
 @layer utilities {
+
   /* Animações antigas mantidas para retrocompatibilidade onde não houver substituição imediata */
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: none; }
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
+
   @keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
+
   @keyframes slideInLeft {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(0); }
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(0);
+    }
   }
+
   @keyframes slideOutLeft {
-    from { transform: translateX(0); }
-    to { transform: translateX(-100%); }
+    from {
+      transform: translateX(0);
+    }
+
+    to {
+      transform: translateX(-100%);
+    }
   }
+
   .animate-slide-in-left {
     animation: slideInLeft 0.3s ease-out both;
   }
+
   .animate-slide-out-left {
     animation: slideOutLeft 0.3s ease-in both;
   }
+
   .animate-scale-in {
     animation: scaleIn 0.2s ease-out both;
   }
+
   .animate-fade-up {
     animation: fadeUp 0.6s ease-out both;
   }
 
   /* Novas Classes do Design System */
-  
+
   /* Container Principal */
   .glass-container {
     background-color: var(--glass-bg-container);
@@ -144,7 +181,7 @@ body {
     box-shadow: 0 0 28px rgba(214, 132, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.02);
     transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
   }
-  
+
   /* Hover sutil nos cards (microinterações) */
   .hover-card:hover {
     transform: translateY(-2px);
@@ -160,7 +197,7 @@ body {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     box-shadow: 0 0 15px rgba(210, 139, 255, 0.2);
   }
-  
+
   .btn-primary:hover {
     transform: scale(1.02);
     box-shadow: 0 0 20px rgba(210, 139, 255, 0.35);
@@ -179,7 +216,7 @@ body {
     background-color: rgba(255, 255, 255, 0.06);
     transform: scale(1.02);
   }
-  
+
   /* Inputs / Pill format */
   .input-pill {
     background-color: rgba(255, 255, 255, 0.04);
@@ -189,7 +226,7 @@ body {
     color: var(--color-text-primary);
     transition: border-color 0.2s ease, background-color 0.2s ease;
   }
-  
+
   .input-pill:focus {
     outline: none;
     border-color: rgba(255, 255, 255, 0.2);

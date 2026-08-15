@@ -1,11 +1,29 @@
 import pino from 'pino';
 
 // arquivo responsável por configurar o sistema de logs (Pino)
-// 1 - Importa a biblioteca pino para geração de logs de alta performance
-// 2 - Obtém o nível de log (level) a partir da variável de ambiente LOG_LEVEL, ou define "info" como padrão
-// 3 - Instancia e exporta o logger principal configurado com o nível definido
-const level = process.env.LOG_LEVEL || 'info';
-export const logger = pino({ level });
+// 1 - Determina se está em ambiente de desenvolvimento (padrão quando NODE_ENV não é 'production')
+const isDev = process.env.NODE_ENV !== 'production';
+
+// 2 - Obtém o nível de log (level) a partir da variável de ambiente LOG_LEVEL, ou define "debug" em dev e "info" em prod
+const level = process.env.LOG_LEVEL || (isDev ? 'debug' : 'info');
+
+// 3 - Configuração de transporte: utiliza pino-pretty em desenvolvimento para formatação legível e colorida
+const transport = isDev
+  ? {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+      },
+    }
+  : undefined;
+
+// 4 - Instancia e exporta o logger principal configurado
+export const logger = pino({
+  level,
+  transport,
+});
 
 // função para criar loggers filhos específicos por módulo
 // 1 - Recebe o nome do módulo como argumento (ex: "userController")
@@ -15,3 +33,4 @@ export function childLogger(moduleName) {
 }
 
 export default logger;
+
