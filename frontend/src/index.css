@@ -19,24 +19,20 @@
     --color-text-primary: #101018;
     --color-text-secondary: #5A5A6A;
 
-    /* Cores de Destaque */
-    --color-accent-pink: #F1A7FF;
-    --color-accent-lilac: #D28BFF;
-    --color-accent-purple: #9D5CFF;
-    --color-accent-green: #35D07F;
-    --color-accent-red: #D9695A;
+    /* Cores de Destaque - Logistics Tech */
+    --color-accent-pink: #38BDF8;
+    --color-accent-lilac: #6366F1;
+    --color-accent-purple: #4F46E5;
+    --color-accent-green: #10B981;
+    --color-accent-red: #EF4444;
+    --color-accent-yellow: #F59E0B;
 
     /* Cores específicas para Gráficos (Dashboard) */
-    --color-chart-1: #9D5CFF;
-    /* Roxo principal */
-    --color-chart-2: #F1A7FF;
-    /* Rosa */
-    --color-chart-3: #35D07F;
-    /* Verde (Entradas) */
-    --color-chart-4: #D9695A;
-    /* Vermelho (Saídas) */
-    --color-chart-5: #D28BFF;
-    /* Lilás */
+    --color-chart-1: #4F46E5; /* Indigo */
+    --color-chart-2: #38BDF8; /* Sky */
+    --color-chart-3: #10B981; /* Emerald */
+    --color-chart-4: #EF4444; /* Red */
+    --color-chart-5: #8B5CF6; /* Violet */
 
     /* Efeitos de Fundo Glassmorphism (Light) */
     --glass-bg-container: rgba(255, 255, 255, 0.75);
@@ -58,19 +54,20 @@
     --color-text-primary: #F5F5F7;
     --color-text-secondary: #A3A3AE;
 
-    /* Cores de Destaque */
-    --color-accent-pink: #F1A7FF;
-    --color-accent-lilac: #D28BFF;
-    --color-accent-purple: #9D5CFF;
-    --color-accent-green: #35D07F;
-    --color-accent-red: #D9695A;
+    /* Cores de Destaque - Logistics Tech */
+    --color-accent-pink: #38BDF8;
+    --color-accent-lilac: #6366F1;
+    --color-accent-purple: #4F46E5;
+    --color-accent-green: #10B981;
+    --color-accent-red: #EF4444;
+    --color-accent-yellow: #F59E0B;
 
     /* Cores específicas para Gráficos (Dashboard) */
-    --color-chart-1: #9D5CFF;
-    --color-chart-2: #F1A7FF;
-    --color-chart-3: #35D07F;
-    --color-chart-4: #D9695A;
-    --color-chart-5: #D28BFF;
+    --color-chart-1: #4F46E5;
+    --color-chart-2: #38BDF8;
+    --color-chart-3: #10B981;
+    --color-chart-4: #EF4444;
+    --color-chart-5: #8B5CF6;
     --glass-bg-container: rgba(18, 18, 24, 0.82);
     --glass-bg-card: rgba(12, 12, 18, 0.92);
     --glass-bg-card-hover: rgba(20, 20, 28, 0.95);
