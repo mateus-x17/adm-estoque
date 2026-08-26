@@ -46,14 +46,14 @@ export default function KPISection() {
   ];
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-0">
+    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 p-0">
       {kpis.map((kpi, index) => (
-        <div key={index} className="glass-card hover-card p-6 flex flex-col justify-between">
-          <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-text-secondary">
+        <div key={index} className="glass-card hover-card p-4 md:p-5 flex flex-col justify-between">
+          <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-text-secondary">
             {kpi.label}
           </span>
 
-          <p className="font-display text-4xl font-bold text-text-primary mt-3 tabular-nums">
+          <p className="font-display text-2xl md:text-3xl font-bold text-text-primary mt-2 tabular-nums">
             {loading ? "···" : kpi.value.toLocaleString("pt-BR")}
           </p>
 

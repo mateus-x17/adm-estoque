@@ -6,8 +6,31 @@ const PlaceholderMedia = ({
   className = '', 
   aspectRatio = 'aspect-square',
   text = 'Media Placeholder',
-  iconSize = 24
+  iconSize = 24,
+  src = null
 }) => {
+  if (src) {
+    if (type === 'video') {
+      return (
+        <video 
+           src={src} 
+           autoPlay 
+           loop 
+           muted 
+           playsInline
+           className={`object-cover ${aspectRatio} ${className}`}
+        />
+      );
+    }
+    return (
+      <img 
+         src={src} 
+         alt={text} 
+         className={`object-cover ${aspectRatio} ${className}`}
+      />
+    );
+  }
+
   return (
     <div className={`relative flex items-center justify-center bg-gray-200 dark:bg-[#1A1A24] rounded-2xl overflow-hidden border border-[var(--color-border-light)] ${aspectRatio} ${className}`}>
       {/* Grid Pattern */}

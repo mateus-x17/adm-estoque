@@ -102,7 +102,6 @@ body {
       opacity: 0;
       transform: translateY(12px);
     }
-
     to {
       opacity: 1;
       transform: none;
@@ -114,11 +113,27 @@ body {
       opacity: 0;
       transform: scale(0.95);
     }
-
     to {
       opacity: 1;
       transform: scale(1);
     }
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .animate-marquee {
+    animation: marquee 18s linear infinite;
+  }
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
+
+  .marquee-fade-edges {
+    mask-image: linear-gradient(to right, transparent, black 100px, black calc(100% - 100px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 100px, black calc(100% - 100px), transparent);
   }
 
   @keyframes slideInLeft {

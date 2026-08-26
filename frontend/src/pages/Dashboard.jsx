@@ -12,26 +12,26 @@ const Dashboard = () => {
   const canViewUserStats = user?.role === "ADMIN" || user?.role === "GERENTE";
 
   return (
-    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
+    <div className="w-full min-h-screen pt-2 pb-8 space-y-6 max-w-7xl mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-3 border-b border-[var(--color-border)] mb-6">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Painel
           </span>
-          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-text-primary tracking-tight mt-1">
             Visão Geral
           </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Monitoramento em tempo real do seu estoque.
+          <p className="text-xs text-text-secondary mt-1">
+            Monitoramento com precisão do seu estoque.
           </p>
         </div>
-        <div className="flex gap-3">
-          <button className="btn-secondary px-4 py-2 text-xs font-semibold flex items-center gap-2">
-            <Clock className="w-4 h-4" />
+        <div className="flex gap-2">
+          <button className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center gap-2">
+            <Clock className="w-3 h-3" />
             Hoje
           </button>
-          <button className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2">
-            <Download className="w-4 h-4" />
+          <button className="btn-primary px-3 py-2 text-xs font-semibold flex items-center gap-2">
+            <Download className="w-3 h-3" />
             Exportar relatório
           </button>
         </div>
