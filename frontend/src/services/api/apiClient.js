@@ -1,10 +1,9 @@
-import dotenv from 'dotenv';
 /**
  * Base API Client
  * Handles all HTTP requests with automatic token management
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 /**
  * Get authentication token from user store

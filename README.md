@@ -227,9 +227,19 @@ Siga os passos abaixo para clonar, instalar e rodar o projeto na sua máquina.
    npm run dev
    ```
 
-7. Em outro terminal, instale e inicie o Frontend:
+7. Em outro terminal, configure e inicie o Frontend:
+   Acesse a pasta `frontend`:
    ```bash
    cd ../frontend
+   ```
+
+   Crie o arquivo `.env` na raiz da pasta `frontend` e defina a URL base da API (obrigatória para o cliente HTTP `apiClient` se conectar ao backend):
+   ```env
+   VITE_API_BASE_URL=http://localhost:5000
+   ```
+
+   Instale as dependências e inicie o servidor de desenvolvimento:
+   ```bash
    npm install
    npm run dev
    ```
