@@ -206,8 +206,14 @@ const Home = () => {
         {/* ================= CTA ================= */}
         <section className="px-6 md:px-12 max-w-4xl mx-auto mb-16">
           <div className="glass-container p-10 md:p-16 text-center relative overflow-hidden flex flex-col items-center">
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-accent-purple/20 rounded-full blur-[80px]" />
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent-pink/20 rounded-full blur-[80px]" />
+            <div
+              className="absolute -top-24 -right-24 w-64 h-64 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, transparent 70%)' }}
+            />
+            <div
+              className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, rgba(236, 72, 153, 0.20) 0%, transparent 70%)' }}
+            />
 
             <FiUsers className="w-10 h-10 text-accent-purple mb-5 relative z-10" />
             <h2 className="font-display text-3xl font-bold text-text-primary mb-4 relative z-10">

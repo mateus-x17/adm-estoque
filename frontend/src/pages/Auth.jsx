@@ -14,10 +14,16 @@ const Auth = () => {
   }, [darkMode]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-24 md:pt-10 pb-10 transition-colors duration-300 relative overflow-hidden">
-      {/* Elementos decorativos de fundo */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent-purple/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent-pink/20 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-24 md:pt-10 pb-10 transition-colors duration-300 relative overflow-x-hidden overflow-y-auto md:overflow-hidden">
+      {/* Elementos decorativos de fundo otimizados para GPU */}
+      <div
+        className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(236, 72, 153, 0.20) 0%, transparent 70%)' }}
+      />
 
       {/* Barra superior */}
       <div className="fixed top-0 left-0 w-full flex items-center justify-between px-6 py-4 z-30">
@@ -49,8 +55,8 @@ const Auth = () => {
             ${isLogin ? "md:translate-x-full" : "md:translate-x-0"}
           `}
         >
-          {/* Noise overlay opcional */}
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
+          {/* Noise overlay opcional em telas grandes */}
+          <div className="hidden md:block absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
 
           <div className="relative z-10 flex flex-col items-center">
             <span className="font-mono text-xs tracking-[0.2em] uppercase text-white/70 mb-3">
