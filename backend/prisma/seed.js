@@ -165,58 +165,104 @@ async function main() {
       totalRep += repMonth;
       totalVen += venMonth;
 
-      // 1) Reposição no início do mês (dias 2 a 5)
-      const diaRep = Math.floor(Math.random() * 4) + 2;
-      const dataRep = createDate(2026, m, diaRep, 8 + Math.floor(Math.random() * 6), Math.floor(Math.random() * 50));
+      // 1) Reposição 1 - início do mês (dias 2 a 4)
+      const repPart1 = Math.max(1, Math.floor(repMonth * 0.55));
+      const repPart2 = repMonth - repPart1;
+
+      const diaRep1 = Math.floor(Math.random() * 3) + 2; // dias 2 a 4
+      const dataRep1 = createDate(2026, m, diaRep1, 8 + Math.floor(Math.random() * 5), Math.floor(Math.random() * 50));
 
       movimentosOps.push(
         prisma.movimento.create({
           data: {
             produtoId: prod.id,
-            quantidade: repMonth,
+            quantidade: repPart1,
             tipo: "REPOSICAO",
             usuarioId: nextUser().id,
-            data: dataRep,
-            observacao: `Reposição de estoque - Fornecedor Lote ${m + 1}/2026`,
+            data: dataRep1,
+            observacao: `Reposição de estoque - Fornecedor Lote ${m + 1}A/2026`,
           },
         })
       );
 
-      // 2) Vendas fracionadas ao longo do mês (2 a 3 vendas)
-      const v1 = Math.floor(venMonth * 0.35);
-      const v2 = Math.floor(venMonth * 0.35);
+      // 2) Venda 1 - primeira semana (dias 6 a 8)
+      const v1 = Math.max(1, Math.floor(venMonth * 0.35));
+      const v2 = Math.max(1, Math.floor(venMonth * 0.35));
       const v3 = venMonth - v1 - v2;
 
-      const diaV1 = Math.floor(Math.random() * 3) + 7;
-      const diaV2 = Math.floor(Math.random() * 3) + 13;
-      // Para outubro (m === 9), limitamos até dia 21
-      const diaV3 = (m === 9) ? (Math.floor(Math.random() * 3) + 18) : (Math.floor(Math.random() * 5) + 21);
+      const diaV1 = Math.floor(Math.random() * 3) + 6; // dias 6 a 8
+      const dataV1 = createDate(2026, m, diaV1, 9 + Math.floor(Math.random() * 7), Math.floor(Math.random() * 50));
+      movimentosOps.push(
+        prisma.movimento.create({
+          data: {
+            produtoId: prod.id,
+            quantidade: v1,
+            tipo: "VENDA",
+            usuarioId: nextUser().id,
+            data: dataV1,
+            observacao: `Venda balcão / Pedido #${orderCounter++}`,
+          },
+        })
+      );
 
-      const dataV1 = createDate(2026, m, diaV1, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
-      const dataV2 = createDate(2026, m, diaV2, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
-      const dataV3 = createDate(2026, m, diaV3, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
+      // 3) Venda 2 - meio do mês (dias 10 a 13)
+      const diaV2 = Math.floor(Math.random() * 4) + 10; // dias 10 a 13
+      const dataV2 = createDate(2026, m, diaV2, 9 + Math.floor(Math.random() * 7), Math.floor(Math.random() * 50));
+      movimentosOps.push(
+        prisma.movimento.create({
+          data: {
+            produtoId: prod.id,
+            quantidade: v2,
+            tipo: "VENDA",
+            usuarioId: nextUser().id,
+            data: dataV2,
+            observacao: `Saída por venda online #${orderCounter++}`,
+          },
+        })
+      );
 
-      const vendasDoMes = [
-        { qtd: v1, data: dataV1, obs: `Venda balcão / Pedido #${orderCounter++}` },
-        { qtd: v2, data: dataV2, obs: `Saída por venda online #${orderCounter++}` },
-        { qtd: v3, data: dataV3, obs: `Venda corporativa #${orderCounter++}` },
-      ];
+      // 4) Reposição 2 e Venda 3 intercaladas na segunda quinzena
+      let diaRep2, diaV3;
+      if (prodIdx % 2 === 0) {
+        // Produtos pares: Reposição mais recente nos dias 19 a 21, Venda 3 nos dias 15 a 18
+        diaV3 = Math.floor(Math.random() * 4) + 15; // dias 15 a 18
+        diaRep2 = (m === 9) ? (Math.floor(Math.random() * 3) + 19) : (Math.floor(Math.random() * 4) + 20); // dias 19 a 21/23
+      } else {
+        // Produtos ímpares: Venda 3 mais recente nos dias 19 a 22, Reposição nos dias 15 a 18
+        diaRep2 = Math.floor(Math.random() * 4) + 15; // dias 15 a 18
+        diaV3 = (m === 9) ? (Math.floor(Math.random() * 3) + 19) : (Math.floor(Math.random() * 4) + 20); // dias 19 a 21/23
+      }
 
-      for (const v of vendasDoMes) {
-        if (v.qtd > 0) {
-          movimentosOps.push(
-            prisma.movimento.create({
-              data: {
-                produtoId: prod.id,
-                quantidade: v.qtd,
-                tipo: "VENDA",
-                usuarioId: nextUser().id,
-                data: v.data,
-                observacao: v.obs,
-              },
-            })
-          );
-        }
+      if (repPart2 > 0) {
+        const dataRep2 = createDate(2026, m, diaRep2, 8 + Math.floor(Math.random() * 5), Math.floor(Math.random() * 50));
+        movimentosOps.push(
+          prisma.movimento.create({
+            data: {
+              produtoId: prod.id,
+              quantidade: repPart2,
+              tipo: "REPOSICAO",
+              usuarioId: nextUser().id,
+              data: dataRep2,
+              observacao: `Reposição complementar de estoque Lote ${m + 1}B/2026`,
+            },
+          })
+        );
+      }
+
+      if (v3 > 0) {
+        const dataV3 = createDate(2026, m, diaV3, 9 + Math.floor(Math.random() * 7), Math.floor(Math.random() * 50));
+        movimentosOps.push(
+          prisma.movimento.create({
+            data: {
+              produtoId: prod.id,
+              quantidade: v3,
+              tipo: "VENDA",
+              usuarioId: nextUser().id,
+              data: dataV3,
+              observacao: `Venda corporativa #${orderCounter++}`,
+            },
+          })
+        );
       }
     }
 

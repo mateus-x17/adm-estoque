@@ -6,7 +6,13 @@ export default function RecentMovements() {
   const [movementsData, setMovementsData] = useState([]);
 
   useEffect(() => {
-    movementsApi.getMovements().then(setMovementsData).catch(console.error);
+    movementsApi
+      .getMovements({ limit: 10, order: "desc" })
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (res?.data || []);
+        setMovementsData(list);
+      })
+      .catch(console.error);
   }, []);
 
   return (

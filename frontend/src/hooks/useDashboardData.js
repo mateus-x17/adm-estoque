@@ -41,7 +41,8 @@ export const useDashboardData = () => {
                 setTotalCategorias(catData.count);
 
                 // Movements
-                const movements = await movementsApi.getMovements();
+                const movementsRes = await movementsApi.getMovements({ limit: "all" });
+                const movements = Array.isArray(movementsRes) ? movementsRes : (movementsRes?.data || []);
                 setMovementsData(movements);
 
                 // Fluxo de mercadorias
