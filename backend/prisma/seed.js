@@ -101,26 +101,26 @@ async function main() {
     const categoria = categorias.find(c => c.nome === p.categoria);
     const fornecedor = fornecedores.find(f => f.nome === p.fornecedor);
 
+    const initialBaseStock = Math.floor(Math.random() * 21) + 95; // 95 a 115 de base
+
     const created = await prisma.produto.create({
       data: {
         nome: p.nome,
         descricao: p.descricao,
         preco: p.preco,
-        quantidade: 0, // inicial 0, iremos ajustar via movimentos
+        quantidade: initialBaseStock,
         imagem: null,
         categoriaId: categoria ? categoria.id : null,
         fornecedorId: fornecedor ? fornecedor.id : null,
       },
     });
-    createdProducts.push(created);
-    console.log(`📦 Produto criado: "${created.nome}" (id ${created.id}) com estoque inicial ${created.quantidade}`);
+    createdProducts.push({ ...created, initialBaseStock });
+    console.log(`📦 Produto criado: "${created.nome}" (id ${created.id}) com estoque base ${initialBaseStock}`);
   }
 
-  // 5) Movimentações e atualizações de estoque (por produto)
+  // 5) Movimentações e atualizações de estoque (por produto ao longo dos meses de 2026)
   // Distribuição de usuários: admin, gerente, operadores (rota de uso)
   const usersForActions = [usuarioAdmin, usuarioGerente, ...operadores];
-
-  // Função utilitária para escolher usuário (roda entre os disponíveis)
   let userIndex = 0;
   function nextUser() {
     const u = usersForActions[userIndex % usersForActions.length];
@@ -128,126 +128,115 @@ async function main() {
     return u;
   }
 
-  // Gera uma data aleatória entre 2026-01-01 e hoje
-  const START_DATE = new Date("2026-01-01T00:00:00.000Z");
-  const END_DATE   = new Date(); // hoje
-
-  function randomDateBetween(from, to) {
-    const ms = from.getTime() + Math.random() * (to.getTime() - from.getTime());
-    const d = new Date(ms);
-    // hora aleatória para evitar datas idênticas
-    d.setHours(Math.floor(Math.random() * 24));
-    d.setMinutes(Math.floor(Math.random() * 60));
-    d.setSeconds(Math.floor(Math.random() * 60));
-    return d;
+  function createDate(year, month, day, hour = 10, min = 0) {
+    return new Date(year, month, day, hour, min, Math.floor(Math.random() * 60));
   }
 
-  // Para cada produto vamos criar:
-  // - REPOSICAO inicial (cadastro de estoque) — mais antiga
-  // - REPOSICAO reposição                     — intermediária
-  // - VENDA venda                             — mais recente
-  // - Ajuste (pode ser reposição ou venda)    — mais recente
-  for (const prod of createdProducts) {
-    // valores coerentes por produto (pode ajustar ranges)
-    const entradaInicial = Math.floor(Math.random() * 81) + 20; // 20-100
-    const reposicao = Math.floor(Math.random() * 41) + 10; // 10-50
-    const saidaVenda = Math.floor(Math.random() * 20) + 1; // 1-20
-    const ajuste = (Math.random() > 0.5) ? (Math.floor(Math.random() * 6) + 1) : -(Math.floor(Math.random() * 3) + 1); // +1..+6 ou -1..-3
+  let orderCounter = 1001;
 
-    // 4 datas em ordem cronológica crescente dentro do intervalo 2026-hoje
-    const allDates = [
-      randomDateBetween(START_DATE, END_DATE),
-      randomDateBetween(START_DATE, END_DATE),
-      randomDateBetween(START_DATE, END_DATE),
-      randomDateBetween(START_DATE, END_DATE),
-    ].sort((a, b) => a - b); // garante ordem crescente
+  for (let prodIdx = 0; prodIdx < createdProducts.length; prodIdx++) {
+    const prod = createdProducts[prodIdx];
+    let currentStock = prod.initialBaseStock;
+    let totalRep = 0;
+    let totalVen = 0;
 
-    const [dataEntradaInicial, dataReposicao, dataSaida, dataAjuste] = allDates;
+    const movimentosOps = [];
 
-    const movimentosOps = [
-      // 1) reposição inicial
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: entradaInicial,
-          tipo: "REPOSICAO",
-          usuarioId: nextUser().id,
-          data: dataEntradaInicial,
-          observacao: "Reposição inicial de estoque (cadastro)",
-        },
-      }),
-      // 2) atualizar quantidade +entradaInicial
+    // Meses de 2026: 0 = Janeiro até 9 = Outubro (mês corrente)
+    for (let m = 0; m <= 9; m++) {
+      const isWorstMonth = (m === 1 || m === 6); // Fevereiro (mês 1) e Julho (mês 6)
+
+      let repMonth = 0;
+      let venMonth = 0;
+
+      if (isWorstMonth) {
+        // Piores meses: reposição se iguala ou é ligeiramente maior que vendas
+        venMonth = Math.floor(Math.random() * 5) + 14; // 14 a 18
+        const diff = (m === 1)
+          ? (Math.floor(Math.random() * 2) + 1) // Fev: +1 ou +2 para reposição
+          : (prodIdx % 2 === 0 ? 0 : 1);        // Jul: se iguala (diff = 0) ou +1
+        repMonth = venMonth + diff;
+      } else {
+        // Meses normais: vendas sempre maiores que as reposições
+        repMonth = Math.floor(Math.random() * 6) + 11; // 11 a 16
+        venMonth = repMonth + Math.floor(Math.random() * 6) + 6; // rep + 6 a 11 (vendas sempre maiores)
+      }
+
+      totalRep += repMonth;
+      totalVen += venMonth;
+
+      // 1) Reposição no início do mês (dias 2 a 5)
+      const diaRep = Math.floor(Math.random() * 4) + 2;
+      const dataRep = createDate(2026, m, diaRep, 8 + Math.floor(Math.random() * 6), Math.floor(Math.random() * 50));
+
+      movimentosOps.push(
+        prisma.movimento.create({
+          data: {
+            produtoId: prod.id,
+            quantidade: repMonth,
+            tipo: "REPOSICAO",
+            usuarioId: nextUser().id,
+            data: dataRep,
+            observacao: `Reposição de estoque - Fornecedor Lote ${m + 1}/2026`,
+          },
+        })
+      );
+
+      // 2) Vendas fracionadas ao longo do mês (2 a 3 vendas)
+      const v1 = Math.floor(venMonth * 0.35);
+      const v2 = Math.floor(venMonth * 0.35);
+      const v3 = venMonth - v1 - v2;
+
+      const diaV1 = Math.floor(Math.random() * 3) + 7;
+      const diaV2 = Math.floor(Math.random() * 3) + 13;
+      // Para outubro (m === 9), limitamos até dia 21
+      const diaV3 = (m === 9) ? (Math.floor(Math.random() * 3) + 18) : (Math.floor(Math.random() * 5) + 21);
+
+      const dataV1 = createDate(2026, m, diaV1, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
+      const dataV2 = createDate(2026, m, diaV2, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
+      const dataV3 = createDate(2026, m, diaV3, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
+
+      const vendasDoMes = [
+        { qtd: v1, data: dataV1, obs: `Venda balcão / Pedido #${orderCounter++}` },
+        { qtd: v2, data: dataV2, obs: `Saída por venda online #${orderCounter++}` },
+        { qtd: v3, data: dataV3, obs: `Venda corporativa #${orderCounter++}` },
+      ];
+
+      for (const v of vendasDoMes) {
+        if (v.qtd > 0) {
+          movimentosOps.push(
+            prisma.movimento.create({
+              data: {
+                produtoId: prod.id,
+                quantidade: v.qtd,
+                tipo: "VENDA",
+                usuarioId: nextUser().id,
+                data: v.data,
+                observacao: v.obs,
+              },
+            })
+          );
+        }
+      }
+    }
+
+    // Calcula estoque final
+    const finalStock = currentStock + totalRep - totalVen;
+
+    // Atualiza o estoque final do produto
+    movimentosOps.push(
       prisma.produto.update({
         where: { id: prod.id },
-        data: { quantidade: { increment: entradaInicial } },
-      }),
+        data: { quantidade: finalStock },
+      })
+    );
 
-      // 3) reposição vinda do fornecedor
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: reposicao,
-          tipo: "REPOSICAO",
-          usuarioId: nextUser().id,
-          data: dataReposicao,
-          observacao: "Reposição vinda do fornecedor",
-        },
-      }),
-      // 4) atualizar quantidade +reposicao
-      prisma.produto.update({
-        where: { id: prod.id },
-        data: { quantidade: { increment: reposicao } },
-      }),
+    await prisma.$transaction(movimentosOps);
 
-      // 5) venda
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: saidaVenda,
-          tipo: "VENDA",
-          usuarioId: nextUser().id,
-          data: dataSaida,
-          observacao: "Venda realizada / pedido",
-        },
-      }),
-      // 6) atualizar quantidade -saidaVenda
-      prisma.produto.update({
-        where: { id: prod.id },
-        data: { quantidade: { decrement: saidaVenda } },
-      }),
-
-      // 7) ajuste manual (pode ser REPOSICAO ou VENDA)
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: Math.abs(ajuste),
-          tipo: ajuste >= 0 ? "REPOSICAO" : "VENDA",
-          usuarioId: nextUser().id,
-          data: dataAjuste,
-          observacao: ajuste >= 0 ? "Ajuste positivo de inventário (reposição)" : "Ajuste negativo de inventário (baixa/venda)",
-        },
-      }),
-      // 8) atualizar quantidade conforme ajuste
-      prisma.produto.update({
-        where: { id: prod.id },
-        data: ajuste >= 0 ? { quantidade: { increment: ajuste } } : { quantidade: { decrement: Math.abs(ajuste) } },
-      }),
-    ];
-
-    // Executa as operações do produto em uma transação (garante atomicidade)
-    const results = await prisma.$transaction(movimentosOps);
-
-    // results contém 8 elementos: movimento, update, movimento, update, movimento, update, movimento, update
-    const [mov1, up1, mov2, up2, mov3, up3, mov4, up4] = results;
-
-    // Exibir logs legíveis
-    console.log("");
     console.log(`📦 Produto: "${prod.nome}" (id ${prod.id})`);
-    console.log(`   ➕ Reposição inicial: +${entradaInicial} em ${dataEntradaInicial.toLocaleDateString("pt-BR")} (mov id ${mov1.id}) → estoque: ${up1.quantidade}`);
-    console.log(`   ➕ Reposição: +${reposicao} em ${dataReposicao.toLocaleDateString("pt-BR")} (mov id ${mov2.id}) → estoque: ${up2.quantidade}`);
-    console.log(`   ➖ Venda: -${saidaVenda} em ${dataSaida.toLocaleDateString("pt-BR")} (mov id ${mov3.id}) → estoque: ${up3.quantidade}`);
-    const ajusteSign = ajuste >= 0 ? "+" : "-";
-    console.log(`   🔧 Ajuste: ${ajusteSign}${Math.abs(ajuste)} em ${dataAjuste.toLocaleDateString("pt-BR")} (mov id ${mov4.id}) → estoque: ${up4.quantidade}`);
+    console.log(`   ➕ Total Reposições: +${totalRep}`);
+    console.log(`   ➖ Total Vendas:     -${totalVen} (Saldo positivo Vendas > Reposições: +${totalVen - totalRep})`);
+    console.log(`   🏁 Estoque final:     ${finalStock} (base inicial: ${prod.initialBaseStock})`);
   }
 
   console.log("\n✅ Seed concluído com sucesso!");

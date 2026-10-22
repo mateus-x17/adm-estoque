@@ -20,94 +20,114 @@ async function seedMovements() {
   // Função para escolher usuário aleatório
   const randomUser = () => usuarios[Math.floor(Math.random() * usuarios.length)];
 
-  // Função para gerar data aleatória nos últimos 30 dias
-  const randomDate = () => {
-    const today = new Date();
-    const pastDays = Math.floor(Math.random() * 30); // 0 a 29 dias atrás
-    const date = new Date(today);
-    date.setDate(today.getDate() - pastDays);
-    // adiciona horas aleatórias para evitar duplicação exata
-    date.setHours(Math.floor(Math.random() * 24));
-    date.setMinutes(Math.floor(Math.random() * 60));
-    date.setSeconds(Math.floor(Math.random() * 60));
-    return date;
-  };
-
-  // 3️⃣ Criar novas movimentações para cada produto
-  for (const prod of produtos) {
-    // Quantidades simuladas
-    const entradaInicial = Math.floor(Math.random() * 81) + 20; // 20-100
-    const reposicao = Math.floor(Math.random() * 41) + 10; // 10-50
-    const saidaVenda = Math.floor(Math.random() * 20) + 1; // 1-20
-    const ajuste = (Math.random() > 0.5) ? (Math.floor(Math.random() * 6) + 1) : -(Math.floor(Math.random() * 3) + 1);
-
-    const movimentosOps = [
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: entradaInicial,
-          tipo: "REPOSICAO",
-          usuarioId: randomUser().id,
-          data: randomDate(),
-          observacao: "Reposição inicial de estoque (cadastro)",
-        },
-      }),
-      prisma.produto.update({
-        where: { id: prod.id },
-        data: { quantidade: { increment: entradaInicial } },
-      }),
-
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: reposicao,
-          tipo: "REPOSICAO",
-          usuarioId: randomUser().id,
-          data: randomDate(),
-          observacao: "Reposição vinda do fornecedor",
-        },
-      }),
-      prisma.produto.update({
-        where: { id: prod.id },
-        data: { quantidade: { increment: reposicao } },
-      }),
-
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: saidaVenda,
-          tipo: "VENDA",
-          usuarioId: randomUser().id,
-          data: randomDate(),
-          observacao: "Venda / saída de pedido",
-        },
-      }),
-      prisma.produto.update({
-        where: { id: prod.id },
-        data: { quantidade: { decrement: saidaVenda } },
-      }),
-
-      prisma.movimento.create({
-        data: {
-          produtoId: prod.id,
-          quantidade: Math.abs(ajuste),
-          tipo: ajuste >= 0 ? "REPOSICAO" : "VENDA",
-          usuarioId: randomUser().id,
-          data: randomDate(),
-          observacao: ajuste >= 0 ? "Ajuste positivo de inventário (reposição)" : "Ajuste negativo de inventário (baixa/venda)",
-        },
-      }),
-      prisma.produto.update({
-        where: { id: prod.id },
-        data: ajuste >= 0 ? { quantidade: { increment: ajuste } } : { quantidade: { decrement: Math.abs(ajuste) } },
-      }),
-    ];
-
-    await prisma.$transaction(movimentosOps);
-    console.log(`✅ Movimentações geradas para o produto "${prod.nome}"`);
+  function createDate(year, month, day, hour = 10, min = 0) {
+    return new Date(year, month, day, hour, min, Math.floor(Math.random() * 60));
   }
 
-  console.log("✅ Seed de movimentações concluído!");
+  let orderCounter = 2001;
+
+  // 3️⃣ Criar novas movimentações mensais coerentes para cada produto (Jan a Out/2026)
+  for (let prodIdx = 0; prodIdx < produtos.length; prodIdx++) {
+    const prod = produtos[prodIdx];
+    const initialBaseStock = Math.floor(Math.random() * 21) + 95; // 95 a 115 de base
+    let totalRep = 0;
+    let totalVen = 0;
+
+    const movimentosOps = [];
+
+    // Meses de 2026: 0 = Janeiro até 9 = Outubro
+    for (let m = 0; m <= 9; m++) {
+      const isWorstMonth = (m === 1 || m === 6); // Fevereiro (mês 1) e Julho (mês 6)
+
+      let repMonth = 0;
+      let venMonth = 0;
+
+      if (isWorstMonth) {
+        // Piores meses: reposição se iguala ou é ligeiramente maior que vendas
+        venMonth = Math.floor(Math.random() * 5) + 14; // 14 a 18
+        const diff = (m === 1)
+          ? (Math.floor(Math.random() * 2) + 1) // Fev: +1 ou +2 para reposição
+          : (prodIdx % 2 === 0 ? 0 : 1);        // Jul: se iguala (diff = 0) ou +1
+        repMonth = venMonth + diff;
+      } else {
+        // Meses normais: vendas sempre maiores que as reposições
+        repMonth = Math.floor(Math.random() * 6) + 11; // 11 a 16
+        venMonth = repMonth + Math.floor(Math.random() * 6) + 6; // rep + 6 a 11 (vendas sempre maiores)
+      }
+
+      totalRep += repMonth;
+      totalVen += venMonth;
+
+      // 1) Reposição no início do mês (dias 2 a 5)
+      const diaRep = Math.floor(Math.random() * 4) + 2;
+      const dataRep = createDate(2026, m, diaRep, 8 + Math.floor(Math.random() * 6), Math.floor(Math.random() * 50));
+
+      movimentosOps.push(
+        prisma.movimento.create({
+          data: {
+            produtoId: prod.id,
+            quantidade: repMonth,
+            tipo: "REPOSICAO",
+            usuarioId: randomUser().id,
+            data: dataRep,
+            observacao: `Reposição de estoque - Fornecedor Lote ${m + 1}/2026`,
+          },
+        })
+      );
+
+      // 2) Vendas fracionadas ao longo do mês (2 a 3 vendas)
+      const v1 = Math.floor(venMonth * 0.35);
+      const v2 = Math.floor(venMonth * 0.35);
+      const v3 = venMonth - v1 - v2;
+
+      const diaV1 = Math.floor(Math.random() * 3) + 7;
+      const diaV2 = Math.floor(Math.random() * 3) + 13;
+      const diaV3 = (m === 9) ? (Math.floor(Math.random() * 3) + 18) : (Math.floor(Math.random() * 5) + 21);
+
+      const dataV1 = createDate(2026, m, diaV1, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
+      const dataV2 = createDate(2026, m, diaV2, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
+      const dataV3 = createDate(2026, m, diaV3, 9 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 50));
+
+      const vendasDoMes = [
+        { qtd: v1, data: dataV1, obs: `Venda balcão / Pedido #${orderCounter++}` },
+        { qtd: v2, data: dataV2, obs: `Saída por venda online #${orderCounter++}` },
+        { qtd: v3, data: dataV3, obs: `Venda corporativa #${orderCounter++}` },
+      ];
+
+      for (const v of vendasDoMes) {
+        if (v.qtd > 0) {
+          movimentosOps.push(
+            prisma.movimento.create({
+              data: {
+                produtoId: prod.id,
+                quantidade: v.qtd,
+                tipo: "VENDA",
+                usuarioId: randomUser().id,
+                data: v.data,
+                observacao: v.obs,
+              },
+            })
+          );
+        }
+      }
+    }
+
+    // Calcula estoque final
+    const finalStock = initialBaseStock + totalRep - totalVen;
+
+    // Atualiza o estoque final do produto
+    movimentosOps.push(
+      prisma.produto.update({
+        where: { id: prod.id },
+        data: { quantidade: finalStock },
+      })
+    );
+
+    await prisma.$transaction(movimentosOps);
+    console.log(`✅ Movimentações geradas para "${prod.nome}": Reposições +${totalRep}, Vendas -${totalVen} (Saldo: +${totalVen - totalRep}, Estoque: ${finalStock})`);
+  }
+
+  console.log("✅ Seed de movimentações concluído com saldo positivo!");
 }
 
 seedMovements()
