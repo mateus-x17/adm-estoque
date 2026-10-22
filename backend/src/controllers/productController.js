@@ -115,7 +115,7 @@ export async function deleteProduct(req, res, next) {
 
 // função para realizar uma movimentação manual (ajuste) de estoque
 // 1 - Recebe ID do produto via rota
-// 2 - Recebe quantidade, tipo (ENTRADA/SAIDA) e observação via corpo da requisição
+// 2 - Recebe quantidade, tipo (REPOSICAO/VENDA) e observação via corpo da requisição
 // 3 - Usa o req.user.id injetado pelo middleware de autenticação para vincular a quem fez a ação
 // 4 - Chama o serviço responsável por descontar/adicionar no estoque do produto e registrar o log de movimentação simultaneamente
 // 5 - Retorna o resultado

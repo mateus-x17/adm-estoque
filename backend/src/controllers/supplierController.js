@@ -91,14 +91,14 @@ export async function getSupplierStats(req, res, next) {
     const suppliers = await prisma.fornecedor.findMany({ include: { produtos: { include: { movimentos: true } } } });
 
     const stats = suppliers.map((sup) => {
-      let totalEntradas = 0;
-      let totalSaidas = 0;
+      let totalReposicoes = 0;
+      let totalVendas = 0;
       const productMovements = {};
 
       sup.produtos.forEach((prod) => {
         prod.movimentos.forEach((mov) => {
-          if (mov.tipo === "ENTRADA") totalEntradas += mov.quantidade;
-          else totalSaidas += mov.quantidade;
+          if (mov.tipo === "REPOSICAO" || mov.tipo === "ENTRADA") totalReposicoes += mov.quantidade;
+          else totalVendas += mov.quantidade;
 
           if (!productMovements[prod.nome]) productMovements[prod.nome] = 0;
           productMovements[prod.nome] += mov.quantidade; // acumula quantitativo para o produto atual
@@ -115,9 +115,11 @@ export async function getSupplierStats(req, res, next) {
       return {
         id: sup.id,
         nome: sup.nome,
-        totalEntradas,
-        totalSaidas,
-        totalMovimentacoes: totalEntradas + totalSaidas,
+        totalReposicoes,
+        totalVendas,
+        totalEntradas: totalReposicoes,
+        totalSaidas: totalVendas,
+        totalMovimentacoes: totalReposicoes + totalVendas,
         produtoMaisMovimentado: topProduct || "Nenhum",
       };
     });

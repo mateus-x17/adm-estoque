@@ -123,7 +123,7 @@ const Home = () => {
                 <div className="glass-card p-6 rounded-3xl hover-card flex flex-col justify-center">
                   <h3 className="font-display text-base font-bold text-text-primary mb-2">Auditoria</h3>
                   <p className="text-xs text-text-secondary leading-relaxed">
-                    Todo registro de entrada e saída é assinado pelo operador responsável.
+                    Todo registro de reposição e venda é assinado pelo operador responsável.
                   </p>
                 </div>
                 <div className="glass-card p-6 rounded-3xl hover-card flex flex-col justify-center">

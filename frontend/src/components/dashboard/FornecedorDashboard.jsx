@@ -16,8 +16,8 @@ const FornecedorDashboard = ({ stats, loading }) => {
 
   const barChartData = stats.map((s) => ({
     name: s.nome,
-    Entradas: s.totalEntradas,
-    Saidas: s.totalSaidas,
+    Vendas: s.totalVendas !== undefined ? s.totalVendas : s.totalSaidas,
+    Reposições: s.totalReposicoes !== undefined ? s.totalReposicoes : s.totalEntradas,
   }));
 
   return (
@@ -50,8 +50,8 @@ const FornecedorDashboard = ({ stats, loading }) => {
               }}
             />
             <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-text-secondary)" }} />
-            <Bar dataKey="Entradas" fill="var(--color-chart-3)" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="Saidas" fill="var(--color-chart-4)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="Vendas" fill="var(--color-chart-3)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="Reposições" fill="var(--color-chart-4)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -185,12 +185,12 @@ Siga os passos abaixo para clonar, instalar e rodar o projeto na sua máquina.
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/seu-usuario/gerenciador-de-estoque.git
+   git clone https://github.com/mateus-x17/adm-estoque/
    ```
 
 2. Acesse a pasta do projeto:
    ```bash
-   cd gerenciador-de-estoque
+   cd Estoque.OS
    ```
 
 3. Configure as variáveis de ambiente do Backend:

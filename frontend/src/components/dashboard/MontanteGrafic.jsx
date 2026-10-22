@@ -10,8 +10,8 @@ import {
 } from "recharts";
 import { movementsApi } from "../../services/api/index.js";
 
-const ENTRADA_COLOR = "var(--color-chart-3)";
-const SAIDA_COLOR = "var(--color-chart-4)";
+const VENDA_COLOR = "var(--color-chart-3)"; // Verde para vendas
+const REPOSICAO_COLOR = "var(--color-chart-4)"; // Vermelho para reposições
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -33,8 +33,8 @@ const PERIODO_OPTIONS = [
 ];
 
 const TIPO_OPTIONS = [
-  { label: "Saídas", value: "SAIDA" },
-  { label: "Entradas", value: "ENTRADA" },
+  { label: "Vendas", value: "VENDA" },
+  { label: "Reposições", value: "REPOSICAO" },
   { label: "Ambos", value: "AMBOS" },
 ];
 
@@ -49,7 +49,7 @@ export default function MontanteGrafic() {
   const [periodType, setPeriodType] = useState("month");
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [tipoFiltro, setTipoFiltro] = useState("SAIDA");
+  const [tipoFiltro, setTipoFiltro] = useState("VENDA");
 
   const years = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - i));
 
@@ -87,11 +87,11 @@ export default function MontanteGrafic() {
             ? d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
             : d.toLocaleDateString("pt-BR");
 
-          if (!grouped[rawKey]) grouped[rawKey] = { rawKey, data: label, Entradas: 0, Saídas: 0 };
+          if (!grouped[rawKey]) grouped[rawKey] = { rawKey, data: label, Reposições: 0, Vendas: 0 };
 
           const valor = mov.quantidade * Number(mov.produto.preco);
-          if (mov.tipo === "ENTRADA") grouped[rawKey].Entradas += valor;
-          else grouped[rawKey]["Saídas"] += valor;
+          if (mov.tipo === "REPOSICAO" || mov.tipo === "ENTRADA") grouped[rawKey].Reposições += valor;
+          else grouped[rawKey].Vendas += valor;
         });
 
         const sorted = Object.values(grouped).sort((a, b) => a.rawKey.localeCompare(b.rawKey));
@@ -107,15 +107,15 @@ export default function MontanteGrafic() {
     fetchData();
   }, [periodType, selectedMonth, selectedYear, tipoFiltro]);
 
-  const showEntradas = tipoFiltro === "ENTRADA" || tipoFiltro === "AMBOS";
-  const showSaidas = tipoFiltro === "SAIDA" || tipoFiltro === "AMBOS";
+  const showReposicoes = tipoFiltro === "REPOSICAO" || tipoFiltro === "ENTRADA" || tipoFiltro === "AMBOS";
+  const showVendas = tipoFiltro === "VENDA" || tipoFiltro === "SAIDA" || tipoFiltro === "AMBOS";
 
   const title =
     tipoFiltro === "AMBOS"
-      ? "Entradas e Saídas ao longo do tempo"
-      : tipoFiltro === "ENTRADA"
-      ? "Montante de entradas ao longo do tempo"
-      : "Montante de saídas ao longo do tempo";
+      ? "Vendas e Reposições ao longo do tempo"
+      : tipoFiltro === "REPOSICAO" || tipoFiltro === "ENTRADA"
+      ? "Montante de reposições ao longo do tempo"
+      : "Montante de vendas ao longo do tempo";
 
   return (
     <div className="glass-card p-4 sm:p-6">
@@ -199,16 +199,16 @@ export default function MontanteGrafic() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
               <defs>
-                {showEntradas && (
-                  <linearGradient id="gradEntrada" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={ENTRADA_COLOR} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={ENTRADA_COLOR} stopOpacity={0} />
+                {showReposicoes && (
+                  <linearGradient id="gradReposicao" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={REPOSICAO_COLOR} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={REPOSICAO_COLOR} stopOpacity={0} />
                   </linearGradient>
                 )}
-                {showSaidas && (
-                  <linearGradient id="gradSaida" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={SAIDA_COLOR} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={SAIDA_COLOR} stopOpacity={0} />
+                {showVendas && (
+                  <linearGradient id="gradVenda" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={VENDA_COLOR} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={VENDA_COLOR} stopOpacity={0} />
                   </linearGradient>
                 )}
               </defs>
@@ -229,26 +229,26 @@ export default function MontanteGrafic() {
               <Tooltip content={<CustomTooltip />} cursor={{ stroke: "var(--color-border-light)", strokeWidth: 1 }} />
               {tipoFiltro === "AMBOS" && <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-text-secondary)" }} />}
 
-              {showEntradas && (
+              {showVendas && (
                 <Area
                   type="monotone"
-                  dataKey="Entradas"
-                  stroke={ENTRADA_COLOR}
+                  dataKey="Vendas"
+                  stroke={VENDA_COLOR}
                   strokeWidth={2}
-                  fill="url(#gradEntrada)"
+                  fill="url(#gradVenda)"
                   dot={false}
-                  activeDot={{ r: 4, fill: ENTRADA_COLOR, strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: VENDA_COLOR, strokeWidth: 0 }}
                 />
               )}
-              {showSaidas && (
+              {showReposicoes && (
                 <Area
                   type="monotone"
-                  dataKey="Saídas"
-                  stroke={SAIDA_COLOR}
+                  dataKey="Reposições"
+                  stroke={REPOSICAO_COLOR}
                   strokeWidth={2}
-                  fill="url(#gradSaida)"
+                  fill="url(#gradReposicao)"
                   dot={false}
-                  activeDot={{ r: 4, fill: SAIDA_COLOR, strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: REPOSICAO_COLOR, strokeWidth: 0 }}
                 />
               )}
             </AreaChart>

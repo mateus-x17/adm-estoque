@@ -3,15 +3,16 @@ import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 
 const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
   const dataCompacta = new Date(movimentacao.data).toLocaleDateString("pt-BR");
-  const isEntrada = movimentacao.tipo === "ENTRADA";
+  const isVenda = movimentacao.tipo === "VENDA" || movimentacao.tipo === "SAIDA";
 
-  const badgeClass = isEntrada
+  const badgeClass = isVenda
     ? "bg-accent-green/10 text-accent-green border-accent-green"
     : "bg-accent-red/10 text-accent-red border-accent-red";
     
-  const Icon = isEntrada ? FiArrowDownRight : FiArrowUpRight;
-  const iconColor = isEntrada ? "text-accent-green" : "text-accent-red";
-  const iconBg = isEntrada ? "bg-accent-green/10 border-accent-green" : "bg-accent-red/10 border-accent-red";
+  const Icon = isVenda ? FiArrowUpRight : FiArrowDownRight;
+  const iconColor = isVenda ? "text-accent-green" : "text-accent-red";
+  const iconBg = isVenda ? "bg-accent-green/10 border-accent-green" : "bg-accent-red/10 border-accent-red";
+  const labelTipo = isVenda ? "VENDA" : "REPOSIÇÃO";
 
   return (
     <div
@@ -29,7 +30,7 @@ const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
               {movimentacao.produto.nome}
             </p>
             <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase border ${badgeClass}`}>
-              {movimentacao.tipo}
+              {labelTipo}
             </span>
           </div>
           <div className="flex items-center gap-3 mt-1">

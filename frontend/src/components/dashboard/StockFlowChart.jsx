@@ -50,15 +50,15 @@ export default function StockFlowChart() {
         const products = [...new Set(movements.map((m) => m.produto.nome))];
 
         const formattedData = products.map((produto) => {
-          const entradas = movements
-            .filter((m) => m.produto.nome === produto && m.tipo === "ENTRADA")
+          const reposicoes = movements
+            .filter((m) => m.produto.nome === produto && (m.tipo === "REPOSICAO" || m.tipo === "ENTRADA"))
             .reduce((acc, cur) => acc + cur.quantidade, 0);
 
-          const saidas = movements
-            .filter((m) => m.produto.nome === produto && m.tipo === "SAIDA")
+          const vendas = movements
+            .filter((m) => m.produto.nome === produto && (m.tipo === "VENDA" || m.tipo === "SAIDA"))
             .reduce((acc, cur) => acc + cur.quantidade, 0);
 
-          return { produto, Entradas: entradas, Saídas: saidas };
+          return { produto, Vendas: vendas, Reposições: reposicoes };
         });
 
         setChartData(formattedData);
@@ -80,7 +80,7 @@ export default function StockFlowChart() {
             Fluxo de mercadorias
           </h2>
           <p className="font-secondary text-xs text-text-secondary mt-1">
-            Volume de entradas e saídas por produto
+            Volume de vendas e reposições por produto
           </p>
         </div>
         <MoreHorizontal className="w-4 h-4 text-text-secondary" />
@@ -95,13 +95,13 @@ export default function StockFlowChart() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} barCategoryGap="25%" barGap={6}>
               <defs>
-                <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-chart-1)" stopOpacity={1} />
-                  <stop offset="95%" stopColor="var(--color-chart-1)" stopOpacity={0.4} />
+                <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-chart-3)" stopOpacity={1} />
+                  <stop offset="95%" stopColor="var(--color-chart-3)" stopOpacity={0.4} />
                 </linearGradient>
-                <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-chart-2)" stopOpacity={1} />
-                  <stop offset="95%" stopColor="var(--color-chart-2)" stopOpacity={0.2} />
+                <linearGradient id="colorReposicoes" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-chart-4)" stopOpacity={1} />
+                  <stop offset="95%" stopColor="var(--color-chart-4)" stopOpacity={0.3} />
                 </linearGradient>
               </defs>
               <XAxis
@@ -113,8 +113,8 @@ export default function StockFlowChart() {
               <YAxis hide />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--color-border-light)", opacity: 0.5 }} />
               <Legend content={<CustomLegend />} />
-              <Bar dataKey="Entradas" fill="url(#colorEntradas)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Saídas" fill="url(#colorSaidas)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Vendas" fill="url(#colorVendas)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Reposições" fill="url(#colorReposicoes)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

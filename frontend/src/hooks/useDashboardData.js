@@ -48,23 +48,29 @@ export const useDashboardData = () => {
                 const products = [...new Set(movements.map((m) => m.produto.nome))];
 
                 const formattedChart = products.map((produto) => {
-                    const entradas = movements
-                        .filter((m) => m.produto.nome === produto && m.tipo === "ENTRADA")
+                    const reposicoes = movements
+                        .filter((m) => m.produto.nome === produto && (m.tipo === "REPOSICAO" || m.tipo === "ENTRADA"))
                         .reduce((acc, cur) => acc + cur.quantidade, 0);
 
-                    const saidas = movements
-                        .filter((m) => m.produto.nome === produto && m.tipo === "SAIDA")
+                    const vendas = movements
+                        .filter((m) => m.produto.nome === produto && (m.tipo === "VENDA" || m.tipo === "SAIDA"))
                         .reduce((acc, cur) => acc + cur.quantidade, 0);
 
-                    return { produto, Entradas: entradas, Saidas: saidas };
+                    return {
+                        produto,
+                        Vendas: vendas,
+                        Reposicoes: reposicoes,
+                        Entradas: reposicoes,
+                        Saidas: vendas,
+                    };
                 });
 
                 setChartData(formattedChart);
 
-                // Montante de saídas por data
-                const saidas = movements.filter((m) => m.tipo === "SAIDA");
+                // Montante de vendas por data
+                const vendas = movements.filter((m) => m.tipo === "VENDA" || m.tipo === "SAIDA");
 
-                const porData = saidas.reduce((acc, mov) => {
+                const porData = vendas.reduce((acc, mov) => {
                     const data = new Date(mov.data).toLocaleDateString("pt-BR");
 
                     if (!acc[data]) acc[data] = { data, montante: 0 };

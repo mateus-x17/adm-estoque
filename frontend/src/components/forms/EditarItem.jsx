@@ -190,7 +190,10 @@ const formConfigs = {
         name: "tipo",
         label: "Tipo",
         type: "select",
-        options: ["SAIDA", "ENTRADA"],
+        options: [
+          { id: "VENDA", nome: "Venda" },
+          { id: "REPOSICAO", nome: "Reposição" },
+        ],
         required: true,
       },
       { name: "observacao", label: "Observação", type: "textarea" },
@@ -324,7 +327,9 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       } else if (field.options) {
         setSelectOptions((prev) => ({
           ...prev,
-          [field.name]: field.options.map((opt) => ({ id: opt, nome: opt })),
+          [field.name]: field.options.map((opt) =>
+            typeof opt === "object" && opt !== null ? opt : { id: opt, nome: opt }
+          ),
         }));
       }
     });

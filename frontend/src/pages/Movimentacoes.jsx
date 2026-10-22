@@ -148,23 +148,23 @@ const Movimentacoes = () => {
 
 
         const pieData = pieResult.data || [];
-        let pieEntradas = 0, pieSaidas = 0;
-        let montanteEntradas = 0, montanteSaidas = 0;
+        let pieReposicoes = 0, pieVendas = 0;
+        let montanteReposicoes = 0, montanteVendas = 0;
         
         pieData.forEach((m) => {
           const valor = m.quantidade * Number(m.produto?.preco || 0);
-          if (m.tipo === "ENTRADA") {
-            pieEntradas += m.quantidade;
-            montanteEntradas += valor;
+          if (m.tipo === "REPOSICAO" || m.tipo === "ENTRADA") {
+            pieReposicoes += m.quantidade;
+            montanteReposicoes += valor;
           } else {
-            pieSaidas += m.quantidade;
-            montanteSaidas += valor;
+            pieVendas += m.quantidade;
+            montanteVendas += valor;
           }
         });
         
         setPieChartData([
-          { name: "Entradas", value: pieEntradas, montante: montanteEntradas },
-          { name: "Saídas", value: pieSaidas, montante: montanteSaidas },
+          { name: "Vendas", value: pieVendas, montante: montanteVendas },
+          { name: "Reposições", value: pieReposicoes, montante: montanteReposicoes },
         ]);
 
 
@@ -179,12 +179,12 @@ const Movimentacoes = () => {
             grouped[dateKey] = {
               date: dateKey,
               label: dateObj.toLocaleDateString("pt-BR"),
-              Entradas: 0,
-              Saidas: 0,
+              Reposicoes: 0,
+              Vendas: 0,
             };
           }
-          if (m.tipo === "ENTRADA") grouped[dateKey].Entradas += m.quantidade;
-          else grouped[dateKey].Saidas += m.quantidade;
+          if (m.tipo === "REPOSICAO" || m.tipo === "ENTRADA") grouped[dateKey].Reposicoes += m.quantidade;
+          else grouped[dateKey].Vendas += m.quantidade;
         });
         
         const sortedLineData = Object.values(grouped).sort(
@@ -226,7 +226,7 @@ const Movimentacoes = () => {
             Movimentações
           </h1>
           <p className="text-sm text-text-secondary mt-1">
-            Controle de entradas e saídas de produtos.
+            Controle de reposições e vendas de produtos.
           </p>
         </div>
       </header>
@@ -257,8 +257,8 @@ const Movimentacoes = () => {
               className="w-full lg:w-40 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
               <option value="">Todos</option>
-              <option value="ENTRADA">Entrada</option>
-              <option value="SAIDA">Saída</option>
+              <option value="VENDA">Venda</option>
+              <option value="REPOSICAO">Reposição</option>
             </select>
 
             {canFilterByUser ? (
@@ -369,7 +369,7 @@ const Movimentacoes = () => {
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6">
             <div className="lg:col-span-2 glass-card p-6">
               <h3 className="font-display text-lg font-semibold text-text-primary mb-6">
-                Entradas x saídas
+                Reposições x vendas
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={lineChartData}>
@@ -387,13 +387,15 @@ const Movimentacoes = () => {
                   <Tooltip content={<ChartTooltip />} />
                   <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-text-secondary)" }} />
                   <Line
-                    dataKey="Entradas"
+                    dataKey="Vendas"
+                    name="Vendas"
                     stroke="var(--color-chart-3)"
                     strokeWidth={2}
                     dot={false}
                   />
                   <Line
-                    dataKey="Saidas"
+                    dataKey="Reposicoes"
+                    name="Reposições"
                     stroke="var(--color-chart-4)"
                     strokeWidth={2}
                     dot={false}

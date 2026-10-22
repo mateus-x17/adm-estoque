@@ -90,7 +90,7 @@ export default function UserStatsCharts({ type }) {
             {isValue ? "Valor movimentado por usuário" : "Movimentações por usuário"}
           </h2>
           <p className="font-secondary text-xs text-text-secondary">
-            {isValue ? "Total em reais de saídas registradas" : "Quantidade total de movimentações"}
+            {isValue ? "Total em reais de vendas registradas" : "Quantidade total de movimentações"}
           </p>
         </div>
 

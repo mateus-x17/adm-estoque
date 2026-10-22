@@ -51,7 +51,7 @@ router.delete("/:id", permit("ADMIN"), deleteProduct);
 
 // 5 - Rota especializada para movimentação de estoque
 // Além da gerência, OPERADORES também podem acessar esta rota específica
-// Exige validação de que os campos "quantidade" e "tipo" (ENTRADA/SAIDA) foram enviados
+// Exige validação de que os campos "quantidade" e "tipo" (REPOSICAO/VENDA) foram enviados
 router.post("/:id/adjust", 
   permit("ADMIN", "GERENTE", "OPERADOR"),
   validateRequest({ required: ['quantidade', 'tipo'] }),

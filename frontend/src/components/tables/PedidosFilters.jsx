@@ -68,8 +68,8 @@ const PedidosFilters = ({
             className={`lg:w-40 ${inputClass}`}
           >
             <option value="todos">Todos</option>
-            <option value="ENTRADA">Entrada</option>
-            <option value="SAIDA">Saída</option>
+            <option value="VENDA">Venda</option>
+            <option value="REPOSICAO">Reposição</option>
           </select>
 
           <select

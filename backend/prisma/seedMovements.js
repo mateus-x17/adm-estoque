@@ -46,10 +46,10 @@ async function seedMovements() {
         data: {
           produtoId: prod.id,
           quantidade: entradaInicial,
-          tipo: "ENTRADA",
+          tipo: "REPOSICAO",
           usuarioId: randomUser().id,
           data: randomDate(),
-          observacao: "Entrada inicial de estoque (cadastro)",
+          observacao: "Reposição inicial de estoque (cadastro)",
         },
       }),
       prisma.produto.update({
@@ -61,7 +61,7 @@ async function seedMovements() {
         data: {
           produtoId: prod.id,
           quantidade: reposicao,
-          tipo: "ENTRADA",
+          tipo: "REPOSICAO",
           usuarioId: randomUser().id,
           data: randomDate(),
           observacao: "Reposição vinda do fornecedor",
@@ -76,10 +76,10 @@ async function seedMovements() {
         data: {
           produtoId: prod.id,
           quantidade: saidaVenda,
-          tipo: "SAIDA",
+          tipo: "VENDA",
           usuarioId: randomUser().id,
           data: randomDate(),
-          observacao: "Saída para venda/pedido",
+          observacao: "Venda / saída de pedido",
         },
       }),
       prisma.produto.update({
@@ -91,10 +91,10 @@ async function seedMovements() {
         data: {
           produtoId: prod.id,
           quantidade: Math.abs(ajuste),
-          tipo: ajuste >= 0 ? "ENTRADA" : "SAIDA",
+          tipo: ajuste >= 0 ? "REPOSICAO" : "VENDA",
           usuarioId: randomUser().id,
           data: randomDate(),
-          observacao: ajuste >= 0 ? "Ajuste positivo de inventário" : "Ajuste negativo de inventário",
+          observacao: ajuste >= 0 ? "Ajuste positivo de inventário (reposição)" : "Ajuste negativo de inventário (baixa/venda)",
         },
       }),
       prisma.produto.update({

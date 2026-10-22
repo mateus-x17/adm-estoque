@@ -143,10 +143,10 @@ async function main() {
   }
 
   // Para cada produto vamos criar:
-  // - ENTRADA inicial (cadastro de estoque) — mais antiga
-  // - ENTRADA reposição                     — intermediária
-  // - SAIDA venda                           — mais recente
-  // - Ajuste (pode ser entrada ou saída)    — mais recente
+  // - REPOSICAO inicial (cadastro de estoque) — mais antiga
+  // - REPOSICAO reposição                     — intermediária
+  // - VENDA venda                             — mais recente
+  // - Ajuste (pode ser reposição ou venda)    — mais recente
   for (const prod of createdProducts) {
     // valores coerentes por produto (pode ajustar ranges)
     const entradaInicial = Math.floor(Math.random() * 81) + 20; // 20-100
@@ -165,15 +165,15 @@ async function main() {
     const [dataEntradaInicial, dataReposicao, dataSaida, dataAjuste] = allDates;
 
     const movimentosOps = [
-      // 1) entrada inicial
+      // 1) reposição inicial
       prisma.movimento.create({
         data: {
           produtoId: prod.id,
           quantidade: entradaInicial,
-          tipo: "ENTRADA",
+          tipo: "REPOSICAO",
           usuarioId: nextUser().id,
           data: dataEntradaInicial,
-          observacao: "Entrada inicial de estoque (cadastro)",
+          observacao: "Reposição inicial de estoque (cadastro)",
         },
       }),
       // 2) atualizar quantidade +entradaInicial
@@ -182,12 +182,12 @@ async function main() {
         data: { quantidade: { increment: entradaInicial } },
       }),
 
-      // 3) reposição (entrada)
+      // 3) reposição vinda do fornecedor
       prisma.movimento.create({
         data: {
           produtoId: prod.id,
           quantidade: reposicao,
-          tipo: "ENTRADA",
+          tipo: "REPOSICAO",
           usuarioId: nextUser().id,
           data: dataReposicao,
           observacao: "Reposição vinda do fornecedor",
@@ -199,15 +199,15 @@ async function main() {
         data: { quantidade: { increment: reposicao } },
       }),
 
-      // 5) saída simulando venda
+      // 5) venda
       prisma.movimento.create({
         data: {
           produtoId: prod.id,
           quantidade: saidaVenda,
-          tipo: "SAIDA",
+          tipo: "VENDA",
           usuarioId: nextUser().id,
           data: dataSaida,
-          observacao: "Saída para venda/pedido",
+          observacao: "Venda realizada / pedido",
         },
       }),
       // 6) atualizar quantidade -saidaVenda
@@ -216,15 +216,15 @@ async function main() {
         data: { quantidade: { decrement: saidaVenda } },
       }),
 
-      // 7) ajuste manual (pode ser ENTRADA ou SAIDA)
+      // 7) ajuste manual (pode ser REPOSICAO ou VENDA)
       prisma.movimento.create({
         data: {
           produtoId: prod.id,
           quantidade: Math.abs(ajuste),
-          tipo: ajuste >= 0 ? "ENTRADA" : "SAIDA",
+          tipo: ajuste >= 0 ? "REPOSICAO" : "VENDA",
           usuarioId: nextUser().id,
           data: dataAjuste,
-          observacao: ajuste >= 0 ? "Ajuste positivo de inventário" : "Ajuste negativo de inventário",
+          observacao: ajuste >= 0 ? "Ajuste positivo de inventário (reposição)" : "Ajuste negativo de inventário (baixa/venda)",
         },
       }),
       // 8) atualizar quantidade conforme ajuste
@@ -243,9 +243,9 @@ async function main() {
     // Exibir logs legíveis
     console.log("");
     console.log(`📦 Produto: "${prod.nome}" (id ${prod.id})`);
-    console.log(`   ➕ Entrada inicial: +${entradaInicial} em ${dataEntradaInicial.toLocaleDateString("pt-BR")} (mov id ${mov1.id}) → estoque: ${up1.quantidade}`);
+    console.log(`   ➕ Reposição inicial: +${entradaInicial} em ${dataEntradaInicial.toLocaleDateString("pt-BR")} (mov id ${mov1.id}) → estoque: ${up1.quantidade}`);
     console.log(`   ➕ Reposição: +${reposicao} em ${dataReposicao.toLocaleDateString("pt-BR")} (mov id ${mov2.id}) → estoque: ${up2.quantidade}`);
-    console.log(`   ➖ Saída (venda): -${saidaVenda} em ${dataSaida.toLocaleDateString("pt-BR")} (mov id ${mov3.id}) → estoque: ${up3.quantidade}`);
+    console.log(`   ➖ Venda: -${saidaVenda} em ${dataSaida.toLocaleDateString("pt-BR")} (mov id ${mov3.id}) → estoque: ${up3.quantidade}`);
     const ajusteSign = ajuste >= 0 ? "+" : "-";
     console.log(`   🔧 Ajuste: ${ajusteSign}${Math.abs(ajuste)} em ${dataAjuste.toLocaleDateString("pt-BR")} (mov id ${mov4.id}) → estoque: ${up4.quantidade}`);
   }

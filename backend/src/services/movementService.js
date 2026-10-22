@@ -34,6 +34,13 @@ export async function listMovementsPaginated(filters = {}) {
     search,
   } = filters;
 
+  let normalizedTipo = undefined;
+  if (tipo && tipo !== 'undefined' && tipo !== 'null') {
+    const upper = String(tipo).toUpperCase();
+    if (upper === 'ENTRADA' || upper === 'REPOSICAO') normalizedTipo = 'REPOSICAO';
+    else if (upper === 'SAIDA' || upper === 'VENDA') normalizedTipo = 'VENDA';
+  }
+
   const where = {
     AND: [
       id && !isNaN(Number(id))
@@ -65,9 +72,9 @@ export async function listMovementsPaginated(filters = {}) {
             },
           }
         : {},
-      tipo && tipo !== 'undefined' && tipo !== 'null' && ['ENTRADA', 'SAIDA'].includes(tipo)
+      normalizedTipo
         ? {
-            tipo,
+            tipo: normalizedTipo,
           }
         : {},
       usuarioId && usuarioId !== 'undefined' && usuarioId !== 'null' && !isNaN(Number(usuarioId))
@@ -133,8 +140,13 @@ export async function getUserStatsAggregated() {
         select: { nome: true, email: true }
       });
 
-      const saidaAgg = await prisma.movimento.aggregate({
-        where: { usuarioId: s.usuarioId, tipo: 'SAIDA' },
+      const vendaAgg = await prisma.movimento.aggregate({
+        where: { usuarioId: s.usuarioId, tipo: 'VENDA' },
+        _sum: { quantidade: true }
+      });
+
+      const reposicaoAgg = await prisma.movimento.aggregate({
+        where: { usuarioId: s.usuarioId, tipo: 'REPOSICAO' },
         _sum: { quantidade: true }
       });
 
@@ -144,7 +156,10 @@ export async function getUserStatsAggregated() {
         email: usuario?.email,
         totalMovimentos: s._count._all || 0,
         totalQuantidade: s._sum.quantidade || 0,
-        totalSaidaQuantidade: saidaAgg._sum.quantidade || 0
+        totalVendaQuantidade: vendaAgg._sum.quantidade || 0,
+        totalReposicaoQuantidade: reposicaoAgg._sum.quantidade || 0,
+        totalSaidaQuantidade: vendaAgg._sum.quantidade || 0,
+        totalEntradaQuantidade: reposicaoAgg._sum.quantidade || 0
       };
     })
   );

@@ -157,21 +157,28 @@ export async function deleteProduct(id) {
 
 // serviço ultra crítico: ajusta quantidade e salva o registro histórico como transação atômica
 // 1 - Validações estruturais e resgate do produto original do banco
-// 2 - Regra de Negócio principal: Impede (throw 400) movimentações de SAIDA maiores que a quantidade que o banco já tem e qualquer estoque que ficasse negativo
+// 2 - Regra de Negócio principal: Impede (throw 400) movimentações de VENDA maiores que a quantidade que o banco já tem e qualquer estoque que ficasse negativo
 // 3 - Usa o prisma.$transaction para registrar a tabela de "movimentos" E dar o UPDATE em "produto" na MESMA transação
 // 4 - Em caso de queda do banco, se uma falhar, as duas partes sofrem um "rollback" e a consistência é mantida intacta
 export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, observacao = null) {
   if (!quantidade || !tipo) throw new AppError('Quantidade e tipo são obrigatórios', 400);
-  if (!['ENTRADA', 'SAIDA'].includes(tipo)) throw new AppError('Tipo deve ser ENTRADA ou SAIDA', 400);
+
+  let normalizedTipo = String(tipo).toUpperCase();
+  if (normalizedTipo === 'ENTRADA') normalizedTipo = 'REPOSICAO';
+  if (normalizedTipo === 'SAIDA') normalizedTipo = 'VENDA';
+
+  if (!['REPOSICAO', 'VENDA'].includes(normalizedTipo)) {
+    throw new AppError('Tipo deve ser REPOSICAO ou VENDA', 400);
+  }
 
   const product = await prisma.produto.findUnique({ where: { id: Number(id) } });
   if (!product) throw new AppError('Produto não encontrado', 404);
 
-  const delta = tipo === 'ENTRADA' ? Number(quantidade) : -Number(quantidade);
+  const delta = normalizedTipo === 'REPOSICAO' ? Number(quantidade) : -Number(quantidade);
   const newQuantity = product.quantidade + delta;
 
-  // regra de negócio: não permite estoque negativo em saída
-  if (tipo === 'SAIDA' && Number(quantidade) > product.quantidade) {
+  // regra de negócio: não permite estoque negativo em venda
+  if (normalizedTipo === 'VENDA' && Number(quantidade) > product.quantidade) {
     throw new AppError('Quantidade insuficiente no estoque', 400);
   }
   if (newQuantity < 0) throw new AppError('Quantidade não pode ser negativa', 400);
@@ -180,7 +187,7 @@ export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, obs
   // Se uma falhar (ex: queda de luz), a outra sofre rollback evitando um banco inconsistente
   const result = await prisma.$transaction([
     prisma.movimento.create({
-      data: { produtoId: Number(id), quantidade: Number(quantidade), tipo, usuarioId: Number(usuarioId), observacao }
+      data: { produtoId: Number(id), quantidade: Number(quantidade), tipo: normalizedTipo, usuarioId: Number(usuarioId), observacao }
     }),
     prisma.produto.update({ where: { id: Number(id) }, data: { quantidade: newQuantity } })
   ]);

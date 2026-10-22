@@ -17,7 +17,7 @@ export default function RecentMovements() {
 
       <div className="flex-1">
         {movementsData.slice(0, 5).map((mov, i, arr) => {
-          const isEntrada = mov.tipo === "ENTRADA";
+          const isVenda = mov.tipo === "VENDA" || mov.tipo === "SAIDA";
           return (
             <div
               key={mov.id}
@@ -25,12 +25,12 @@ export default function RecentMovements() {
                 }`}
             >
               <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center border ${isEntrada
+                className={`w-8 h-8 rounded-xl flex items-center justify-center border ${isVenda
                   ? "border-accent-green/20 text-accent-green bg-accent-green/5"
                   : "border-accent-red/20 text-accent-red bg-accent-red/5"
                   }`}
               >
-                {isEntrada ? (
+                {isVenda ? (
                   <ArrowUpRight className="w-4 h-4" strokeWidth={1.5} />
                 ) : (
                   <ArrowDownRight className="w-4 h-4" strokeWidth={1.5} />
@@ -42,7 +42,7 @@ export default function RecentMovements() {
                   {mov.produto.nome}
                 </p>
                 <p className="font-mono text-xs text-text-secondary mt-0.5">
-                  {mov.tipo} · {mov.quantidade}
+                  {isVenda ? "Venda" : "Reposição"} · {mov.quantidade}
                 </p>
               </div>
 

@@ -81,6 +81,6 @@ enum Role {
 }
 
 enum MovimentoTipo {
-  ENTRADA
-  SAIDA
+  REPOSICAO
+  VENDA
 }

@@ -7,15 +7,15 @@ function ModalPedido({ pedido, fecharModal }) {
 
   const dataCompacta = new Date(pedido.data).toLocaleDateString("pt-BR");
   const horaCompacta = new Date(pedido.data).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
-  const isEntrada = pedido.tipo === "ENTRADA";
+  const isVenda = pedido.tipo === "VENDA" || pedido.tipo === "SAIDA";
 
-  const badgeClass = isEntrada
+  const badgeClass = isVenda
     ? "bg-accent-green/10 text-accent-green border-accent-green"
     : "bg-accent-red/10 text-accent-red border-accent-red";
     
-  const Icon = isEntrada ? FiArrowDownRight : FiArrowUpRight;
-  const iconColor = isEntrada ? "text-accent-green" : "text-accent-red";
-  const iconBg = isEntrada ? "bg-accent-green/10 border-accent-green" : "bg-accent-red/10 border-accent-red";
+  const Icon = isVenda ? FiArrowUpRight : FiArrowDownRight;
+  const iconColor = isVenda ? "text-accent-green" : "text-accent-red";
+  const iconBg = isVenda ? "bg-accent-green/10 border-accent-green" : "bg-accent-red/10 border-accent-red";
 
   return createPortal(
     <div
@@ -49,7 +49,7 @@ function ModalPedido({ pedido, fecharModal }) {
                   {pedido.produto?.nome || "Produto Desconhecido"}
                 </h3>
                 <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase border shrink-0 ${badgeClass}`}>
-                  {pedido.tipo}
+                  {isVenda ? "VENDA" : "REPOSIÇÃO"}
                 </span>
               </div>
               <p className="font-mono text-xs text-text-secondary mt-1">Pedido #{pedido.id}</p>

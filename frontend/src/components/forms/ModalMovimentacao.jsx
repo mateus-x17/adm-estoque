@@ -9,8 +9,8 @@ import { createPortal } from "react-dom";
 const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
   if (!isOpen || !movimentacao) return null;
 
-  const isEntrada = movimentacao.tipo === "ENTRADA";
-  const badgeClass = isEntrada
+  const isVenda = movimentacao.tipo === "VENDA" || movimentacao.tipo === "SAIDA";
+  const badgeClass = isVenda
     ? "bg-accent-green/10 text-accent-green border-accent-green"
     : "bg-accent-red/10 text-accent-red border-accent-red";
 
@@ -30,7 +30,7 @@ const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
         </div>
 
         <span className={`inline-block px-3 py-1 rounded-full border font-mono text-[10px] tracking-wide uppercase ${badgeClass}`}>
-          {movimentacao.tipo}
+          {isVenda ? "VENDA" : "REPOSIÇÃO"}
         </span>
 
         <div className="space-y-4 text-xs">

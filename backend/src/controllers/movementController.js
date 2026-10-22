@@ -60,17 +60,17 @@ export async function getUserStats(req, res, next) {
         select: { nome: true },
       });
 
-      // Essa query busca apenas as saídas (vendas/consumos) atreladas àquele usuário para poder somar o valor final financeiro das saídas
-      const saidas = await prisma.movimento.findMany({
+      // Essa query busca apenas as vendas atreladas àquele usuário para poder somar o valor final financeiro das vendas
+      const vendas = await prisma.movimento.findMany({
         where: {
           usuarioId: s.usuarioId,
-          tipo: 'SAIDA',
+          tipo: 'VENDA',
           ...(Object.keys(dateFilter).length ? dateFilter : {}),
         },
         include: { produto: { select: { preco: true } } },
       });
 
-      const totalValue = saidas.reduce((acc, mov) => acc + (mov.quantidade * mov.produto.preco), 0);
+      const totalValue = vendas.reduce((acc, mov) => acc + (mov.quantidade * mov.produto.preco), 0);
 
       log.info({ user: req.user?.id, action: 'GET_USER_STATS', from, to }, 'User fetched user stats');
 
