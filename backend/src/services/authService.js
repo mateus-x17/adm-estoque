@@ -30,18 +30,26 @@ export function sanitizeUser(user) {
   return safe;
 }
 
-// serviço responsável pelo cadastro (registro) de um usuário
+// serviço responsável pelo cadastro (registro) de um usuário via endpoint público
 // 1 - Valida os campos obrigatórios
 // 2 - Checa se o e-mail já existe na base de dados
 // 3 - Gera o hash criptográfico da senha usando bcrypt (fator de custo 10)
-// 4 - Salva o usuário no banco, definindo role 'OPERADOR' como padrão caso nenhuma seja passada
+// 4 - Salva o usuário no banco, forçando role 'OPERADOR' por segurança (impede escalação de privilégio)
 // 5 - Retorna o objeto criado e limpo
-export async function registerUser({ nome, email, senha, role }) {
+export async function registerUser({ nome, email, senha }) {
   if (!nome || !email || !senha) throw new AppError('Dados incompletos', 400);
-  const userExists = await prisma.usuario.findUnique({ where: { email } });
+  const normalizedEmail = email.trim().toLowerCase();
+  const userExists = await prisma.usuario.findUnique({ where: { email: normalizedEmail } });
   if (userExists) throw new AppError('Usuário já cadastrado', 400);
 
   const hashed = await bcrypt.hash(senha, 10);
-  const user = await prisma.usuario.create({ data: { nome, email, senha: hashed, role: role || 'OPERADOR' } });
+  const user = await prisma.usuario.create({
+    data: {
+      nome: nome.trim(),
+      email: normalizedEmail,
+      senha: hashed,
+      role: 'OPERADOR', // Forçado por segurança no endpoint público
+    },
+  });
   return sanitizeUser(user);
 }
