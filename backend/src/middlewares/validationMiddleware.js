@@ -15,11 +15,35 @@ export const validateRequest = (schema) => {
         schema(req.body);
       } else if (schema && Array.isArray(schema.required)) {
         for (const key of schema.required) {
-          if (req.body[key] === undefined || req.body[key] === null || req.body[key] === '') { // impede string vazia
+          const val = req.body[key];
+          if (val === undefined || val === null || val === '') {
             throw new AppError(`${key} é obrigatório`, 400);
           }
         }
       }
+
+      // Validações básicas de formato e integridade de tipos quando os campos estão presentes
+      if (req.body.email && typeof req.body.email === 'string') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(req.body.email.trim())) {
+          throw new AppError('Formato de e-mail inválido', 400);
+        }
+      }
+
+      if (req.body.preco !== undefined && req.body.preco !== null && req.body.preco !== '') {
+        const p = Number(req.body.preco);
+        if (isNaN(p) || p < 0) {
+          throw new AppError('Preço deve ser um valor numérico positivo', 400);
+        }
+      }
+
+      if (req.body.quantidade !== undefined && req.body.quantidade !== null && req.body.quantidade !== '') {
+        const q = Number(req.body.quantidade);
+        if (isNaN(q) || q < 0) {
+          throw new AppError('Quantidade deve ser um valor numérico positivo', 400);
+        }
+      }
+
       next();
     } catch (err) {
       if (err instanceof AppError) return next(err);
