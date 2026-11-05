@@ -90,7 +90,7 @@ const Sidebar = ({ closeSidebar }) => {
       {/* Rodapé */}
       <div className="pt-4 border-t border-[var(--color-border)]">
         <div className="flex items-center gap-3 px-2 mb-4">
-          {user.imagem ? (
+          {user?.imagem ? (
             <img
               src={formatImageUrl(user.imagem)}
               alt="User"
@@ -102,9 +102,9 @@ const Sidebar = ({ closeSidebar }) => {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate text-text-primary">{user.nome}</p>
+            <p className="text-sm font-semibold truncate text-text-primary">{user?.nome || 'Usuário'}</p>
             <p className="font-secondary text-xs text-text-secondary uppercase truncate mt-0.5">
-              {user.role}
+              {user?.role || 'OPERADOR'}
             </p>
           </div>
         </div>

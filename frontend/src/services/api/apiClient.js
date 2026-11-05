@@ -153,7 +153,7 @@ export const apiClient = {
     delete: (endpoint, options = {}) =>
         request(endpoint, { ...options, method: "DELETE" }),
 
-    // For FormData uploads (images, files)
+    // For FormData uploads (images, files) - POST
     postFormData: async (endpoint, formData, options = {}) => {
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -161,6 +161,21 @@ export const apiClient = {
         const url = `${API_BASE_URL}${endpoint}`;
         const response = await fetch(url, {
             method: "POST",
+            headers,
+            body: formData,
+        });
+
+        return handleResponse(response);
+    },
+
+    // For FormData uploads (images, files) - PUT
+    putFormData: async (endpoint, formData, options = {}) => {
+        const token = getToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const url = `${API_BASE_URL}${endpoint}`;
+        const response = await fetch(url, {
+            method: "PUT",
             headers,
             body: formData,
         });

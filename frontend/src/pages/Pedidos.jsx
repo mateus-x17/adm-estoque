@@ -26,13 +26,9 @@ const Pedidos = () => {
   useEffect(() => {
     const carregarUsuarios = async () => {
       try {
-        const response = await usersApi.getUsers({
-          page: 1,
-          limit: 100,
-          search: "",
-          role: "todos",
-        });
-        setUsuarios(response.data || []);
+        const response = await usersApi.getUserNames();
+        const lista = Array.isArray(response) ? response : (response?.data || []);
+        setUsuarios(lista);
       } catch (error) {
         console.error(
           "Erro ao carregar usuários para filtro de pedidos:",
