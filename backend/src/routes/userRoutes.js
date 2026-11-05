@@ -31,8 +31,8 @@ router.put(
 );
 
 // 3 - Lista otimizada apenas com id e nome dos usuários
-// Usada em dropdowns/filtros; acessível apenas para perfis gerenciais
-router.get("/names", permit("ADMIN", "GERENTE"), getUserNames);
+// Usada em dropdowns/filtros; acessível por todos os usuários autenticados para filtros de histórico/pedidos
+router.get("/names", permit("ADMIN", "GERENTE", "OPERADOR"), getUserNames);
 
 // 4 - Barreira administrativa central
 // Daqui para baixo, todas as rotas (CRUD completo) ficam restritas ao nível ADMIN

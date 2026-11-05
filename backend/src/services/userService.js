@@ -182,11 +182,36 @@ export async function updateUser(id, data, newImagePath = null, removeImage = fa
 
 // serviço de deletar (limpando arquivo de avatar)
 // 1 - Puxa no banco, confirmando e lançando Erro na ausência
-// 2 - Avalia a URI persistida (CDN cloud x fs upload dir); expurga do armazenamento
-// 3 - Deleta com o ID
-export async function deleteUser(id) {
-  const user = await prisma.usuario.findUnique({ where: { id: Number(id) } });
+// 2 - Previne autoexclusão acidental da própria conta logada
+// 3 - Previne a exclusão do último administrador remanescente no sistema
+// 4 - Verifica se possui movimentações registradas (prevenção de violação de chave estrangeira P2003)
+// 5 - Avalia a URI persistida (CDN cloud x fs upload dir); expurga do armazenamento
+// 6 - Deleta com o ID
+export async function deleteUser(id, requestingUserId = null) {
+  const targetId = Number(id);
+  if (requestingUserId && Number(requestingUserId) === targetId) {
+    throw new AppError("Você não pode excluir a sua própria conta", 400);
+  }
+
+  const user = await prisma.usuario.findUnique({
+    where: { id: targetId },
+    include: { _count: { select: { movimentos: true } } },
+  });
   if (!user) throw new AppError("Usuário não encontrado", 404);
+
+  if (user.role === "ADMIN") {
+    const adminCount = await prisma.usuario.count({ where: { role: "ADMIN" } });
+    if (adminCount <= 1) {
+      throw new AppError("Operação bloqueada: não é permitido excluir o único administrador do sistema", 400);
+    }
+  }
+
+  if (user._count.movimentos > 0) {
+    throw new AppError(
+      `Não é possível excluir o usuário "${user.nome}" porque ele possui ${user._count.movimentos} movimentação(ões) vinculada(s) ao histórico.`,
+      400
+    );
+  }
 
   if (user.imagem) {
     if (user.imagem.startsWith("http://") || user.imagem.startsWith("https://")) {
@@ -196,5 +221,5 @@ export async function deleteUser(id) {
     }
   }
 
-  return prisma.usuario.delete({ where: { id: Number(id) } });
+  return prisma.usuario.delete({ where: { id: targetId } });
 }

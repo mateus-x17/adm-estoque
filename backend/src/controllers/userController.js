@@ -111,7 +111,7 @@ export async function updateUser(req, res, next) {
 // 1 - Pega id, tenta apagar no serviço (que trata regras como impedir usuário de excluir a si mesmo)
 export async function deleteUser(req, res, next) {
   try {
-    await userService.deleteUser(req.params.id);
+    await userService.deleteUser(req.params.id, req.user?.id);
     log.info({ user: req.user?.id, action: 'DELETE_USER', targetId: req.params.id }, 'User deleted a user');
     res.json({ ok: true });
   } catch (err) {
