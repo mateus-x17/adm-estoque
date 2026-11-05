@@ -152,16 +152,28 @@ export async function deleteProduct(id) {
     }
   }
 
+  // Verifica se o produto tem movimentações registradas antes de tentar excluir
+  const movementsCount = await prisma.movimento.count({ where: { produtoId: Number(id) } });
+  if (movementsCount > 0) {
+    throw new AppError(
+      `Não é possível excluir o produto "${product.nome}" porque ele possui ${movementsCount} movimentação(ões) registrada(s) no histórico.`,
+      400
+    );
+  }
+
   return prisma.produto.delete({ where: { id: Number(id) } });
 }
 
-// serviço ultra crítico: ajusta quantidade e salva o registro histórico como transação atômica
-// 1 - Validações estruturais e resgate do produto original do banco
-// 2 - Regra de Negócio principal: Impede (throw 400) movimentações de VENDA maiores que a quantidade que o banco já tem e qualquer estoque que ficasse negativo
-// 3 - Usa o prisma.$transaction para registrar a tabela de "movimentos" E dar o UPDATE em "produto" na MESMA transação
-// 4 - Em caso de queda do banco, se uma falhar, as duas partes sofrem um "rollback" e a consistência é mantida intacta
+// serviço ultra crítico: ajusta quantidade e salva o registro histórico como transação interativa atômica
+// 1 - Validações estruturais rigorosas
+// 2 - Executa toda a leitura, trava de validação e escrita dentro de prisma.$transaction interativo
+// 3 - Previne Race Condition (condição de corrida) e garante que o estoque não fique negativo
+// 4 - Retorna o resultado mantendo compatibilidade 100% com o contrato do frontend
 export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, observacao = null) {
-  if (!quantidade || !tipo) throw new AppError('Quantidade e tipo são obrigatórios', 400);
+  const qtdNum = Number(quantidade);
+  if (!quantidade || isNaN(qtdNum) || qtdNum <= 0 || !tipo) {
+    throw new AppError('Quantidade válida e tipo são obrigatórios', 400);
+  }
 
   let normalizedTipo = String(tipo).toUpperCase();
   if (normalizedTipo === 'ENTRADA') normalizedTipo = 'REPOSICAO';
@@ -171,46 +183,65 @@ export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, obs
     throw new AppError('Tipo deve ser REPOSICAO ou VENDA', 400);
   }
 
-  const product = await prisma.produto.findUnique({ where: { id: Number(id) } });
-  if (!product) throw new AppError('Produto não encontrado', 404);
+  const productId = Number(id);
+  if (isNaN(productId)) throw new AppError('ID de produto inválido', 400);
 
-  const delta = normalizedTipo === 'REPOSICAO' ? Number(quantidade) : -Number(quantidade);
-  const newQuantity = product.quantidade + delta;
+  // Transação interativa atômica no banco de dados
+  return await prisma.$transaction(async (tx) => {
+    const product = await tx.produto.findUnique({ where: { id: productId } });
+    if (!product) throw new AppError('Produto não encontrado', 404);
 
-  // regra de negócio: não permite estoque negativo em venda
-  if (normalizedTipo === 'VENDA' && Number(quantidade) > product.quantidade) {
-    throw new AppError('Quantidade insuficiente no estoque', 400);
-  }
-  if (newQuantity < 0) throw new AppError('Quantidade não pode ser negativa', 400);
+    if (normalizedTipo === 'VENDA' && product.quantidade < qtdNum) {
+      throw new AppError('Quantidade insuficiente no estoque', 400);
+    }
 
-  // TRANSACÃO DO PRISMA: Garante que as duas ações ocorram obrigatoriamente juntas. 
-  // Se uma falhar (ex: queda de luz), a outra sofre rollback evitando um banco inconsistente
-  const result = await prisma.$transaction([
-    prisma.movimento.create({
-      data: { produtoId: Number(id), quantidade: Number(quantidade), tipo: normalizedTipo, usuarioId: Number(usuarioId), observacao }
-    }),
-    prisma.produto.update({ where: { id: Number(id) }, data: { quantidade: newQuantity } })
-  ]);
+    const delta = normalizedTipo === 'REPOSICAO' ? qtdNum : -qtdNum;
+    const newQuantity = product.quantidade + delta;
+    if (newQuantity < 0) throw new AppError('Quantidade não pode ser negativa', 400);
 
-  return { ok: true, novaQuantidade: newQuantity, movimento: result[0] };
+    const movimento = await tx.movimento.create({
+      data: {
+        produtoId: productId,
+        quantidade: qtdNum,
+        tipo: normalizedTipo,
+        usuarioId: Number(usuarioId),
+        observacao,
+      },
+      include: {
+        produto: true,
+        usuario: { select: { id: true, nome: true, email: true, role: true } },
+      },
+    });
+
+    const updatedProduct = await tx.produto.update({
+      where: { id: productId },
+      data: { quantidade: newQuantity },
+    });
+
+    return { ok: true, novaQuantidade: updatedProduct.quantidade, movimento };
+  });
 }
 
 // serviço responsável por obter as macroestatísticas de dashboard dos produtos
 // 1 - Puxa a contagem de todos produtos
-// 2 - Puxa especificamente a contagem e também a listinha limitada dos produtos onde a 'quantidade' < 10 (estoque crítico)
-// 3 - Calcula o valor financeiro do estoque num reducer (quantidade * preço)
-// 4 - Retorna o compilado
+// 2 - Puxa a contagem e lista limitada dos produtos com estoque crítico (< 10)
+// 3 - Executa o cálculo de patrimônio (SUM(preco * quantidade)) via SQL aggregation direto no PostgreSQL
+// 4 - Evita trazer toda a tabela para a memória do Node.js (Prevenção de OOM)
 export async function getProductStats() {
   const total = await prisma.produto.count();
-  const lowStockCount = await prisma.produto.count({ where: { quantidade: { lt: 10 } } }); // produtos quase acabando
+  const lowStockCount = await prisma.produto.count({ where: { quantidade: { lt: 10 } } });
   const lowStockList = await prisma.produto.findMany({
     where: { quantidade: { lt: 10 } },
     select: { id: true, nome: true, quantidade: true },
-    take: 5
+    take: 5,
   });
 
-  const products = await prisma.produto.findMany({ select: { preco: true, quantidade: true } });
-  const totalValue = products.reduce((acc, p) => acc + (p.preco * p.quantidade), 0); // patrimônio
+  // Agregação nativa direta no PostgreSQL via queryRaw (alta performance, zero sobrecarga de memória)
+  const valueResult = await prisma.$queryRaw`
+    SELECT COALESCE(SUM(preco * quantidade), 0) AS "totalValue"
+    FROM "Produto"
+  `;
+  const totalValue = Number(valueResult[0]?.totalValue || 0);
 
   return { total, lowStock: lowStockCount, totalValue, lowStockList };
 }
