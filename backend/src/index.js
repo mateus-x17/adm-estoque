@@ -14,11 +14,15 @@ import { requestLogger } from "./middlewares/requestLogger.js";
 import { errorHandler } from "./utils/errorHandler.js";
 import { logger } from './config/logger.js';
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // arquivo principal que inicializa o servidor Node.js/Express
-// 1 - Carrega as variáveis de ambiente a partir do arquivo .env
-dotenv.config();
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
-console.log('JWT_SECRET:', process.env.JWT_SECRET);
+// 1 - Carrega as variáveis de ambiente a partir do arquivo .env com caminho absoluto robusto
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config(); // fallback caso esteja em outro diretório
 
 // 2 - Valida se a chave JWT existe e tem um tamanho seguro mínimo
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
