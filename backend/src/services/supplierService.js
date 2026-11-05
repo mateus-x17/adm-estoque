@@ -43,13 +43,24 @@ export async function updateSupplier(id, data) {
 
 // serviço responsável por deletar um fornecedor
 // 1 - Busca o fornecedor no banco com base no ID passado
-// 2 - Lança um erro 404 caso não o encontre
+// 2 - Valida se existem produtos vinculados antes da exclusão (prevenção de erro P2003)
 // 3 - Remove o registro do fornecedor do banco
 export async function deleteSupplier(id) {
-  const supplier = await prisma.fornecedor.findUnique({ where: { id: parseInt(id) } });
+  const supplierId = parseInt(id);
+  const supplier = await prisma.fornecedor.findUnique({
+    where: { id: supplierId },
+    include: { _count: { select: { produtos: true } } },
+  });
   if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
 
-  return prisma.fornecedor.delete({ where: { id: parseInt(id) } });
+  if (supplier._count.produtos > 0) {
+    throw new AppError(
+      `Não é possível excluir o fornecedor "${supplier.nome}" porque ele possui ${supplier._count.produtos} produto(s) vinculado(s).`,
+      400
+    );
+  }
+
+  return prisma.fornecedor.delete({ where: { id: supplierId } });
 }
 
 // serviço responsável pela contagem de fornecedores
@@ -60,7 +71,7 @@ export async function countSuppliers() {
 }
 
 // serviço responsável por levantar a estatística de fluxo por fornecedor
-// 1 - Busca todos os fornecedores e usa Include aninhado para trazer também os produtos e as movimentações atreladas a cada um
+// 1 - Busca os fornecedores com projeção seletiva para evitar carregar colunas desnecessárias na memória (Prevenção de OOM)
 // 2 - Faz um map() para iterar cada fornecedor, inicializando acumuladores de entradas e saídas
 // 3 - Percorre a lista de produtos daquele fornecedor e soma os dados de cada movimento
 // 4 - Mantém um dicionário interno para armazenar o quantitativo movimentado por produto específico
@@ -68,7 +79,21 @@ export async function countSuppliers() {
 // 6 - Retorna os objetos moldados prontos para os gráficos e tabelas do frontend
 export async function getSupplierStats() {
   const suppliers = await prisma.fornecedor.findMany({
-    include: { produtos: { include: { movimentos: true } } }
+    select: {
+      id: true,
+      nome: true,
+      produtos: {
+        select: {
+          nome: true,
+          movimentos: {
+            select: {
+              quantidade: true,
+              tipo: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   return suppliers.map((sup) => {
