@@ -18,35 +18,57 @@ export async function createCategory(nome) {
     throw new AppError('Nome de categoria é obrigatório e deve ser texto', 400);
   }
 
-  return prisma.categoria.create({ data: { nome: nome.trim() } });
+  const cleanName = nome.trim();
+  const existing = await prisma.categoria.findUnique({ where: { nome: cleanName } });
+  if (existing) {
+    throw new AppError('Já existe uma categoria cadastrada com este nome', 400);
+  }
+
+  return prisma.categoria.create({ data: { nome: cleanName } });
 }
 
 // serviço responsável por atualizar o nome da categoria
 // 1 - Valida o input do novo nome garantindo que seja um texto válido
 // 2 - Tenta encontrar a categoria pelo ID passado convertendo-o para número
-// 3 - Lança erro 404 (Not Found) se a categoria não for encontrada no banco
+// 3 - Garante unicidade do nome para evitar erro P2002 do Prisma
 // 4 - Realiza a atualização aplicando trim() no nome e retorna a categoria atualizada
 export async function updateCategory(id, nome) {
   if (!nome || typeof nome !== 'string' || nome.trim() === '') {
     throw new AppError('Nome de categoria é obrigatório e deve ser texto', 400);
   }
 
+  const cleanName = nome.trim();
   const category = await prisma.categoria.findUnique({ where: { id: Number(id) } });
   if (!category) throw new AppError('Categoria não encontrada', 404);
 
+  const existing = await prisma.categoria.findUnique({ where: { nome: cleanName } });
+  if (existing && existing.id !== Number(id)) {
+    throw new AppError('Já existe outra categoria cadastrada com este nome', 400);
+  }
+
   return prisma.categoria.update({
     where: { id: Number(id) },
-    data: { nome: nome.trim() }
+    data: { nome: cleanName }
   });
 }
 
 // serviço responsável por excluir uma categoria
 // 1 - Busca a categoria pelo ID para verificar se ela realmente existe
-// 2 - Retorna erro 404 caso ela não exista
+// 2 - Verifica se existem produtos atrelados (prevenção de violação de Foreign Key P2003)
 // 3 - Executa a deleção no banco de dados e retorna a resposta da operação
 export async function deleteCategory(id) {
-  const category = await prisma.categoria.findUnique({ where: { id: Number(id) } });
+  const category = await prisma.categoria.findUnique({
+    where: { id: Number(id) },
+    include: { _count: { select: { produtos: true } } }
+  });
   if (!category) throw new AppError('Categoria não encontrada', 404);
+
+  if (category._count.produtos > 0) {
+    throw new AppError(
+      `Não é possível excluir a categoria "${category.nome}" porque ela possui ${category._count.produtos} produto(s) vinculado(s).`,
+      400
+    );
+  }
 
   return prisma.categoria.delete({ where: { id: Number(id) } });
 }
