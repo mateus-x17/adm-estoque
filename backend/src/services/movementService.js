@@ -45,23 +45,23 @@ export async function listMovementsPaginated(filters = {}) {
     AND: [
       id && !isNaN(Number(id))
         ? {
-            id: Number(id),
-          }
+          id: Number(id),
+        }
         : {},
       produtoId && !isNaN(Number(produtoId))
         ? {
-            produtoId: Number(produtoId),
-          }
+          produtoId: Number(produtoId),
+        }
         : {},
       date && date !== 'undefined' && date !== 'null'
         ? {
-            data: {
-              gte: dateFromYMD(date, false),
-              lte: dateFromYMD(date, true),
-            },
-          }
+          data: {
+            gte: dateFromYMD(date, false),
+            lte: dateFromYMD(date, true),
+          },
+        }
         : from || to
-        ? {
+          ? {
             data: {
               ...(from && from !== 'undefined' && from !== 'null'
                 ? { gte: dateFromYMD(from, false) }
@@ -71,26 +71,26 @@ export async function listMovementsPaginated(filters = {}) {
                 : {}),
             },
           }
-        : {},
+          : {},
       normalizedTipo
         ? {
-            tipo: normalizedTipo,
-          }
+          tipo: normalizedTipo,
+        }
         : {},
       usuarioId && usuarioId !== 'undefined' && usuarioId !== 'null' && !isNaN(Number(usuarioId))
         ? {
-            usuarioId: Number(usuarioId),
-          }
+          usuarioId: Number(usuarioId),
+        }
         : {},
       search && search !== 'undefined' && search !== 'null'
         ? {
-            produto: {
-              nome: {
-                contains: search,
-                mode: "insensitive", // busca sem distinção entre maiúscula e minúscula
-              },
+          produto: {
+            nome: {
+              contains: search,
+              mode: "insensitive", // busca sem distinção entre maiúscula e minúscula
             },
-          }
+          },
+        }
         : {},
     ],
   };
@@ -125,44 +125,33 @@ export async function listMovementsPaginated(filters = {}) {
   };
 }
 
-// serviço extra para agregar estatísticas de usuário baseado no histórico de movimentações geral
+// serviço otimizado para agregar estatísticas de usuário baseado no histórico de movimentações geral
+// Executa em uma única consulta SQL no PostgreSQL via queryRaw eliminando o gargalo de N+1 queries
 export async function getUserStatsAggregated() {
-  const stats = await prisma.movimento.groupBy({
-    by: ['usuarioId'],
-    _count: { _all: true },
-    _sum: { quantidade: true }
-  });
+  const rawResults = await prisma.$queryRaw`
+    SELECT
+      u.id AS "usuarioId",
+      u.nome AS "nome",
+      u.email AS "email",
+      COUNT(m.id)::int AS "totalMovimentos",
+      COALESCE(SUM(m.quantidade), 0)::int AS "totalQuantidade",
+      COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade ELSE 0 END), 0)::int AS "totalVendaQuantidade",
+      COALESCE(SUM(CASE WHEN m.tipo = 'REPOSICAO' THEN m.quantidade ELSE 0 END), 0)::int AS "totalReposicaoQuantidade"
+    FROM "Usuario" u
+    JOIN "Movimento" m ON m."usuarioId" = u.id
+    GROUP BY u.id, u.nome, u.email
+    ORDER BY "totalMovimentos" DESC
+  `;
 
-  const results = await Promise.all(
-    stats.map(async (s) => {
-      const usuario = await prisma.usuario.findUnique({
-        where: { id: s.usuarioId },
-        select: { nome: true, email: true }
-      });
-
-      const vendaAgg = await prisma.movimento.aggregate({
-        where: { usuarioId: s.usuarioId, tipo: 'VENDA' },
-        _sum: { quantidade: true }
-      });
-
-      const reposicaoAgg = await prisma.movimento.aggregate({
-        where: { usuarioId: s.usuarioId, tipo: 'REPOSICAO' },
-        _sum: { quantidade: true }
-      });
-
-      return {
-        usuarioId: s.usuarioId,
-        nome: usuario?.nome || 'Desconhecido',
-        email: usuario?.email,
-        totalMovimentos: s._count._all || 0,
-        totalQuantidade: s._sum.quantidade || 0,
-        totalVendaQuantidade: vendaAgg._sum.quantidade || 0,
-        totalReposicaoQuantidade: reposicaoAgg._sum.quantidade || 0,
-        totalSaidaQuantidade: vendaAgg._sum.quantidade || 0,
-        totalEntradaQuantidade: reposicaoAgg._sum.quantidade || 0
-      };
-    })
-  );
-
-  return results;
+  return rawResults.map((r) => ({
+    usuarioId: Number(r.usuarioId),
+    nome: r.nome || 'Desconhecido',
+    email: r.email,
+    totalMovimentos: Number(r.totalMovimentos || 0),
+    totalQuantidade: Number(r.totalQuantidade || 0),
+    totalVendaQuantidade: Number(r.totalVendaQuantidade || 0),
+    totalReposicaoQuantidade: Number(r.totalReposicaoQuantidade || 0),
+    totalSaidaQuantidade: Number(r.totalVendaQuantidade || 0),
+    totalEntradaQuantidade: Number(r.totalReposicaoQuantidade || 0),
+  }));
 }
