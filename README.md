@@ -120,6 +120,7 @@ O projeto é estruturado como uma aplicação desacoplada (Cliente-Servidor API 
 #### Movimentações & Auditoria
 - `GET /movements` - Livro-razão histórico paginado com filtros por período, produto, tipo e operador.
 - `GET /movements/user-stats` - Estatísticas agregadas de produtividade por usuário (contagem, volume e valor total de vendas) calculadas em query única com `JOIN`.
+- `GET /movements/sales-report` - Relatório executivo consolidado de vendas com agregação temporal nos horizontes de 1 mês (`1m`), 6 meses (`6m`) e 1 ano (`1y`), retornando totais faturados, volume de peças, ticket médio, produtos líderes e timeline para gráficos vetoriais e exportação direta em PDF.
 
 ### 5.2 Padrões Utilizados
 - Comunicação via JSON.
@@ -393,7 +394,7 @@ Neste ciclo final de engenharia, a aplicação recebeu camadas de observabilidad
 #### 3. Sincronização Integral do Catálogo de APIs e Correção Documental
 - **Problema Anterior:** O README documentava apenas 8 rotas, continha rotas inexistentes (`POST /movements` e `GET /movements/:id`) e registrava enums defasados (`ENTRADA`/`SAIDA`).
 - **Implementação:**
-  - O catálogo oficial de endpoints foi atualizado para cobrir todos os **34 endpoints HTTP reais registrados** no backend.
+  - O catálogo oficial de endpoints foi atualizado para cobrir todos os **35 endpoints HTTP reais registrados** no backend (incluindo o novo endpoint de agregação executiva e exportação em PDF `GET /movements/sales-report`).
   - O enum canônico do banco foi documentado como `REPOSICAO` e `VENDA`, registrando que o backend mantém compatibilidade retroativa aceitando `ENTRADA` e `SAIDA` nas requisições.
   - A rota central de movimentação e livro-razão foi devidamente referenciada como `POST /products/:id/adjust`.
 

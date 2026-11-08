@@ -51,6 +51,15 @@ export const movementsApi = {
         return response.data || response;
     },
 
+    // função para obter o relatório consolidado de vendas e movimentações para exportação
+    // 1 - Recebe o período desejado ('1m', '6m', '1y'), definindo '1m' como padrão
+    // 2 - Envia requisição GET autenticada para o endpoint /movements/sales-report
+    // 3 - Retorna os dados consolidados (sumário, top produtos e timeline para gráficos em barras/linhas)
+    getSalesReport: async (period = '1m') => {
+        const response = await apiClient.get(`/movements/sales-report?period=${period}`);
+        return response.data || response;
+    },
+
     /**
      * Create a new movement
      */

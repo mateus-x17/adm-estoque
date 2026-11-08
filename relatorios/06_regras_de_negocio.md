@@ -168,6 +168,11 @@ Este catálogo mapeia todas as regras de negócio que o código-fonte do **Estoq
 - **Em que Camada:** Interface.
 - **Lacunas Identificadas (`PROBLEMA`):** A interface emite um modal informativo de "Exclusão simulada" sem acionar a rota existente `DELETE /users/:id`.
 
+#### [RN-021] Relatório Executivo Consolidado de Vendas e Exportação PDF
+- **Descrição:** O sistema permite a qualquer usuário autenticado com acesso à Visão Geral do Dashboard extrair relatórios executivos de vendas com métricas consolidadas (Faturamento total, peças vendidas, total de saídas, ticket médio, top 5 produtos) e timeline temporal estruturada nos intervalos de 30 dias (1m), 180 dias (6m) e 365 dias (1y).
+- **Onde é Aplicada:** [`backend/src/services/movementService.js#getSalesReportData`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/movementService.js) e [`frontend/src/components/dashboard/ModalExportarRelatorio.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/ModalExportarRelatorio.jsx).
+- **Em que Camada:** API / Service + Interface Frontend (renderização vetorial SVG e exportação nativa em A4).
+
 ---
 
 ## 3. Matriz de Rastreabilidade e Cobertura das Regras
@@ -194,4 +199,5 @@ Este catálogo mapeia todas as regras de negócio que o código-fonte do **Estoq
 | **RN-018** | Relatório de operador restrito | API / Middleware | Não | Não | `IMPLEMENTADO (verificado)` |
 | **RN-019** | Restrição de filtro de usuário | Frontend apenas | Não | Não | `PROBLEMA B3 (Bypassável via API)` |
 | **RN-020** | Exclusão de usuário na interface | Frontend apenas | Sim (na API) | Não | `PROBLEMA (Botão simulado na UI)` |
+| **RN-021** | Relatório de Vendas e Exportação PDF (1m, 6m, 1y) | API / Frontend | Não | Não | `IMPLEMENTADO (verificado)` |
 

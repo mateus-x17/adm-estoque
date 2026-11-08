@@ -69,5 +69,6 @@
 - **Auditoria Arquitetural e Valuation:** 15 relatórios técnicos gerados e consolidados na pasta `relatorios/` (de `01` a `14` + `00`).
 - **Implementações Práticas:** 5 Ciclos de Engenharia executados com sucesso (Fases A, B, C, D e F).
 - **Testes Automatizados:** 20 testes de integração/concorrência executados contra banco real em nuvem com 100% de aprovação (0 falhas).
-- **README.md Oficial:** Sincronizado com os 34 endpoints reais e documentado com o histórico completo de evolução e maturidade técnica.
+- **README.md Oficial:** Sincronizado com os 35 endpoints reais e documentado com o histórico completo de evolução e maturidade técnica.
+- **Módulo de Exportação PDF:** Relatórios executivos de vendas consolidados com gráficos SVG vetoriais (barras e linhas) nos horizontes de 1 mês, 6 meses e 1 ano.
 - **Relatório Didático Unificado:** [`relatorios/13_relatorio_consolidado_de_mudancas_e_melhorias.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/13_relatorio_consolidado_de_mudancas_e_melhorias.md) detalhando cada falha, anatomia do problema, código antes/depois, prevenção e validação empírica.

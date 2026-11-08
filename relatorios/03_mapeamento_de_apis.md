@@ -217,27 +217,34 @@ A API do **Estoque.OS** é composta por **34 rotas HTTP registradas no Express**
 
 ### 2.6 Módulo de Movimentações (`/movements`)
 
-#### 31. `GET /movements/user-stats`
-- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L14) → [`movementController.js#getUserStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L35)
+#### 31. `GET /movements/sales-report`
+- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L16) → [`movementController.js#getSalesReport`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L38)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE", "OPERADOR")`.
+- **Query Params:** `period` (`'1m'` - 30 dias, `'6m'` - 180 dias, `'1y'` - 365 dias).
+- **Cadeia:** `getSalesReportData(period)` → busca saídas do tipo `VENDA` com joins em `Produto` e `Usuario` → consolida faturamento, volume de peças, ticket médio, top produtos e timeline estruturada para gráficos em barras/linhas e exportação PDF.
+- **Saída:** `200 OK` com `{ period, periodLabel, startDate, endDate, summary, topProdutos, timeline }`.
+
+#### 32. `GET /movements/user-stats`
+- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L20) → [`movementController.js#getUserStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L21)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`.
 - **Query Params:** `from`, `to`.
-- **Cadeia:** `groupBy` por `usuarioId` + N consultas `prisma.usuario.findUnique` + N consultas `prisma.movimento.findMany`.
-- **Sinalização Crítica (`PROBLEMA - Catálogo I3`):** N+1 queries graves sob iteração de operadores.
+- **Cadeia:** Consulta agregada via `$queryRaw` único agrupando por `usuarioId` com contagem e volume financeiro.
+- **Saída:** `200 OK` com estatísticas por colaborador.
 
-#### 32. `GET /movements`
-- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L18) → [`movementController.js#listMovements`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L10)
+#### 33. `GET /movements`
+- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L24) → [`movementController.js#listMovements`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L9)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE", "OPERADOR")`.
 - **Query Params:** `page`, `limit` (aceita `'all'`), `search`, `tipo`, `date`, `from`, `to`, `order`, `usuarioId`.
-- **Sinalização Crítica (`PROBLEMA - Catálogo I3/I4`):** O frontend dispara chamadas paralelas com `limit: "all"` nesta rota para abastecer gráficos de pizza e linha em [`Movimentacoes.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Movimentacoes.jsx#L132-L136) e no [`Dashboard.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Dashboard.jsx), trazendo todo o histórico do PostgreSQL sem limite.
+- **Saída:** `200 OK` com dados paginados.
 
 ---
 
 ### 2.7 Rotas de Infraestrutura e Diagnóstico
 
-#### 33. `GET /`
+#### 34. `GET /`
 - Retorna texto simples: `"🚀 Backend Estoque rodando"`. Rota pública de healthcheck L4/L7.
 
-#### 34. `GET /test-db`
+#### 35. `GET /test-db`
 - Executa raw query: `prisma.$queryRaw\`SELECT NOW()`` e retorna timestamp do PostgreSQL/Neon. Rota pública de diagnóstico de conectividade.
 
 ---
@@ -276,6 +283,7 @@ A API do **Estoque.OS** é composta por **34 rotas HTTP registradas no Express**
 | `GET` | `/suppliers` | JWT | Todos | Nenhuma | `Fornecedor` | `PROBLEMA B10` (Listagem sem paginação) |
 | `GET` | `/suppliers/count`| JWT | Todos | Nenhuma | `Fornecedor` | `IMPLEMENTADO (verificado)` |
 | `GET` | `/suppliers/:id`| JWT | Todos | Path: `id` | `Fornecedor` | `IMPLEMENTADO (verificado)` |
+| `GET` | `/movements/sales-report`| JWT | `ADMIN, GERENTE, OPERADOR` | Query: `period ('1m', '6m', '1y')` | `Movimento, Produto, Usuario` | `IMPLEMENTADO (verificado)` (Agregação temporal e exportação PDF) |
 | `GET` | `/movements/user-stats`| JWT | `ADMIN, GERENTE`| Query: `from, to` | `Movimento, Usuario` | `PROBLEMA I3` (N+1 queries manuais via Promise.all) |
 | `GET` | `/movements` | JWT | Todos | Query: filtros complexos, `limit: all` | `Movimento, Produto, Usuario` | `PROBLEMA I4` (Suporta limit=all sem teto máximo) |
 | `GET` | `/` | Não | Público | Nenhuma | Nenhuma | `IMPLEMENTADO (verificado)` (Healthcheck L4/L7) |

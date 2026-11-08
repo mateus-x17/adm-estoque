@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Clock, Download } from "lucide-react";
 import KPISection from "../components/dashboard/KPISection.jsx";
 import StockFlowChart from "../components/dashboard/StockFlowChart.jsx";
@@ -5,9 +6,15 @@ import LowStockAlert from "../components/dashboard/LowStockAlert.jsx";
 import RecentMovements from "../components/dashboard/RecentMovements.jsx";
 import UserStatsCharts from "../components/dashboard/UserStatsCharts.jsx";
 import MontanteGrafic from "../components/dashboard/MontanteGrafic.jsx";
+import ModalExportarRelatorio from "../components/dashboard/ModalExportarRelatorio.jsx";
 import { useUserStore } from "../store/userStore.js";
 
+// arquivo responsável por renderizar a página principal do Dashboard executivo (Visão Geral)
+// 1 - Importa métricas em tempo real, gráficos de fluxo de estoque e alertas de estoque baixo
+// 2 - Gerencia o estado de abertura do modal de exportação de relatórios em PDF
+// 3 - Aplica controle de acesso para métricas restritas a Administradores e Gerentes
 const Dashboard = () => {
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const user = useUserStore((state) => state.user);
   const canViewUserStats = user?.role === "ADMIN" || user?.role === "GERENTE";
 
@@ -30,7 +37,10 @@ const Dashboard = () => {
             <Clock className="w-3 h-3" />
             Hoje
           </button>
-          <button className="btn-primary px-3 py-2 text-xs font-semibold flex items-center gap-2">
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="btn-primary px-3 py-2 text-xs font-semibold flex items-center gap-2"
+          >
             <Download className="w-3 h-3" />
             Exportar relatório
           </button>
@@ -62,6 +72,12 @@ const Dashboard = () => {
           <MontanteGrafic />
         </div>
       </div>
+
+      {/* Modal interativo para visualização e exportação de relatório de vendas em PDF */}
+      <ModalExportarRelatorio
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
     </div>
   );
 };

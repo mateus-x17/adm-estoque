@@ -179,3 +179,140 @@ export async function getUserStatsAggregated({ from, to } = {}) {
     totalMovimentacoes: Number(r.count || 0),
   }));
 }
+
+// função para agregar os dados históricos de vendas para relatórios e exportação
+// 1 - Valida o parâmetro de período recebido ('1m', '6m' ou '1y'), atribuindo '1m' como padrão
+// 2 - Calcula dinamicamente a data de corte inicial retroativa com base no intervalo de dias
+// 3 - Executa consulta ao banco trazendo todas as saídas ('VENDA') no intervalo com os dados dos produtos
+// 4 - Consolida o montante financeiro total faturado, volume de peças, ticket médio e produtos líderes
+// 5 - Monta a linha do tempo cronológica com pontos de dados estruturados para renderização de gráficos
+export async function getSalesReportData(period = '1m') {
+  const normalizedPeriod = ['1m', '6m', '1y'].includes(period) ? period : '1m';
+  const now = new Date();
+  const startDate = new Date();
+
+  if (normalizedPeriod === '1m') {
+    startDate.setDate(now.getDate() - 30);
+  } else if (normalizedPeriod === '6m') {
+    startDate.setDate(now.getDate() - 180);
+  } else if (normalizedPeriod === '1y') {
+    startDate.setDate(now.getDate() - 365);
+  }
+
+  const movements = await prisma.movimento.findMany({
+    where: {
+      tipo: 'VENDA',
+      data: {
+        gte: startDate,
+        lte: now,
+      },
+    },
+    include: {
+      produto: {
+        select: {
+          id: true,
+          nome: true,
+          preco: true,
+        },
+      },
+      usuario: {
+        select: {
+          id: true,
+          nome: true,
+        },
+      },
+    },
+    orderBy: {
+      data: 'asc',
+    },
+  });
+
+  let totalValor = 0;
+  let totalQuantidade = 0;
+  const productAggregation = {};
+  const timelineBuckets = {};
+
+  for (const mov of movements) {
+    const preco = Number(mov.produto?.preco || 0);
+    const qtd = Number(mov.quantidade || 0);
+    const valorMovimento = qtd * preco;
+
+    totalValor += valorMovimento;
+    totalQuantidade += qtd;
+
+    const prodId = mov.produtoId;
+    const prodNome = mov.produto?.nome || `Produto #${prodId}`;
+    if (!productAggregation[prodId]) {
+      productAggregation[prodId] = {
+        id: prodId,
+        nome: prodNome,
+        quantidadeVendida: 0,
+        valorTotal: 0,
+      };
+    }
+    productAggregation[prodId].quantidadeVendida += qtd;
+    productAggregation[prodId].valorTotal += valorMovimento;
+
+    const dateObj = new Date(mov.data);
+    let bucketKey = '';
+    let bucketLabel = '';
+
+    if (normalizedPeriod === '1m') {
+      const dia = String(dateObj.getDate()).padStart(2, '0');
+      const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
+      bucketKey = `${dateObj.getFullYear()}-${mes}-${dia}`;
+      bucketLabel = `${dia}/${mes}`;
+    } else {
+      const mesAno = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
+      bucketKey = `${dateObj.getFullYear()}-${mes}`;
+      bucketLabel = mesAno.charAt(0).toUpperCase() + mesAno.slice(1);
+    }
+
+    if (!timelineBuckets[bucketKey]) {
+      timelineBuckets[bucketKey] = {
+        label: bucketLabel,
+        key: bucketKey,
+        valor: 0,
+        quantidade: 0,
+      };
+    }
+    timelineBuckets[bucketKey].valor += valorMovimento;
+    timelineBuckets[bucketKey].quantidade += qtd;
+  }
+
+  const topProdutos = Object.values(productAggregation)
+    .sort((a, b) => b.valorTotal - a.valorTotal)
+    .slice(0, 5)
+    .map((p) => ({
+      ...p,
+      valorTotal: Number(p.valorTotal.toFixed(2)),
+      percentual: totalValor > 0 ? Number(((p.valorTotal / totalValor) * 100).toFixed(1)) : 0,
+    }));
+
+  const timeline = Object.keys(timelineBuckets)
+    .sort()
+    .map((k) => ({
+      label: timelineBuckets[k].label,
+      date: timelineBuckets[k].key,
+      valor: Number(timelineBuckets[k].valor.toFixed(2)),
+      quantidade: timelineBuckets[k].quantidade,
+    }));
+
+  return {
+    period: normalizedPeriod,
+    periodLabel: normalizedPeriod === '1m' ? 'Último Mês (30 dias)' : normalizedPeriod === '6m' ? 'Últimos 6 Meses' : 'Último 1 Ano',
+    generatedAt: now.toISOString(),
+    startDate: startDate.toISOString(),
+    endDate: now.toISOString(),
+    summary: {
+      totalVendasValor: Number(totalValor.toFixed(2)),
+      totalVendasQuantidade: totalQuantidade,
+      totalTransacoes: movements.length,
+      ticketMedio: movements.length > 0 ? Number((totalValor / movements.length).toFixed(2)) : 0,
+      precoMedioItem: totalQuantidade > 0 ? Number((totalValor / totalQuantidade).toFixed(2)) : 0,
+    },
+    topProdutos,
+    timeline,
+  };
+}

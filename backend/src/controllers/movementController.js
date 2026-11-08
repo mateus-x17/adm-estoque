@@ -1,5 +1,5 @@
 import { childLogger } from '../config/logger.js';
-import { listMovementsPaginated, getUserStatsAggregated } from '../services/movementService.js';
+import { listMovementsPaginated, getUserStatsAggregated, getSalesReportData } from '../services/movementService.js';
 const log = childLogger('movementController');
 
 // função para listar as movimentações com filtros e paginação
@@ -26,6 +26,22 @@ export async function getUserStats(req, res, next) {
     res.json(results);
   } catch (err) {
     log.error({ err }, 'Error getting user stats');
+    next(err);
+  }
+}
+
+// função para entregar o relatório consolidado de vendas com agregação temporal
+// 1 - Extrai o parâmetro de período (req.query.period: '1m', '6m', '1y')
+// 2 - Chama o serviço getSalesReportData delegando a agregação cronológica e os cálculos
+// 3 - Registra log de auditoria da consulta e devolve a resposta estruturada em JSON
+export async function getSalesReport(req, res, next) {
+  try {
+    const { period = '1m' } = req.query;
+    const report = await getSalesReportData(period);
+    log.info({ user: req.user?.id, action: 'GET_SALES_REPORT', period }, 'User fetched sales report');
+    res.json(report);
+  } catch (err) {
+    log.error({ err, period: req.query.period }, 'Error generating sales report');
     next(err);
   }
 }
