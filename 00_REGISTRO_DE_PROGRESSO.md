@@ -26,6 +26,7 @@
 | **Fase 8** | Matriz Consolidada de Falhas (B1–B11, I1–I11, A1–A8) | [`relatorios/11_matriz_consolidada_de_falhas.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md) | `CONCLUÍDO` | 08/11/2026 |
 | **Anexo A** | Análise de Produto e Mercado (Visão Executiva & Portfólio) | [`relatorios/12_analise_de_produto.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/12_analise_de_produto.md) | `CONCLUÍDO` | 08/11/2026 |
 | **Consolidado** | Relatório Didático Consolidado de Mudanças e Melhorias | [`relatorios/13_relatorio_consolidado_de_mudancas_e_melhorias.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/13_relatorio_consolidado_de_mudancas_e_melhorias.md) | `CONCLUÍDO` | 08/11/2026 |
+| **Fase 14 (M&A)** | Análise Minuciosa de Valor de Mercado e Precificação de Ativos | [`relatorios/14_analise_minuciosa_de_valor_de_mercado.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/14_analise_minuciosa_de_valor_de_mercado.md) | `CONCLUÍDO` | 08/11/2026 |
 
 ---
 
@@ -65,7 +66,7 @@
 
 ### 5. Resumo Final do Projeto
 
-- **Auditoria Arquitetural Completa:** 14 relatórios técnicos gerados e consolidados na pasta `relatorios/` (de `01` a `13` + `00`).
+- **Auditoria Arquitetural e Valuation:** 15 relatórios técnicos gerados e consolidados na pasta `relatorios/` (de `01` a `14` + `00`).
 - **Implementações Práticas:** 5 Ciclos de Engenharia executados com sucesso (Fases A, B, C, D e F).
 - **Testes Automatizados:** 20 testes de integração/concorrência executados contra banco real em nuvem com 100% de aprovação (0 falhas).
 - **README.md Oficial:** Sincronizado com os 34 endpoints reais e documentado com o histórico completo de evolução e maturidade técnica.
