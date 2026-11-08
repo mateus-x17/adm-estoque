@@ -4,6 +4,7 @@ import fs from "fs";
 import { AppError } from "../utils/errorHandler.js";
 import { sanitizeUser, sanitizeUsers } from "../utils/sanitizers.js";
 import { deleteFromCloudinary } from "../config/cloudinaryConfig.js";
+import { invalidateUserCache } from "../middlewares/authMiddleware.js";
 
 // serviço responsável pela criação de novo usuário
 // 1 - Realiza a validação da presença dos dados sensíveis do request (nome, email, senha)
@@ -142,7 +143,24 @@ export async function updateUser(id, data, newImagePath = null, removeImage = fa
   const updateData = {};
   if (nome !== undefined) updateData.nome = nome;
   if (email !== undefined) updateData.email = email;
-  if (role !== undefined) updateData.role = role;
+  
+  if (role !== undefined) {
+    const normalizedRole = String(role).toUpperCase();
+    const validRoles = ["ADMIN", "GERENTE", "OPERADOR"];
+    if (!validRoles.includes(normalizedRole)) {
+      throw new AppError("Role inválida. Deve ser ADMIN, GERENTE ou OPERADOR", 400);
+    }
+
+    // Regra B7: Impedir rebaixamento do último Administrador ativo do sistema
+    if (user.role === "ADMIN" && normalizedRole !== "ADMIN") {
+      const adminCount = await prisma.usuario.count({ where: { role: "ADMIN" } });
+      if (adminCount <= 1) {
+        throw new AppError("Operação bloqueada: não é permitido rebaixar o único administrador do sistema", 400);
+      }
+    }
+
+    updateData.role = normalizedRole;
+  }
 
   if (senha) {
     updateData.senha = await bcrypt.hash(senha, 10);
@@ -176,6 +194,9 @@ export async function updateUser(id, data, newImagePath = null, removeImage = fa
     data: updateData,
     select: { id: true, nome: true, email: true, role: true, imagem: true }, // garante select de dados limitados
   });
+
+  // Invalida cache de autenticação do usuário atualizado
+  invalidateUserCache(id);
 
   return sanitizeUser(updated);
 }
@@ -220,6 +241,9 @@ export async function deleteUser(id, requestingUserId = null) {
       try { fs.unlinkSync(`.${user.imagem}`); } catch (e) { /* ignore */ }
     }
   }
+
+  // Invalida cache de autenticação do usuário deletado
+  invalidateUserCache(targetId);
 
   return prisma.usuario.delete({ where: { id: targetId } });
 }

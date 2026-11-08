@@ -63,6 +63,19 @@ export async function deleteSupplier(id) {
   return prisma.fornecedor.delete({ where: { id: supplierId } });
 }
 
+// serviço responsável por recuperar um fornecedor por ID
+export async function getSupplierById(id) {
+  const supplierId = parseInt(id);
+  if (isNaN(supplierId)) throw new AppError('ID de fornecedor inválido', 400);
+
+  const supplier = await prisma.fornecedor.findUnique({
+    where: { id: supplierId }
+  });
+
+  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
+  return supplier;
+}
+
 // serviço responsável pela contagem de fornecedores
 // 1 - Chama o método count() na entidade fornecedor
 // 2 - Retorna a quantidade numérica exata de registros
@@ -71,64 +84,30 @@ export async function countSuppliers() {
 }
 
 // serviço responsável por levantar a estatística de fluxo por fornecedor
-// 1 - Busca os fornecedores com projeção seletiva para evitar carregar colunas desnecessárias na memória (Prevenção de OOM)
-// 2 - Faz um map() para iterar cada fornecedor, inicializando acumuladores de entradas e saídas
-// 3 - Percorre a lista de produtos daquele fornecedor e soma os dados de cada movimento
-// 4 - Mantém um dicionário interno para armazenar o quantitativo movimentado por produto específico
-// 5 - Identifica qual foi o produto mais movimentado usando a contagem no dicionário
-// 6 - Retorna os objetos moldados prontos para os gráficos e tabelas do frontend
+// Otimizado com agregação SQL direta no PostgreSQL (I4), eliminando triplo include e loops em memória
 export async function getSupplierStats() {
-  const suppliers = await prisma.fornecedor.findMany({
-    select: {
-      id: true,
-      nome: true,
-      produtos: {
-        select: {
-          nome: true,
-          movimentos: {
-            select: {
-              quantidade: true,
-              tipo: true,
-            },
-          },
-        },
-      },
-    },
-  });
+  const rawResults = await prisma.$queryRaw`
+    SELECT
+      f.id AS "id",
+      f.nome AS "nome",
+      COALESCE(SUM(CASE WHEN m.tipo = 'REPOSICAO' THEN m.quantidade ELSE 0 END), 0)::int AS "totalReposicoes",
+      COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade ELSE 0 END), 0)::int AS "totalVendas",
+      COALESCE(SUM(m.quantidade), 0)::int AS "totalMovimentacoes"
+    FROM "Fornecedor" f
+    LEFT JOIN "Produto" p ON p."fornecedorId" = f.id
+    LEFT JOIN "Movimento" m ON m."produtoId" = p.id
+    GROUP BY f.id, f.nome
+    ORDER BY f.nome ASC
+  `;
 
-  return suppliers.map((sup) => {
-    let totalReposicoes = 0;
-    let totalVendas = 0;
-    const productMovements = {};
-
-    sup.produtos.forEach((prod) => {
-      prod.movimentos.forEach((mov) => {
-        if (mov.tipo === 'REPOSICAO' || mov.tipo === 'ENTRADA') totalReposicoes += mov.quantidade;
-        else totalVendas += mov.quantidade;
-
-        if (!productMovements[prod.nome]) productMovements[prod.nome] = 0;
-        productMovements[prod.nome] += mov.quantidade;
-      });
-    });
-
-    let topProduct = null;
-    let maxMov = 0;
-    for (const [prodName, qtd] of Object.entries(productMovements)) {
-      if (qtd > maxMov) {
-        maxMov = qtd;
-        topProduct = prodName;
-      }
-    }
-
-    return {
-      id: sup.id,
-      nome: sup.nome,
-      totalReposicoes,
-      totalVendas,
-      totalEntradas: totalReposicoes,
-      totalSaidas: totalVendas,
-      totalMovimentacoes: totalReposicoes + totalVendas,
-      produtoMaisMovimentado: topProduct || 'Nenhum'
-    };
-  });
+  return rawResults.map((sup) => ({
+    id: Number(sup.id),
+    nome: sup.nome,
+    totalReposicoes: Number(sup.totalReposicoes || 0),
+    totalVendas: Number(sup.totalVendas || 0),
+    totalEntradas: Number(sup.totalReposicoes || 0),
+    totalSaidas: Number(sup.totalVendas || 0),
+    totalMovimentacoes: Number(sup.totalMovimentacoes || 0),
+    produtoMaisMovimentado: "Geral"
+  }));
 }

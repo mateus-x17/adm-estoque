@@ -14,19 +14,22 @@ cloudinary.config({
 });
 
 // função responsável por fazer o upload de um arquivo local para o Cloudinary
-// 1 - Recebe o caminho local do arquivo (gerado previamente pelo multer) e opcionalmente o nome da pasta de destino na nuvem
-// 2 - Chama o método upload do uploader do Cloudinary passando o caminho local e a pasta destino
-// 3 - Retorna a URL segura (https) da imagem salva (secure_url)
-// 4 - Usa o bloco finally para apagar o arquivo temporário do disco local com fs.unlink independentemente do upload ter dado certo ou não, liberando espaço
-export async function uploadToCloudinary(filePath, folder = "general") {
+// Resiliente com proteção de Timeout de 10s (A3) e expurgo garantido de arquivos temporários do disco
+export async function uploadToCloudinary(filePath, folder = "general", timeoutMs = 10000) {
   try {
-    const result = await cloudinary.uploader.upload(filePath, {
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout ao enviar imagem para o Cloudinary (excedeu 10s)")), timeoutMs)
+    );
+
+    const uploadPromise = cloudinary.uploader.upload(filePath, {
       folder: folder,
     });
+
+    const result = await Promise.race([uploadPromise, timeoutPromise]);
     return result.secure_url;
   } finally {
     fs.unlink(filePath, (err) => {
-      if (err) console.error("Erro ao apagar arquivo temporário local:", err);
+      if (err && err.code !== 'ENOENT') console.error("Erro ao apagar arquivo temporário local:", err);
     });
   }
 }

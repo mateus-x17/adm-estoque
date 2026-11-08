@@ -1,4 +1,4 @@
-import { prisma } from '../config/prismaClient.js';
+import { prisma, Prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
 
 /**
@@ -126,32 +126,56 @@ export async function listMovementsPaginated(filters = {}) {
 }
 
 // serviço otimizado para agregar estatísticas de usuário baseado no histórico de movimentações geral
-// Executa em uma única consulta SQL no PostgreSQL via queryRaw eliminando o gargalo de N+1 queries
-export async function getUserStatsAggregated() {
+// Executa em uma única consulta SQL no PostgreSQL via queryRaw eliminando o gargalo de N+1 queries (I3)
+// Agrega contagem de movimentações, total de itens movimentados e valor financeiro de vendas com 1 roundtrip
+export async function getUserStatsAggregated({ from, to } = {}) {
+  const dateConditions = [];
+
+  if (from && from !== 'undefined') {
+    const fromDate = typeof from === 'string' && from.includes('-') && from.length === 10
+      ? dateFromYMD(from, false)
+      : new Date(from);
+    if (!isNaN(fromDate.getTime())) {
+      dateConditions.push(Prisma.sql`m.data >= ${fromDate}`);
+    }
+  }
+
+  if (to && to !== 'undefined') {
+    const toDate = typeof to === 'string' && to.includes('-') && to.length === 10
+      ? dateFromYMD(to, true)
+      : new Date(to);
+    if (!isNaN(toDate.getTime())) {
+      dateConditions.push(Prisma.sql`m.data <= ${toDate}`);
+    }
+  }
+
+  const whereClause = dateConditions.length > 0
+    ? Prisma.sql`WHERE ${Prisma.join(dateConditions, ' AND ')}`
+    : Prisma.empty;
+
   const rawResults = await prisma.$queryRaw`
     SELECT
       u.id AS "usuarioId",
-      u.nome AS "nome",
-      u.email AS "email",
-      COUNT(m.id)::int AS "totalMovimentos",
-      COALESCE(SUM(m.quantidade), 0)::int AS "totalQuantidade",
-      COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade ELSE 0 END), 0)::int AS "totalVendaQuantidade",
-      COALESCE(SUM(CASE WHEN m.tipo = 'REPOSICAO' THEN m.quantidade ELSE 0 END), 0)::int AS "totalReposicaoQuantidade"
+      u.nome AS "name",
+      COUNT(m.id)::int AS "count",
+      COALESCE(SUM(m.quantidade), 0)::int AS "totalQuantity",
+      COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade * p.preco ELSE 0 END), 0)::float AS "totalValue"
     FROM "Usuario" u
     JOIN "Movimento" m ON m."usuarioId" = u.id
-    GROUP BY u.id, u.nome, u.email
-    ORDER BY "totalMovimentos" DESC
+    JOIN "Produto" p ON m."produtoId" = p.id
+    ${whereClause}
+    GROUP BY u.id, u.nome
+    ORDER BY "count" DESC
   `;
 
   return rawResults.map((r) => ({
     usuarioId: Number(r.usuarioId),
-    nome: r.nome || 'Desconhecido',
-    email: r.email,
-    totalMovimentos: Number(r.totalMovimentos || 0),
-    totalQuantidade: Number(r.totalQuantidade || 0),
-    totalVendaQuantidade: Number(r.totalVendaQuantidade || 0),
-    totalReposicaoQuantidade: Number(r.totalReposicaoQuantidade || 0),
-    totalSaidaQuantidade: Number(r.totalVendaQuantidade || 0),
-    totalEntradaQuantidade: Number(r.totalReposicaoQuantidade || 0),
+    name: r.name || 'Desconhecido',
+    count: Number(r.count || 0),
+    totalQuantity: Number(r.totalQuantity || 0),
+    totalValue: Number(r.totalValue || 0),
+    // Propriedades retrocompatíveis
+    totalMovimentos: Number(r.count || 0),
+    totalMovimentacoes: Number(r.count || 0),
   }));
 }

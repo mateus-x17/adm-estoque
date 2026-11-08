@@ -25,16 +25,33 @@ export async function createUser(req, res, next) {
   }
 }
 
+// Cache em memória para dropdowns de nomes de usuários com TTL de 30s
+let cachedUserNames = null;
+let cachedUserNamesTimestamp = 0;
+const NAMES_CACHE_TTL_MS = 30 * 1000;
+
+export function invalidateUserNamesCache() {
+  cachedUserNames = null;
+  cachedUserNamesTimestamp = 0;
+}
+
 // função simplificada para buscar apenas os nomes e IDs dos usuários (ótima para selects e dropdowns, reduzindo payload)
-// 1 - Usa o prisma com um "select" projetado especificamente para pegar apenas ID e NOME e omite campos sensíveis
-// 2 - Ordena por ordem alfabética (asc)
-// 3 - Retorna JSON
+// Otimizada com cache em memória (TTL 30s): responde em < 1ms para a interface
 export async function getUserNames(req, res, next) {
   try {
+    const now = Date.now();
+    if (cachedUserNames && (now - cachedUserNamesTimestamp < NAMES_CACHE_TTL_MS)) {
+      return res.json(cachedUserNames);
+    }
+
     const users = await prisma.usuario.findMany({
       select: { id: true, nome: true },
       orderBy: { nome: 'asc' },
     });
+
+    cachedUserNames = users;
+    cachedUserNamesTimestamp = now;
+
     log.info({ user: req.user?.id, action: 'GET_USER_NAMES' }, 'User fetched user names list');
     res.json(users);
   } catch (err) {

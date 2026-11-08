@@ -85,7 +85,34 @@ app.use("/movements", movementRoutes);
 app.use(errorHandler);
 
 // 10 - Inicia de fato o servidor na porta configurada, passando a "ouvir" conexões HTTP
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info({ port: PORT }, `Servidor rodando`);
   logger.info(`URL: http://localhost:${PORT}`);
 });
+
+// 11 - Graceful Shutdown (A7): Encerramento gracioso de conexões HTTP e Prisma
+const shutdown = async (signal) => {
+  logger.info({ signal }, 'Recebido sinal de encerramento. Iniciando Graceful Shutdown...');
+  server.close(async () => {
+    logger.info('Servidor HTTP fechado. Encerrando conexões com o banco de dados Neon...');
+    try {
+      await prisma.$disconnect();
+      logger.info('Conexões com PostgreSQL encerradas com sucesso.');
+      process.exit(0);
+    } catch (err) {
+      logger.error({ err }, 'Erro ao desconectar do banco de dados');
+      process.exit(1);
+    }
+  });
+
+  // Timeout de contingência caso conexões fiquem pendentes por mais de 10s
+  setTimeout(() => {
+    logger.error('Graceful shutdown expirou (10s). Forçando encerramento imediato.');
+    process.exit(1);
+  }, 10000).unref();
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+export default app;

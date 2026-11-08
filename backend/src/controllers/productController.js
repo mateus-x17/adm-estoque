@@ -121,12 +121,14 @@ export async function deleteProduct(req, res, next) {
 // 5 - Retorna o resultado
 export async function adjustQuantity(req, res, next) {
   try {
+    const idempotencyKey = req.headers['idempotency-key'] || req.headers['x-idempotency-key'] || req.body.idempotencyKey;
     const result = await productService.adjustProductQuantity(
       req.params.id,
       req.body.quantidade,
       req.body.tipo,
       req.user.id,
-      req.body.observacao
+      req.body.observacao,
+      idempotencyKey
     );
     log.info({ user: req.user?.id, action: 'ADJUST_PRODUCT_QUANTITY', targetId: req.params.id, quantity: req.body.quantidade, type: req.body.tipo }, 'User adjusted product quantity');
     res.json(result);

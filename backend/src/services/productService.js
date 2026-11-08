@@ -164,12 +164,33 @@ export async function deleteProduct(id) {
   return prisma.produto.delete({ where: { id: Number(id) } });
 }
 
+// Armazenamento em memória para chaves de idempotência e prevenção de cliques duplos simultâneos (I9)
+const IDEMPOTENCY_TTL_MS = 1000 * 60 * 10; // 10 minutos
+const idempotencyStore = new Map();
+const recentOperations = new Map();
+
+// Limpeza periódica de chaves expiradas para evitar vazamento de memória
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, item] of idempotencyStore.entries()) {
+    if (now - item.timestamp > IDEMPOTENCY_TTL_MS) {
+      idempotencyStore.delete(key);
+    }
+  }
+  for (const [key, timestamp] of recentOperations.entries()) {
+    if (now - timestamp > 5000) {
+      recentOperations.delete(key);
+    }
+  }
+}, 1000 * 60 * 5).unref();
+
 // serviço ultra crítico: ajusta quantidade e salva o registro histórico como transação interativa atômica
 // 1 - Validações estruturais rigorosas
-// 2 - Executa toda a leitura, trava de validação e escrita dentro de prisma.$transaction interativo
-// 3 - Previne Race Condition (condição de corrida) e garante que o estoque não fique negativo
-// 4 - Retorna o resultado mantendo compatibilidade 100% com o contrato do frontend
-export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, observacao = null) {
+// 2 - Bloqueio de concorrência com lock pessimista (FOR UPDATE) no PostgreSQL (Eliminação de Lost Update e Race Conditions - I1, I8)
+// 3 - Suporte nativo a chave de idempotência (Idempotency-Key) e trava anti-duplo clique (I9)
+// 4 - Previne Race Condition e garante que o estoque não fique negativo
+// 5 - Retorna o resultado mantendo compatibilidade 100% com o contrato do frontend
+export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, observacao = null, idempotencyKey = null) {
   const qtdNum = Number(quantidade);
   if (!quantidade || isNaN(qtdNum) || qtdNum <= 0 || !tipo) {
     throw new AppError('Quantidade válida e tipo são obrigatórios', 400);
@@ -186,40 +207,84 @@ export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, obs
   const productId = Number(id);
   if (isNaN(productId)) throw new AppError('ID de produto inválido', 400);
 
-  // Transação interativa atômica no banco de dados
-  return await prisma.$transaction(async (tx) => {
-    const product = await tx.produto.findUnique({ where: { id: productId } });
-    if (!product) throw new AppError('Produto não encontrado', 404);
+  // Verificação de Idempotência Explícita (I9)
+  if (idempotencyKey) {
+    const cached = idempotencyStore.get(idempotencyKey);
+    if (cached) {
+      if (cached.status === 'PROCESSING') {
+        throw new AppError('Esta operação já está em processamento. Por favor, aguarde.', 409);
+      }
+      return cached.result;
+    }
+    idempotencyStore.set(idempotencyKey, { status: 'PROCESSING', timestamp: Date.now() });
+  }
 
-    if (normalizedTipo === 'VENDA' && product.quantidade < qtdNum) {
-      throw new AppError('Quantidade insuficiente no estoque', 400);
+  // Trava anti-duplo clique involuntário (debounce de 1.2 segundos por usuário + produto + tipo + quantidade)
+  const debounceKey = `user_${usuarioId}_prod_${productId}_${normalizedTipo}_${qtdNum}`;
+  const now = Date.now();
+  const lastOp = recentOperations.get(debounceKey);
+  if (!idempotencyKey && lastOp && (now - lastOp) < 1200) {
+    throw new AppError('Operação duplicada detectada (clique duplo). Por favor, aguarde a conclusão.', 429);
+  }
+  recentOperations.set(debounceKey, now);
+
+  try {
+    // Transação interativa atômica com Bloqueio Pessimista no PostgreSQL (I1, I2, I8)
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Lock pessimista FOR UPDATE na linha do produto: serializa requisições concorrentes
+      const [product] = await tx.$queryRaw`
+        SELECT id, nome, quantidade, preco
+        FROM "Produto"
+        WHERE id = ${productId}
+        FOR UPDATE
+      `;
+
+      if (!product) throw new AppError('Produto não encontrado', 404);
+
+      if (normalizedTipo === 'VENDA' && product.quantidade < qtdNum) {
+        throw new AppError(
+          `Quantidade insuficiente no estoque. Saldo disponível: ${product.quantidade}, Solicitado: ${qtdNum}`,
+          400
+        );
+      }
+
+      const delta = normalizedTipo === 'REPOSICAO' ? qtdNum : -qtdNum;
+      const newQuantity = product.quantidade + delta;
+      if (newQuantity < 0) throw new AppError('Quantidade não pode ser negativa', 400);
+
+      const movimento = await tx.movimento.create({
+        data: {
+          produtoId: productId,
+          quantidade: qtdNum,
+          tipo: normalizedTipo,
+          usuarioId: Number(usuarioId),
+          observacao,
+        },
+        include: {
+          produto: true,
+          usuario: { select: { id: true, nome: true, email: true, role: true } },
+        },
+      });
+
+      const updatedProduct = await tx.produto.update({
+        where: { id: productId },
+        data: { quantidade: newQuantity },
+      });
+
+      return { ok: true, novaQuantidade: updatedProduct.quantidade, movimento };
+    });
+
+    if (idempotencyKey) {
+      idempotencyStore.set(idempotencyKey, { status: 'DONE', result, timestamp: Date.now() });
     }
 
-    const delta = normalizedTipo === 'REPOSICAO' ? qtdNum : -qtdNum;
-    const newQuantity = product.quantidade + delta;
-    if (newQuantity < 0) throw new AppError('Quantidade não pode ser negativa', 400);
-
-    const movimento = await tx.movimento.create({
-      data: {
-        produtoId: productId,
-        quantidade: qtdNum,
-        tipo: normalizedTipo,
-        usuarioId: Number(usuarioId),
-        observacao,
-      },
-      include: {
-        produto: true,
-        usuario: { select: { id: true, nome: true, email: true, role: true } },
-      },
-    });
-
-    const updatedProduct = await tx.produto.update({
-      where: { id: productId },
-      data: { quantidade: newQuantity },
-    });
-
-    return { ok: true, novaQuantidade: updatedProduct.quantidade, movimento };
-  });
+    return result;
+  } catch (err) {
+    if (idempotencyKey) {
+      idempotencyStore.delete(idempotencyKey);
+    }
+    throw err;
+  }
 }
 
 // serviço responsável por obter as macroestatísticas de dashboard dos produtos

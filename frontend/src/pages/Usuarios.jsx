@@ -47,6 +47,29 @@ const Usuarios = () => {
     setEditarUser({ visible: true, userData: user, type: tipo });
   };
 
+  const handleExcluirUsuario = async (user) => {
+    const confirmacao = window.confirm(
+      `Deseja realmente excluir o usuário "${user.nome}" (${user.email})?`
+    );
+    if (!confirmacao) return;
+
+    try {
+      await usersApi.deleteUser(user.id);
+      setModal({
+        visible: true,
+        mensagem: `Usuário "${user.nome}" excluído com sucesso!`,
+        tipo: "sucesso",
+      });
+      await carregarUsuarios();
+    } catch (error) {
+      setModal({
+        visible: true,
+        mensagem: error.message || "Erro ao excluir o usuário.",
+        tipo: "erro",
+      });
+    }
+  };
+
   const carregarUsuarios = async () => {
     setLoading(true); //indica carregameto de dados
     try {
@@ -229,13 +252,7 @@ const Usuarios = () => {
                   </button>
 
                   <button
-                    onClick={() =>
-                      setModal({
-                        visible: true,
-                        mensagem: `Exclusão de ${user.nome} (simulada pelo sistema)`,
-                        tipo: "sucesso",
-                      })
-                    }
+                    onClick={() => handleExcluirUsuario(user)}
                     className="flex-1 px-4 py-2 rounded-full text-xs font-semibold bg-accent-red/10 text-accent-red hover:bg-accent-red/20 transition-all duration-300"
                   >
                     Excluir

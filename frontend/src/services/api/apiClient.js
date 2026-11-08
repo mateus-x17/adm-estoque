@@ -90,6 +90,22 @@ const handleResponse = async (response) => {
             }
         }
 
+        // Redirecionamento automático em caso de sessão expirada (401)
+        if (response.status === 401 && typeof window !== "undefined") {
+            try {
+                const currentPath = window.location.pathname;
+                if (currentPath !== "/auth" && currentPath !== "/login") {
+                    console.warn("[API Client] Sessão expirada (401). Redirecionando para login...");
+                    localStorage.removeItem("auth-token");
+                    setTimeout(() => {
+                        window.location.href = "/auth";
+                    }, 100);
+                }
+            } catch (e) {
+                console.error("[API Client] Erro ao redirecionar após 401:", e);
+            }
+        }
+
         const error = new Error(errorMessage);
         error.status = response.status;
         throw error;

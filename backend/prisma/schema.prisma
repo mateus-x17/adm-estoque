@@ -41,7 +41,7 @@ model Produto {
   id          Int       @id @default(autoincrement())
   nome        String
   descricao   String?
-  preco       Float
+  preco       Decimal   @db.Decimal(10, 2)
   quantidade  Int       @default(0)
   imagem      String?
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
@@ -52,7 +52,7 @@ model Produto {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  @@index([categoriaId])
+  @@index([categoriaId, quantidade])
   @@index([fornecedorId])
   @@index([quantidade])
   @@index([nome])
@@ -70,7 +70,7 @@ model Movimento {
   observacao String?
 
   @@index([usuarioId])
-  @@index([produtoId])
+  @@index([produtoId, data])
   @@index([data])
 }
 

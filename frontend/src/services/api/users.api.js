@@ -38,4 +38,9 @@ export const usersApi = {
    * Create a new user
    */
   createUser: (userData) => apiClient.post("/users", userData),
+
+  /**
+   * Delete user by ID
+   */
+  deleteUser: (id) => apiClient.delete(`/users/${id}`),
 };

@@ -1,0 +1,10 @@
+1 - apos usar o arquivo "./ordem de prompts/1-PROMPT_MASTER_UNIFICADO.md" e definir seus parametros e ele vai gerar um registro de evolução na raiz do projeto o arquivo "00_REGISTRO_DE_PROGRESSO.md"    
+    - apos gerar ess earquivo de registro elevai começar a recriar uma explicação do software por modulos. chamadado "00_REGISTRO_DE_PROGRESSO.md"
+    - apos gerar esta pagina os primeiros arquivos serão um compilado de funcionalidades que o software funciona e la para o modulo 7 ele começara a propor mudanças.
+
+2 - após isso ele vai criar uma pasta chamada "relator"io na raiz do projeto e vaialvar o que foi gerada pelo prompt "1-PROMPT_MASTER_UNIFICO.ADmd" dentro da pasta "relatorios."
+    - dentro desta pasta estará um relatorio sobre cada modulo do softaware com suas explicações detalhadas e com seus possiveis problmeas e soluções apartir do modulo 7.
+    - depois disso ele pedirá permissão para implementar as melhoririas cabiveis sem afetar o funcionalidades. 
+    - passadas todas melhorias devemos chamar um outro prompt "ordem de prompts\2-OUTPUTS_UNIFICADO_FORMATOS_E_CATALOGO.md" para que ele gere o ultimo arquivo dentro de relatorios com um compilado de todas as alterações feitas para que elevesse o nivel de sua plaicação.
+
+3 - apos isso podemos pedir paara incluir essas mudanças e maturação ao final do readme pronto do projeto, para que crie uma distanção clara do que foi feito de inicio e do que foi maturado depois. 
