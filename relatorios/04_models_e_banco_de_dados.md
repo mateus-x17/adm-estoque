@@ -9,8 +9,8 @@
 
 - **SGBD Primário:** PostgreSQL (Neon Cloud Database).
 - **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2 na última checagem).
-- **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma) (232 linhas).
-- **7 Migrações Versionadas em `backend/prisma/migrations/`:**
+- **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma).
+- **8 Migrações Versionadas em `backend/prisma/migrations/`:**
   1. `20250918051748_init` — Esquema base inicial.
   2. `20251012223132_add_field_imagem_usuario` — Avatar em usuários.
   3. `20260601063115_upd_tabela_fornecedores` — Expansão de fornecedores.
@@ -18,6 +18,7 @@
   5. `20261110_multitenant_softdelete` — Introdução de `Empresa` + `ativo`.
   6. `20261110_organizacao_multipedidos` — Evolução de `Empresa` → `Organizacao` + `Loja` (com backfill seguro preservando IDs), criação de `PedidoStatus`, `Pedido` e `ItemPedido`, remoção de `Usuario.ativo`, e inclusão de `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `precoUnitario`, `valorTotal`, `estorno` e `pedidoId` em `Movimento`.
   7. `20261110_pedido_comprovantes` — Inclusão de `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` e `recebidoPor` em `Pedido`.
+  8. `20261110_matricula_situacao_rh` — Inclusão do enum `SituacaoFuncionario` (`ATIVO` | `SUSPENSO` | `FERIAS`), `matricula` única (`MAT-00001`), `telefone`, `situacao`, `dataAdmissao` em `Usuario` e snapshots `vendedorMatriculaSnapshot`, `vendedorDataAdmissaoSnapshot` e `vendedorDataDesligamentoSnapshot` em `Pedido` e `Movimento`.
 
 ---
 
@@ -70,6 +71,10 @@ erDiagram
         int organizacaoId FK
         int lojaId FK "NULL para ADMIN; FK ativa para equipe"
         string email "Unique(organizacaoId, email)"
+        string matricula "Unique MAT-00001"
+        string telefone "NULL"
+        SituacaoFuncionario situacao "ATIVO | SUSPENSO | FERIAS"
+        datetime dataAdmissao
         Role role "ADMIN | GERENTE | OPERADOR"
     }
     Pedido {
@@ -82,6 +87,9 @@ erDiagram
         int vendedorRefId "ID imutável do autor"
         string vendedorNomeSnapshot
         string vendedorEmailSnapshot
+        string vendedorMatriculaSnapshot
+        datetime vendedorDataAdmissaoSnapshot
+        datetime vendedorDataDesligamentoSnapshot
         int canceladoPorRefId "NULL"
     }
     ItemPedido {
@@ -116,6 +124,6 @@ erDiagram
 2. **Precisão Monetária Congelada (`Decimal(10, 2)`):**
    - `Produto.preco`, `Pedido.valorTotal`, `ItemPedido.precoUnitario`, `ItemPedido.subtotal`, `Movimento.precoUnitario` e `Movimento.valorTotal` utilizam `@db.Decimal(10, 2)` (`numeric(10,2)`), garantindo que reajustes futuros no preço de um produto nunca alterem o faturamento histórico passado.
 3. **Seed Realista Multi-Organização (`backend/prisma/seed.js`):**
-   - **Organização 1 — `Grupo TechStock Varejo` (`grupo-techstock`):** Lojas `TechStock Centro` (`techstock-centro`) e `TechStock Shopping` (`techstock-shopping`), `ADMIN` (`admin@techstock.com`), 2 `GERENTE`s, 4 `OPERADOR`es ativos e **1 ex-funcionário fisicamente excluído (`Marcos Antunes`)** cujo `vendedorRefId` permanece auditável.
-   - **Organização 2 — `CyberForge Geek Store` (`cyberforge-geek`):** Loja `CyberForge Matriz` (`cyberforge-matriz`), `admin@cyberforge.com`, `gerente1@cyberforge.com`, `op1/op2@cyberforge.com`. Senha unificada: `Password123!`.
+   - **Organização 1 — `Grupo TechStock Varejo` (`grupo-techstock`):** Lojas `TechStock Centro` e `TechStock Shopping`, `ADMIN` (`admin@techstock.com`), 2 `GERENTE`s, `OPERADOR`es ativos (`op1`..`op4`), **1 colaborador `SUSPENSO` (`Carlos Henrique`)**, **1 colaboradora em `FERIAS` (`Juliana Costa`)** e **1 ex-funcionário fisicamente excluído (`Marcos Antunes`)** cuja matrícula permanece auditável como `(CANCELADA)`.
+   - **Organização 2 — `CyberForge Geek Store` (`cyberforge-geek`):** Loja `CyberForge Matriz`, `admin@cyberforge.com`, `gerente1@cyberforge.com`, `op1/op2@cyberforge.com` e `peter.susp@cyberforge.com` (`SUSPENSO`). Senha unificada: `Password123!`.
    - Gera **12 meses** de multipedidos de compra e venda, cancelamento/estorno demonstrativo no mês atual e SKUs inativos com histórico (`Cabo VGA Analógico Legado`, `Hub USB 2.0 Antigo`, `Box Edição Limitada Convenção 2024`).

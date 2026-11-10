@@ -7,16 +7,16 @@
 
 ## 1. Visão Geral da Superfície da API `[IMPLEMENTADO (verificado)]`
 
-A API do **Estoque.OS** expõe **55 rotas HTTP registradas no Express** (além da exposição de arquivos estáticos em `USE /uploads`):
+A API do **Estoque.OS** expõe **56 rotas HTTP registradas no Express** (`54` em `src/routes/*.js` + `2` na raiz `index.js`, além de estáticos em `USE /uploads`):
 - **Rotas Públicas (`4`):** `GET /`, `GET /test-db`, `POST /auth/login`, `POST /auth/register`.
-- **Rotas Protegidas (`51`):** Exigem JWT válido (`authMiddleware`), Organização ativa (`Organizacao.ativo = true`) e, para não-`ADMIN`, Loja ativa (`Loja.ativo = true`). O isolamento segue a regra:
+- **Rotas Protegidas (`52`):** Exigem JWT válido (`authMiddleware`), Organização ativa (`Organizacao.ativo = true`), situação funcional `ATIVO` (contas `SUSPENSO`/`FERIAS` recebem `403`) e, para não-`ADMIN`, Loja ativa (`Loja.ativo = true`). O isolamento segue a regra:
   - Cross-organização → HTTP **`404 Not Found`**.
   - Cross-loja para `GERENTE`/`OPERADOR` → ignorado (`req.user.lojaId` forçado no backend) ou **`403 Forbidden`**.
   - Contexto do `ADMIN` → header `X-Loja-Id` ou query `?lojaId=` (`"all"` para rede consolidada, ou ID numérico de uma filial da própria Organização).
 
 ---
 
-## 2. Inventário Completo das 54 Rotas por Módulo
+## 2. Inventário Completo das 56 Rotas por Módulo
 
 ### 2.1 Raiz & Diagnóstico (`/`) — 2 rotas (+ `USE /uploads`)
 1. **`GET /`** ([`index.js#L65`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L65)) — Healthcheck básico de subida do servidor Express (`200 text/html`).
@@ -41,65 +41,66 @@ A API do **Estoque.OS** expõe **55 rotas HTTP registradas no Express** (além d
 9. **`PATCH /stores/:id/status`** — `ADMIN` + `validateRequest({ required: ['ativo'] })`. Alterna `ativo`, bloqueia desativar a última filial ativa e invalida cache global.
 10. **`DELETE /stores/:id`** — `ADMIN`. Remove fisicamente se sem usuários/produtos/movimentos/pedidos; caso contrário aplica Soft Delete (`softDeleted: true`).
 
-### 2.4 Colaboradores & Transferência (`/users`) — 9 rotas
+### 2.4 Colaboradores, Situação Funcional & Transferência (`/users`) — 10 rotas
 *Arquivo: [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js) → [`userController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js)*
-11. **`GET /users/me`** — Autenticado. Perfil sanitizado + objeto `organizacao` + `loja`.
-12. **`PUT /users/me`** — Autenticado + `upload.single('imagem')` + `validateRequest(['nome', 'email'])`. Bloqueia alteração de `role` por não-`ADMIN` (`403`).
+11. **`GET /users/me`** — Autenticado. Perfil sanitizado (`matricula`, `telefone`, `situacao`, `dataAdmissao`) + objeto `organizacao` + `loja`.
+12. **`PUT /users/me`** — Autenticado + `upload.single('imagem')` + `validateRequest(['nome', 'email'])`. Atualiza dados (incluindo `telefone`) e bloqueia alteração de `role` por não-`ADMIN` (`403`).
 13. **`GET /users/names`** — `permit('ADMIN', 'GERENTE')` (`OPERADOR` bloqueado com `403`). Cache `30s` por `orgId:lojaId`.
-14. **`POST /users`** — `permit('ADMIN')` + `upload.single('imagem')` + `validateRequest(['nome', 'email', 'senha', 'role'])`. Cria colaborador (`lojaId` obrigatório para `GERENTE`/`OPERADOR`).
-15. **`GET /users`** — `permit('ADMIN')`. Paginação, busca, filtro por `role` e por loja (`X-Loja-Id` / `?lojaId=`).
+14. **`POST /users`** — `permit('ADMIN')` + `upload.single('imagem')` + `validateRequest(['nome', 'email', 'senha', 'role'])`. Cria colaborador gerando **`matricula` (`MAT-00001`)**, aceitando `telefone`, `situacao` e `dataAdmissao`.
+15. **`GET /users`** — `permit('ADMIN')`. Paginação, busca por Matrícula/nome/e-mail/ID, filtros por `role`, `situacao` e `lojaId` (`X-Loja-Id`).
 16. **`GET /users/:id`** — `permit('ADMIN')`. Consulta detalhe dentro da Organização (`404` se cruzar org).
-17. **`PUT /users/:id`** — `permit('ADMIN')` + `upload.single('imagem')` + `validateRequest(['nome', 'email', 'role'])`. Protege contra rebaixamento do último `ADMIN`.
+17. **`PUT /users/:id`** — `permit('ADMIN')` + `upload.single('imagem')` + `validateRequest(['nome', 'email', 'role'])`. Atualiza cadastro completo (`telefone`, `situacao`, `dataAdmissao`) e protege o último `ADMIN ATIVO`.
 18. **`PATCH /users/:id/store`** — `permit('ADMIN')` + `validateRequest(['lojaId'])`. Transfere `GERENTE` ou `OPERADOR` entre filiais ativas e limpa `userCache`/`namesCache`.
-19. **`DELETE /users/:id`** — `permit('ADMIN')`. Exclusão física definitiva (`prisma.usuario.delete`), apaga avatar Cloudinary, devolve `{ deletedId, preserveHistoryRef: true }` mantendo `vendedorRefId` e snapshots em `Pedido`/`Movimento`.
+19. **`PATCH /users/:id/situation`** — `permit('ADMIN')` + `validateRequest(['situacao'])`. Altera status (`ATIVO`, `SUSPENSO`, `FERIAS`), bloqueia suspensos/férias com `403` e limpa caches na hora.
+20. **`DELETE /users/:id`** — `permit('ADMIN')`. Demissão com exclusão física definitiva (`prisma.usuario.delete`), apaga avatar Cloudinary, marca snapshots e devolve `relatorioDesligamento` (vendas filtradas mês a mês entre `dataInicio` e `dataTermino`, exibindo `Nome`, `E-mail` e `Matrícula (CANCELADA)`).
 
 ### 2.5 Produtos, Planilhas & Ajuste Unitário (`/products`) — 12 rotas
 *Arquivo: [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js) → [`productController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js)*
-20. **`GET /products/count`** — Contagem de SKUs ativos na rede/loja (`resolveReadScope`).
-21. **`GET /products/stats`** — KPIs agregados no PostgreSQL (estoque baixo `< 10`, valor total em `Decimal`, por categoria).
-22. **`GET /products/export`** — `permit('ADMIN', 'GERENTE')`. Gera `.xlsx` ou `.csv` (UTF-8 BOM) via `ExcelJS`.
-23. **`GET /products/import/template`** — `permit('ADMIN', 'GERENTE')`. Planilha modelo `.xlsx`/`.csv`.
-24. **`POST /products/import`** — `permit('ADMIN', 'GERENTE')` + Multer memória (`<= 2MB`, `.xlsx`/`.csv`, até `5.000` linhas). Modos `preview` e `commit` atômico na loja (`resolveWriteStore`).
-25. **`GET /products`** — Listagem paginada (`page`, `limit <= 100`, `search`, `categoriaId`, `fornecedorId`, `status`, `sortBy`).
-26. **`GET /products/:id`** — Detalhe do SKU na Organização.
-27. **`POST /products`** — `permit('ADMIN', 'GERENTE')` + `upload.single('imagem')` + `validateRequest(['nome', 'preco', 'quantidade'])`.
-28. **`PUT /products/:id`** — `permit('ADMIN', 'GERENTE')` + `upload.single('imagem')` + `validateRequest(['nome', 'preco', 'quantidade'])`.
-29. **`PATCH /products/:id/status`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['ativo'])` (Soft Delete/Reativação).
-30. **`DELETE /products/:id`** — `permit('ADMIN')`. Remoção física ou Soft Delete automático se houver `ItemPedido` ou `Movimento`.
-31. **`POST /products/:id/adjust`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')` + `validateRequest(['quantidade', 'tipo'])`. Ajuste unitário c/ lock `FOR UPDATE`, `Idempotency-Key` e snapshot de preço/vendedor.
+21. **`GET /products/count`** — Contagem de SKUs ativos na rede/loja (`resolveReadScope`).
+22. **`GET /products/stats`** — KPIs agregados no PostgreSQL (estoque baixo `< 10`, valor total em `Decimal`, por categoria).
+23. **`GET /products/export`** — `permit('ADMIN', 'GERENTE')`. Gera `.xlsx` ou `.csv` (UTF-8 BOM) via `ExcelJS`.
+24. **`GET /products/import/template`** — `permit('ADMIN', 'GERENTE')`. Planilha modelo `.xlsx`/`.csv`.
+25. **`POST /products/import`** — `permit('ADMIN', 'GERENTE')` + Multer memória (`<= 2MB`, `.xlsx`/`.csv`, até `5.000` linhas). Modos `preview` e `commit` atômico na loja (`resolveWriteStore`).
+26. **`GET /products`** — Listagem paginada (`page`, `limit <= 100`, `search`, `categoriaId`, `fornecedorId`, `status`, `sortBy`).
+27. **`GET /products/:id`** — Detalhe do SKU na Organização.
+28. **`POST /products`** — `permit('ADMIN', 'GERENTE')` + `upload.single('imagem')` + `validateRequest(['nome', 'preco', 'quantidade'])`.
+29. **`PUT /products/:id`** — `permit('ADMIN', 'GERENTE')` + `upload.single('imagem')` + `validateRequest(['nome', 'preco', 'quantidade'])`.
+30. **`PATCH /products/:id/status`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['ativo'])` (Soft Delete/Reativação).
+31. **`DELETE /products/:id`** — `permit('ADMIN')`. Remoção física ou Soft Delete automático se houver `ItemPedido` ou `Movimento`.
+32. **`POST /products/:id/adjust`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')` + `validateRequest(['quantidade', 'tipo'])`. Ajuste unitário c/ lock `FOR UPDATE`, `Idempotency-Key` e snapshot de preço/vendedor/matrícula.
 
 ### 2.6 Categorias (`/categories`) — 6 rotas
 *Arquivo: [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js) → [`categoryController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js)*
-32. **`GET /categories/count`** — Contagem de categorias ativas por escopo.
-33. **`GET /categories`** — Listagem filtrável por status/loja.
-34. **`POST /categories`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
-35. **`PUT /categories/:id`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
-36. **`PATCH /categories/:id/status`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['ativo'])`.
-37. **`DELETE /categories/:id`** — `permit('ADMIN')` (exclusão física ou Soft Delete se vinculada a produto).
+33. **`GET /categories/count`** — Contagem de categorias ativas por escopo.
+34. **`GET /categories`** — Listagem filtrável por status/loja.
+35. **`POST /categories`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
+36. **`PUT /categories/:id`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
+37. **`PATCH /categories/:id/status`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['ativo'])`.
+38. **`DELETE /categories/:id`** — `permit('ADMIN')` (exclusão física ou Soft Delete se vinculada a produto).
 
 ### 2.7 Fornecedores (`/suppliers`) — 8 rotas
 *Arquivo: [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js) → [`supplierController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js)*
-38. **`GET /suppliers/stats`** — Estatísticas SQL nativas por fornecedor ignorando estornos e pedidos cancelados.
-39. **`GET /suppliers`** — Listagem por Organização/Loja.
-40. **`GET /suppliers/count`** — Contagem de fornecedores ativos.
-41. **`GET /suppliers/:id`** — Detalhe do fornecedor.
-42. **`POST /suppliers`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
-43. **`PUT /suppliers/:id`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
-44. **`PATCH /suppliers/:id/status`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['ativo'])`.
-45. **`DELETE /suppliers/:id`** — `permit('ADMIN')` (exclusão ou Soft Delete automático).
+39. **`GET /suppliers/stats`** — Estatísticas SQL nativas por fornecedor ignorando estornos e pedidos cancelados.
+40. **`GET /suppliers`** — Listagem por Organização/Loja.
+41. **`GET /suppliers/count`** — Contagem de fornecedores ativos.
+42. **`GET /suppliers/:id`** — Detalhe do fornecedor.
+43. **`POST /suppliers`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
+44. **`PUT /suppliers/:id`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['nome'])`.
+45. **`PATCH /suppliers/:id/status`** — `permit('ADMIN', 'GERENTE')` + `validateRequest(['ativo'])`.
+46. **`DELETE /suppliers/:id`** — `permit('ADMIN')` (exclusão ou Soft Delete automático).
 
 ### 2.8 Multipedidos, Comprovantes & Estorno (`/orders`) — 5 rotas
 *Arquivo: [`orderRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/orderRoutes.js) → [`orderController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/orderController.js)*
-46. **`GET /orders`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Paginado (`<= 100`), filtra por código, comprovante, recebedor, cliente, nome/e-mail ou **ID numérico `vendedorRefId`**, impondo sigilo a `OPERADOR`.
-47. **`GET /orders/:id`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Retorna itens congelados + dados de comprovante + movimentos espelho.
-48. **`POST /orders`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')` + `uploadComprovante.single('comprovante')` + `validateRequest(['tipo', 'itens'])`. Cria pedido multi-item atômico com `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, congelamento de `precoUnitario` e gravação de comprovação (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`).
-49. **`PATCH /orders/:id/proof`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')` + `uploadComprovante.single('comprovante')`. Atualiza ou anexa comprovante/confirmação de pagamento de um pedido `CONCLUIDO`.
-50. **`POST /orders/:id/cancel`** — `permit('ADMIN', 'GERENTE')` (`OPERADOR` bloqueado com `403`). Estorna saldo de todos os itens e grava `Movimento` inverso com `estorno = true`.
+47. **`GET /orders`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Paginado (`<= 100`), filtra por código, comprovante, recebedor, cliente, nome/e-mail ou **Matrícula / ID (`vendedorRefId`)**, impondo sigilo a `OPERADOR`.
+48. **`GET /orders/:id`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Retorna itens congelados + dados de comprovante + movimentos espelho.
+49. **`POST /orders`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')` + `uploadComprovante.single('comprovante')` + `validateRequest(['tipo', 'itens'])`. Cria pedido multi-item atômico com `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, congelamento de `precoUnitario` e gravação de comprovação (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`).
+50. **`PATCH /orders/:id/proof`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')` + `uploadComprovante.single('comprovante')`. Atualiza ou anexa comprovante/confirmação de pagamento de um pedido `CONCLUIDO`.
+51. **`POST /orders/:id/cancel`** — `permit('ADMIN', 'GERENTE')` (`OPERADOR` bloqueado com `403`). Estorna saldo de todos os itens e grava `Movimento` inverso com `estorno = true`.
 
 ### 2.9 Movimentações, Relatórios Executivos & Desempenho (`/movements`) — 5 rotas
 *Arquivo: [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js) → [`movementController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js)*
-51. **`GET /movements/sales-report`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Retorna série temporal (`1m`/`6m`/`1y`), `scope` (`network`/`store`/`user`), `rankingVendedores` (melhor→pior) e `resumoFornecedores`.
-52. **`GET /movements/performance`** — `permit('ADMIN', 'GERENTE')`. Ranking completo melhor→pior por período preservando posição real mesmo em buscas (`search` por antigo ID/nome/e-mail) e flag `includeDeleted`.
-53. **`GET /movements/performance/:refId`** — `permit('ADMIN', 'GERENTE')`. Raio-X simultâneo de `1m`, `6m`, `1y` + total histórico + gráfico 12 meses + top SKUs + pedidos recentes (inclusive ex-colaborador já excluído).
-54. **`GET /movements/user-stats`** — `permit('ADMIN', 'GERENTE')`. Agregação SQL nativa por `vendedorRefId` para o Dashboard (ignora estornos/cancelados).
-55. **`GET /movements`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Livro-razão unitário com sigilo `OPERADOR` e busca por `vendedorRefId`.
+52. **`GET /movements/sales-report`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Retorna série temporal (`1m`/`6m`/`1y`), `scope` (`network`/`store`/`user`), `rankingVendedores` (com `nome`, `email`, `matriculaDisplay`) e `resumoFornecedores`.
+53. **`GET /movements/performance`** — `permit('ADMIN', 'GERENTE')`. Ranking completo melhor→pior por período preservando posição real mesmo em buscas (`search` por **Matrícula**, ID, nome ou e-mail) e flag `includeDeleted`.
+54. **`GET /movements/performance/:refId`** — `permit('ADMIN', 'GERENTE')`. Aceita **Matrícula (`MAT-000XX`)** ou ID antigo; retorna `1m`, `6m`, `1y`, total histórico, `mesesTrabalhados` (`dataInicio` a `dataTermino`), gráfico 12 meses, top SKUs e pedidos recentes.
+55. **`GET /movements/user-stats`** — `permit('ADMIN', 'GERENTE')`. Agregação SQL nativa por `vendedorRefId` para o Dashboard (ignora estornos/cancelados).
+56. **`GET /movements`** — `permit('ADMIN', 'GERENTE', 'OPERADOR')`. Livro-razão unitário com sigilo `OPERADOR` e busca por **Matrícula / `vendedorRefId`**.

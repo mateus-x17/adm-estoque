@@ -12,9 +12,9 @@ O **Estoque.OS** é uma aplicação web fullstack **SaaS B2B Multi-Organização
   - **Portal da Loja (`/login` e `/auth`):** Exclusivo para `GERENTE` e `OPERADOR` vinculados à sua filial (`ADMIN` é redirecionado ao `/admin/login`).
   - `GERENTE`: Visão gerencial da sua filial (estoque, fornecedores, planilhas `.xlsx`/`.csv`, cancelamento/estorno de pedidos, PDF e desempenho dos vendedores da loja), sem acesso a `/users`, `/stores` escrita ou rotas `DELETE`.
   - `OPERADOR`: Acesso operacional restrito — registra pedidos/movimentos na loja, mas visualiza **exclusivamente suas próprias vendas e pedidos** (bloqueado com `403` em métricas e listas de terceiros).
-- **Exclusão Física Real de Usuários Preservando Antigo ID (`vendedorRefId`):** Diferente de produtos/categorias/fornecedores/lojas (que possuem Soft Delete `ativo: Boolean`), colaboradores demitidos são excluídos fisicamente (`DELETE /users/:id`), removendo acesso e avatar do Cloudinary imediatamente enquanto preservam `vendedorRefId`, `vendedorNomeSnapshot` e `vendedorEmailSnapshot` em todos os `Pedido`s e `Movimento`s anteriores.
-- **Multipedidos Atômicos (`/orders`) & Estorno Transacional:** Criação de pedidos multi-item (`VENDA` ou `REPOSICAO`) com carrinhos dinâmicos, lock ordenado `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, preço unitário congelado em `ItemPedido` e cancelamento/estorno supervisionado (`POST /orders/:id/cancel` para `ADMIN`/`GERENTE`) gerando contrapartidas `estorno = true`.
-- **Auditoria & Desempenho de Vendedores (`/dashboard/desempenho`):** Ranking completo do melhor ao pior vendedor (`1m`, `6m`, `1y`), filtro por antigo ID numérico/nome/e-mail (inclusive ex-colaboradores excluídos), comparativo simultâneo mês/semestre/ano, gráfico 12 meses e ficha individual PDF A4.
+- **Exclusão Física Real de Usuários, Matrícula Única (`MAT-00001`) & Gestão RH:** Diferente de produtos/categorias/fornecedores/lojas (que possuem Soft Delete `ativo: Boolean`), colaboradores possuem **`matricula` única derivada do ID (`MAT-00001`)**, `telefone`, `dataAdmissao` e `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS`). Contas suspensas ou em férias têm login/acesso bloqueados com `403`, podendo ser reativadas ou demitidas no popup singelo **`Info`** de `/dashboard/usuarios`; ao demitir (`DELETE /users/:id`), a conta e o avatar são apagados enquanto a matrícula permanece marcada visualmente como **`MAT-XXXXX (CANCELADA)`** com snapshots imutáveis, gerando automaticamente o **Relatório Final de Desligamento (PDF A4)** filtrado pelos meses trabalhados (`Data de Início` e `Data de Término`).
+- **Multipedidos Atômicos (`/orders`) & Estorno Transacional:** Criação de pedidos multi-item (`VENDA` ou `REPOSICAO`) com carrinhos dinâmicos, lock ordenado `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, preço unitário congelado em `ItemPedido`, campos comprobatórios (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`) e cancelamento/estorno supervisionado (`POST /orders/:id/cancel` para `ADMIN`/`GERENTE`) gerando contrapartidas `estorno = true`.
+- **Auditoria & Desempenho de Vendedores (`/dashboard/desempenho`):** Ranking completo do melhor ao pior vendedor (`1m`, `6m`, `1y`), filtro universal por **Matrícula**, antigo ID, nome ou e-mail (inclusive ex-colaboradores com matrícula cancelada), identificação enxuta nos relatórios (`Nome`, `E-mail`, `Matrícula`), comparativo simultâneo mês/semestre/ano, meses trabalhados e ficha individual PDF A4.
 - **Importação & Exportação Nativa de Planilhas (`.xlsx` / `.csv`):** Motor em Node.js via `exceljs` com planilha modelo, pré-validação linha a linha (`preview`) e gravação transacional atômica na filial escolhida (`commit`).
 - **Dashboard & Relatórios Executivos em PDF A4:** Gráficos interativos (`Recharts`), métricas patrimoniais em `Decimal(10, 2)` e exportação PDF (`1m`, `6m`, `1y`) por rede ou filial contendo faturamento livre de estornos, ranking de vendedores e giro de fornecedores.
 - **Customização Visual & Mobile:** Tema Claro/Escuro, modais via `createPortal` e interface Glassmorphism adaptada para celulares e desktops.
@@ -73,7 +73,7 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 
 ## 5. Design da API
 
-### 5.1 Inventário Completo de Rotas da Aplicação (55 Rotas HTTP + Estáticos)
+### 5.1 Inventário Completo de Rotas da Aplicação (56 Rotas HTTP + Estáticos)
 
 #### Sistema e Diagnóstico (2 rotas públicas)
 - `GET /` - Healthcheck básico de disponibilidade da API.
@@ -91,16 +91,17 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 - `PATCH /stores/:id/status` - Inativação lógica/reativação da loja protegendo última unidade ativa e invalidando cache (`ADMIN`).
 - `DELETE /stores/:id` - Exclusão física se vazia ou Soft Delete automático se possuir vínculos históricos (`ADMIN`).
 
-#### Usuários, Transferência & Exclusão Auditável (`/users` - 9 rotas protegidas)
-- `GET /users/me` - Dados e Organização/Loja do perfil autenticado (`Todos`).
-- `PUT /users/me` - Atualização de nome, e-mail e avatar na subpasta da Organização/Loja (`Todos`; `role` bloqueada para não-ADMIN).
+#### Usuários, Situação RH, Transferência & Exclusão Auditável (`/users` - 10 rotas protegidas)
+- `GET /users/me` - Dados cadastrais (`matricula`, `telefone`, `situacao`, `dataAdmissao`) e Organização/Loja do perfil autenticado (`Todos`).
+- `PUT /users/me` - Atualização de nome, e-mail, telefone e avatar na subpasta da Organização/Loja (`Todos`; `role` bloqueada para não-ADMIN).
 - `GET /users/names` - Lista em cache por escopo (TTL 30s) de vendedores ativos para filtros (`ADMIN`, `GERENTE` — `403` para `OPERADOR`).
-- `GET /users` - Listagem paginada por rede ou loja (`X-Loja-Id`) com filtros `search` e `role` (`ADMIN`).
-- `POST /users` - Criação de `ADMIN`, `GERENTE` ou `OPERADOR` com upload no Cloudinary (`ADMIN`).
+- `GET /users` - Listagem paginada por rede ou loja (`X-Loja-Id`) com filtros `search` (Matrícula/nome/e-mail/ID), `role` e `situacao` (`ADMIN`).
+- `POST /users` - Criação de `ADMIN`, `GERENTE` ou `OPERADOR` com geração automática de **`matricula` (`MAT-00001`)**, `telefone`, `situacao`, `dataAdmissao` e upload no Cloudinary (`ADMIN`).
 - `GET /users/:id` - Consulta aos detalhes de colaborador da Organização (`ADMIN`).
-- `PUT /users/:id` - Atualização cadastral/cargo/loja com proteção contra rebaixamento do último `ADMIN` (`ADMIN`).
+- `PUT /users/:id` - Atualização cadastral/RH/cargo/loja com proteção contra rebaixamento ou inativação do último `ADMIN ATIVO` (`ADMIN`).
 - `PATCH /users/:id/store` - Transferência rápida de `GERENTE` ou `OPERADOR` para outra filial ativa da rede com limpeza imediata de cache (`ADMIN`).
-- `DELETE /users/:id` - Exclusão física real (`prisma.usuario.delete`), apagando avatar/sessão enquanto preserva `vendedorRefId` e snapshots em `Pedido`/`Movimento` (`ADMIN`).
+- `PATCH /users/:id/situation` - Alteração imediata de situação trabalhista (`ATIVO`, `SUSPENSO`, `FERIAS`), bloqueando suspensos/férias com `403` e limpando caches (`ADMIN`).
+- `DELETE /users/:id` - Demissão com exclusão física real (`prisma.usuario.delete`), apagando avatar/sessão, marcando `MAT-XXXXX (CANCELADA)` nos snapshots e devolvendo **`relatorioDesligamento`** mês a mês entre `dataInicio` e `dataTermino` (`ADMIN`).
 
 #### Produtos, Estoque & Planilhas (`/products` - 12 rotas protegidas)
 - `GET /products` - Listagem paginada por rede/loja com filtros `search`, `sortBy`, `categoriaId`, `fornecedorId` e `status` (`ativos`, `inativos`, `todos`) (`Todos`).
@@ -135,18 +136,18 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 - `DELETE /suppliers/:id` - Exclusão ou Soft Delete automático (`ADMIN`).
 
 #### Multipedidos, Comprovantes & Estorno (`/orders` - 5 rotas protegidas)
-- `GET /orders` - Listagem paginada por rede/loja com busca por código, comprovante, recebedor, cliente, nome/e-mail ou antigo `vendedorRefId` (`OPERADOR` enxerga apenas os próprios pedidos).
+- `GET /orders` - Listagem paginada por rede/loja com busca por código, comprovante, recebedor, cliente, nome/e-mail ou **Matrícula / ID (`vendedorRefId`)** (`OPERADOR` enxerga apenas os próprios pedidos).
 - `GET /orders/:id` - Detalhes do pedido, itens congelados, dados comprobatórios e histórico de movimentos espelho (`Todos`; com sigilo `OPERADOR`).
-- `POST /orders` - Criação atômica de pedido multi-item (`VENDA`/`REPOSICAO`) com `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, congelamento de `precoUnitario` e upload opcional de comprovante (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`) (`Todos`).
+- `POST /orders` - Criação atômica de pedido multi-item (`VENDA`/`REPOSICAO`) com `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, congelamento de `precoUnitario`, snapshot de matrícula e upload opcional de comprovante (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`) (`Todos`).
 - `PATCH /orders/:id/proof` - Anexa foto/PDF ou confirma comprovação de pagamento/recebimento em pedidos existentes (`Todos` respeitando sigilo `OPERADOR`).
 - `POST /orders/:id/cancel` - Cancelamento supervisionado com reversão atômica do saldo dos itens e geração de movimentos `estorno = true` (`ADMIN`, `GERENTE` — `403` para `OPERADOR`).
 
 #### Movimentações, Relatórios Executivos & Desempenho (`/movements` - 5 rotas protegidas)
-- `GET /movements/sales-report` - Relatório executivo (`1m`, `6m`, `1y`) em PDF A4 contendo série temporal, `scope` (`network`/`store`/`user`), ranking de vendedores e resumo de fornecedores livre de estornos (`Todos`).
-- `GET /movements/performance` - Ranking completo do melhor ao pior vendedor (`ADMIN`, `GERENTE`), filtrável por período, busca por antigo ID/nome/e-mail e flag `includeDeleted`.
-- `GET /movements/performance/:refId` - Raio-X simultâneo de `1m`, `6m`, `1y`, gráfico 12 meses, top SKUs e pedidos de um colaborador ativo ou já excluído pelo antigo ID (`ADMIN`, `GERENTE`).
+- `GET /movements/sales-report` - Relatório executivo (`1m`, `6m`, `1y`) em PDF A4 contendo série temporal, `scope` (`network`/`store`/`user`), ranking de vendedores (`Nome`, `E-mail`, `Matrícula`) e resumo de fornecedores livre de estornos (`Todos`).
+- `GET /movements/performance` - Ranking completo do melhor ao pior vendedor (`ADMIN`, `GERENTE`), filtrável por período, busca por **Matrícula**, ID antigo, nome ou e-mail e flag `includeDeleted`.
+- `GET /movements/performance/:refId` - Raio-X simultâneo de `1m`, `6m`, `1y`, meses trabalhados (`dataInicio` a `dataTermino`), top SKUs e pedidos de um colaborador ativo, suspenso ou desligado usando **Matrícula (`MAT-000XX`)** ou ID (`ADMIN`, `GERENTE`).
 - `GET /movements/user-stats` - Estatísticas consolidadas por vendedor no Dashboard via SQL nativo (`ADMIN`, `GERENTE` — `403` para `OPERADOR`).
-- `GET /movements` - Livro-razão unitário paginado (aceita filtro por `vendedorRefId` de ex-funcionário; `OPERADOR` restrito às próprias movimentações).
+- `GET /movements` - Livro-razão unitário paginado com busca por **Matrícula / `vendedorRefId`** (`OPERADOR` restrito às próprias movimentações).
 
 #### Arquivos Estáticos
 - `USE /uploads` - Exposição de fallbacks locais caso o envio para o Cloudinary não esteja configurado.
@@ -171,7 +172,8 @@ backend/
 │   │   ├── 20261022_alter_enum_reposicao_venda/
 │   │   ├── 20261110_multitenant_softdelete/
 │   │   ├── 20261110_organizacao_multipedidos/
-│   │   └── 20261110_pedido_comprovantes/
+│   │   ├── 20261110_pedido_comprovantes/
+│   │   └── 20261110_matricula_situacao_rh/
 │   ├── reset.js
 │   ├── schema.prisma
 │   ├── seed.js
@@ -217,6 +219,7 @@ backend/
 │   │   └── userService.js
 │   ├── utils/
 │   │   ├── errorHandler.js
+│   │   ├── matriculaHelper.js
 │   │   ├── sanitizers.js
 │   │   └── tenantScope.js
 │   └── index.js
@@ -272,15 +275,16 @@ Siga os passos abaixo para clonar, instalar e rodar o projeto na sua máquina.
      - **Filial 1 (`techstock-centro` — TechStock Centro | Portal Loja `/login`):**
        - Gerente: `gerente1@techstock.com` (Fernanda Lima)
        - Operadores: `op1@techstock.com` (Rafael Mendes), `op2@techstock.com` (Beatriz Duarte)
-       - **Ex-Vendedor Excluído (Auditoria ID Antigo):** `Marcos Antunes` *(excluído fisicamente ao final do seed mantendo seus pedidos históricos auditáveis pelo antigo ID em `/dashboard/desempenho`)*
+       - **Colaborador Suspenso (Teste Reativação / Demissão):** `carlos.susp@techstock.com` (Carlos Henrique — `SUSPENSO`)
+       - **Ex-Vendedor Desligado (Auditoria Matrícula CANCELADA):** `Marcos Antunes` *(excluído fisicamente ao final do seed mantendo vendas pesquisáveis por Matrícula/ID em `/dashboard/desempenho`)*
      - **Filial 2 (`techstock-shopping` — TechStock Shopping | Portal Loja `/login`):**
        - Gerente: `gerente2@techstock.com` (Thiago Azevedo)
-       - Operadores: `op3@techstock.com` (Camila Rocha), `op4@techstock.com` (Diego Martins)
+       - Operadores: `op3@techstock.com` (Camila Rocha), `op4@techstock.com` (Diego Martins), `op5@techstock.com` (Juliana Costa — `FERIAS`)
    - **Organização 2 (`cyberforge-geek` — CyberForge Geek Store):**
      - **Portal Admin (`/admin/login`):** `admin@cyberforge.com` (Lucas Stark)
      - **Filial (`cyberforge-matriz` — CyberForge Matriz | Portal Loja `/login`):**
        - Gerente: `gerente1@cyberforge.com` (Marina Sato)
-       - Operadores: `op1@cyberforge.com` (Bruno Wayne), `op2@cyberforge.com` (Sofia Banner)
+       - Operadores: `op1@cyberforge.com` (Bruno Wayne), `op2@cyberforge.com` (Sofia Banner), `peter.susp@cyberforge.com` (Peter Quill — `SUSPENSO`)
 
 4. Inicie o servidor Backend e/ou execute a suíte de auditoria:
    ```bash
@@ -495,9 +499,11 @@ Neste oitavo ciclo estrutural, o **Estoque.OS** evoluiu do modelo de loja isolad
   - Portais segregados: [`AdminLogin.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/AdminLogin.jsx) (`/admin/login`, `portal: 'admin'`) e [`Auth.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Auth.jsx) (`/login`, `portal: 'loja'`).
   - Transferência instantânea de `GERENTE`/`OPERADOR` entre filiais via `PATCH /users/:id/store` invalidando cache de autenticação na hora.
 
-#### 2. Exclusão Física Real de Colaboradores Preservando Histórico (`vendedorRefId`)
-- **Revisão de Regra de Negócio:** Diferente de produtos, categorias, fornecedores ou lojas (onde inativação lógica faz sentido para itens descontinuados), dar *softban* em funcionários impedia desligamento real.
-- **Implementação:** Removido o campo `ativo` do model `Usuario`. Ao acionar `DELETE /users/:id`, o registro do usuário e seu avatar no Cloudinary são **apagados definitivamente**, `Pedido.usuarioId` / `Movimento.usuarioId` assumem `NULL` via `ON DELETE SET NULL`, enquanto **`vendedorRefId`, `vendedorNomeSnapshot` e `vendedorEmailSnapshot`** permanecem imutáveis e indexados para consultas retrospectivas por ID antigo ou nome.
+#### 2. Gestão de RH, Matrícula Determinística & Exclusão Real c/ Relatório Mensal
+- **Revisão de Regra de Negócio:** Diferente de produtos, categorias, fornecedores ou lojas (onde inativação lógica faz sentido para itens descontinuados), dar *softban* permanente em funcionários impedia desligamento real. Por outro lado, gestores precisavam controlar suspensões temporárias, férias, telefone, data de admissão e matrícula corporativa.
+- **Implementação (`20261110_matricula_situacao_rh`):**
+  - Todo colaborador recebe **`matricula` única gerada do ID (`MAT-00001`)**, `telefone`, `dataAdmissao` e `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS`). Contas suspensas ou em férias ficam bloqueadas (`403`) com efeito imediato até reativação em `/dashboard/usuarios` (`ModalInfoUsuario`) ou `PUT /users/:id`.
+  - Ao demitir (`DELETE /users/:id`), o registro de `Usuario` e seu avatar no Cloudinary são **apagados definitivamente**, `Pedido.usuarioId` / `Movimento.usuarioId` assumem `NULL` via `ON DELETE SET NULL`, enquanto **`vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `vendedorMatriculaSnapshot` (`MAT-XXXXX (CANCELADA)`), `vendedorDataAdmissaoSnapshot` e `vendedorDataDesligamentoSnapshot`** permanecem imutáveis — devolvendo automaticamente o **Relatório Final de Desligamento** filtrado mês a mês entre Início e Término.
 
 #### 3. Multipedidos Atômicos (`/orders`) & Estorno Contábil
 - **Implementação:** Criados os models `Pedido` (`CONCLUIDO` | `CANCELADO`) e `ItemPedido` em [`orderService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/orderService.js):
@@ -508,10 +514,10 @@ Neste oitavo ciclo estrutural, o **Estoque.OS** evoluiu do modelo de loja isolad
 #### 4. Painel de Desempenho (`/dashboard/desempenho`) & Relatórios Executivos Aprimorados
 - **Implementação:** Nova página [`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx) e endpoints `GET /movements/performance` e `GET /movements/performance/:refId` com ranking melhor→pior, switch `includeDeleted`, busca direta por antigo ID (`vendedorRefId`), comparativo simultâneo de `1m`, `6m`, `1y` e ficha PDF A4. O modal [`ModalExportarRelatorio.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/ModalExportarRelatorio.jsx) passou a incluir ranking de vendedores, giro por fornecedor e escolha de filial/rede pelo `ADMIN`.
 
-#### 5. Validação Automatizada Final (7/7 E2E + Lint + Build)
-- **Seed & Migrações Neon:** `npx prisma migrate deploy` + `npm --prefix backend run reset:seed` (`Grupo TechStock Varejo` + `CyberForge Geek Store` com 12 meses de pedidos e ex-colaborador excluído).
-- **Backend E2E Suite:** `npm --prefix backend test` ([`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs)) — **7/7 cenários reais aprovados**.
-- **Frontend Build & Lint:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.416 módulos** compilados).
+#### 5. Validação Automatizada & Estado do Build
+- **Seed & Migrações Neon:** 8 migrações em `backend/prisma/migrations/` (incluindo `20261110_pedido_comprovantes` e `20261110_matricula_situacao_rh`) e `seed.js` cobrindo `Grupo TechStock Varejo` + `CyberForge Geek Store` (com colaboradores ativos, suspenso, em férias e ex-vendedor com matrícula cancelada).
+- **Backend E2E Suite:** [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) expandida nos 7 cenários (portais, multi-loja, multipedidos c/ estorno, suspensão/reativação, busca por matrícula, demissão c/ relatório mensal e planilhas `.xlsx`/`.csv`).
+- **Frontend Build & Lint:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.418 módulos** compilados).
 
 
 

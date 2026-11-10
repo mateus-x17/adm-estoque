@@ -1,8 +1,8 @@
 # 📋 REGISTRO DE PROGRESSO — ESTOQUE.OS (AUDITORIA & EVOLUÇÃO CONTÍNUA)
 
 **Última Atualização:** 2026-11-10  
-**Branch Ativa:** `feature/multitenant`  
-**Status Geral:** `FASE H CONCLUÍDA — Arquitetura Organização → Lojas, Portais Separados, Multipedidos c/ Estorno e Auditoria de Ex-Vendedores por Antigo ID`
+**Branch Ativa:** `main`  
+**Status Geral:** `FASE H CONCLUÍDA — Arquitetura Organização → Lojas, Portais Separados, Multipedidos c/ Estorno, Matrícula/Situação Funcional e Auditoria de Ex-Vendedores`
 
 ---
 
@@ -18,24 +18,24 @@
 | **Fase E — Relatórios PDF A4** | 2026-11-09 | Modal executivo de vendas (`1m`, `6m`, `1y`) em gráficos SVG (barras/linhas) + impressão A4 nativa multiplataforma. | `CONCLUÍDO / INCORPORADO` |
 | **Fase F — Confiabilidade & Docs** | 2026-11-09 | Pino + Correlation ID `X-Request-Id`, `Graceful Shutdown` (`SIGTERM`/`SIGINT`, timeout 10s) e sincronização do catálogo HTTP. | `CONCLUÍDO / INCORPORADO` |
 | **Fase G — Multi-Tenant & Planilhas** | 2026-11-10 | Modelo `Empresa` inicial, Soft Delete em catálogo/usuários, motor nativo `.xlsx`/`.csv` (`ExcelJS`), sigilo de `OPERADOR`, landing `#multitenant` e modais via `createPortal`. | `EVOLUÍDO PARA FASE H` |
-| **Fase H — Organização → Lojas, Multipedidos & Exclusão Real c/ Histórico** | 2026-11-10 | Evolução para **`Organizacao` → múltiplas `Loja`**, **Portais `/admin/login` e `/login`**, **Transferência de `GERENTE`** entre filiais, **Multipedidos atômicos (`Pedido` + `ItemPedido`)** com estorno (`CANCELADO`), **exclusão física real de `Usuario`** preservando `vendedorRefId`/snapshots, tela **`/dashboard/desempenho`** (`1m`/`6m`/`1y` + busca por antigo ID), seed realista (`Grupo TechStock Varejo` + `CyberForge Geek Store`), suíte E2E `7/7` e reconstrução documental completa. | `CONCLUÍDO / VERIFICADO` |
+| **Fase H — Organização → Lojas, Multipedidos & Gestão RH / Matrícula** | 2026-11-10 | Evolução para **`Organizacao` → múltiplas `Loja`**, **Portais `/admin/login` e `/login`**, **Transferência de `GERENTE`**, **Multipedidos atômicos (`Pedido` + `ItemPedido`)** c/ estorno e comprovantes, **Matrícula Única (`MAT-00001`), Situação Funcional (`ATIVO`/`SUSPENSO`/`FERIAS`), Telefone, Admissão e Demissão c/ Relatório Mensal (`Matricula (CANCELADA)`)**, tela **`/dashboard/desempenho`** (`1m`/`6m`/`1y` + busca por Matrícula/ID), seed (`Grupo TechStock Varejo` + `CyberForge Geek Store`), suíte E2E `7/7` e documentação sincronizada. | `CONCLUÍDO / VERIFICADO` |
 
 ---
 
 ## Resumo de Entregas da Fase H (Verificadas no Código)
 
-1. **Banco de Dados (`7` Migrações em `backend/prisma/migrations/`):**
+1. **Banco de Dados (`8` Migrações em `backend/prisma/migrations/`):**
    - `Organizacao` como tenant raiz + `Loja` como unidade operacional com `@@unique([organizacaoId, slug])`.
-   - `Pedido` (`CONCLUIDO` | `CANCELADO`) com campos comprobatórios (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`), `ItemPedido` (`precoUnitario` congelado no ato) e `Movimento` enriquecido com `precoUnitario`, `valorTotal`, `estorno`, `pedidoId`, `vendedorRefId`, `vendedorNomeSnapshot` e `vendedorEmailSnapshot`.
-   - Remoção do softban em `Usuario` (sem coluna `ativo`), mantendo Soft Delete apenas onde faz sentido no domínio (`Organizacao`, `Loja`, `Produto`, `Categoria`, `Fornecedor`).
-2. **Backend (55 Rotas HTTP + `USE /uploads`):**
-   - Novos módulos completos: [`storeRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/storeRoutes.js) (`/stores`), [`orderRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/orderRoutes.js) (`/orders` com upload/anexo de comprovante em `PATCH /orders/:id/proof`) e resolvedor de escopo [`tenantScope.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/tenantScope.js) com suporte a `X-Loja-Id`.
-   - Transferência de loja (`PATCH /users/:id/store`), ranking e raio-X de vendedores (`GET /movements/performance` preservando posição real mesmo em buscas filtradas e `GET /movements/performance/:refId`) e exclusão real de usuário preservando `vendedorRefId`.
+   - `Usuario` com **`matricula` única (`MAT-00001` gerada do ID)**, `telefone`, `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS`) e `dataAdmissao`, sem quebrar a exclusão física (`ON DELETE SET NULL`).
+   - `Pedido` (`CONCLUIDO` | `CANCELADO`) com campos comprobatórios (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`), `ItemPedido` (`precoUnitario` congelado no ato) e `Movimento` enriquecido com `precoUnitario`, `valorTotal`, `estorno`, `pedidoId`, `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `vendedorMatriculaSnapshot`, `vendedorDataAdmissaoSnapshot` e `vendedorDataDesligamentoSnapshot`.
+2. **Backend (56 Rotas HTTP + `USE /uploads`):**
+   - Novos módulos e helpers: [`storeRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/storeRoutes.js) (`/stores`), [`orderRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/orderRoutes.js) (`/orders` + `PATCH /orders/:id/proof`), [`tenantScope.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/tenantScope.js) (`X-Loja-Id`) e [`matriculaHelper.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/matriculaHelper.js).
+   - Transferência de loja (`PATCH /users/:id/store`), alteração de situação (`PATCH /users/:id/situation` com bloqueio imediato `403` a suspensos/férias), busca universal por Matrícula/ID e exclusão real retornando `relatorioDesligamento` mês a mês (`dataInicio` a `dataTermino`) com identificação `MAT-XXXXX (CANCELADA)`.
    - Subpastas hierárquicas isoladas no Cloudinary: `estoque-os/organizacoes/<orgSlug>/lojas/<lojaSlug>/<subpasta>`.
 3. **Frontend (`React 19` + `Vite 7` + `Zustand 5`):**
    - Portais distintos [`AdminLogin.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/AdminLogin.jsx) (`/admin/login`) e [`Auth.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Auth.jsx) (`/login` e `/auth`).
    - Seletor global de loja na [`Sidebar.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/common/Sidebar.jsx) (`"Todas as Lojas"` ou filial específica via [`useTenantStore.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/store/useTenantStore.js)).
-   - Novas telas [`Lojas.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Lojas.jsx) (`/dashboard/lojas`), [`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx) (`/dashboard/desempenho`) e [`Pedidos.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Pedidos.jsx) com [`ModalPedidoMultiItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/ModalPedidoMultiItem.jsx).
+   - Gestão de RH em [`Usuarios.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Usuarios.jsx) com botão `Info` ([`ModalInfoUsuario.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/users/ModalInfoUsuario.jsx)) para Reativar, Suspender, colocar em Férias ou Demitir gerando [`ModalRelatorioDesligamento.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/users/ModalRelatorioDesligamento.jsx) (PDF A4), além de [`Lojas.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Lojas.jsx), [`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx) (identificação enxuta Nome/E-mail/Matrícula e consulta por Matrícula) e [`Pedidos.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Pedidos.jsx).
 
 ---
 

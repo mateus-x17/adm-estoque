@@ -11,8 +11,8 @@
 | Dimensão Mensurada | Quantidade Verificada | Impacto de Mercado (IP / B2B) |
 |---|---|---|
 | **Código-Fonte + Schema + Migrações + Testes** | `127` arquivos / `19.072` linhas *(pós-Fase H)* | Base full-stack coesa pronta para white-label ou SaaS |
-| **APIs HTTP Express + Prisma** | `55` rotas HTTP protegidas por JWT, RBAC e `X-Loja-Id` | Superfície completa de ERP comercial multi-filial |
-| **Modelagem & Migrações PostgreSQL** | `9` models, `3` enums, `7` migrações SQL versionadas | Hierarquia real de redes de varejo + snapshots financeiros congelados |
+| **APIs HTTP Express + Prisma** | `56` rotas HTTP protegidas por JWT, RBAC e `X-Loja-Id` | Superfície completa de ERP comercial multi-filial |
+| **Modelagem & Migrações PostgreSQL** | `9` models, `4` enums, `8` migrações SQL versionadas | Hierarquia real de redes de varejo + RH (`SituacaoFuncionario`) + snapshots congelados |
 | **Cobertura E2E Automatizada** | `7/7` cenários reais contra banco Neon PostgreSQL | Segurança contratual contra IDOR cross-org, race conditions e perda de histórico |
 
 ---

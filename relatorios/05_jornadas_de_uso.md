@@ -28,14 +28,12 @@ O **Estoque.OS** separa a experiência de acesso em dois portais dedicados conec
 3. Backend ordena os itens por `produtoId ASC`, bloqueia linhas com `SELECT ... FOR UPDATE`, verifica saldo, congela `precoUnitario` em `ItemPedido`, cria o `Pedido` (`PED-...`) e registra espelhos em `Movimento`.
 4. Caso cliente desista ou haja erro operacional, `GERENTE` ou `ADMIN` aciona **Estornar / Cancelar** (`POST /orders/:id/cancel`) — `OPERADOR` recebe `403`. Estoque é revertido atomicamente, pedido muda para `CANCELADO` e movimentos inversos (`estorno = true`) ficam registrados sem inflar faturamento futuro.
 
-### Jornada 3 — Exclusão Física de Funcionário & Auditoria por Antigo ID (`/dashboard/desempenho`)
-1. Um vendedor deixa a empresa. O `ADMIN` acessa `/dashboard/usuarios` e clica em excluir (`DELETE /users/:id`).
-2. A conta é **removida fisicamente** da tabela `Usuario` (inclusive seu avatar no Cloudinary); tentativas antigas de acesso recebem `401`.
-3. O antigo ID permanece imutável no campo `vendedorRefId` (e `vendedorNomeSnapshot` / `vendedorEmailSnapshot`) de todos os `Pedido`s e `Movimento`s anteriores.
-4. `ADMIN` ou `GERENTE` abre `/dashboard/desempenho` ([`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx)):
-   - Visualiza o **ranking completo do melhor ao pior vendedor** no período (`1m`, `6m`, `1y`).
-   - Pode **pesquisar pelo antigo ID numérico** (`#63` no seed, por exemplo) ou nome/e-mail mesmo com a conta excluída.
-   - Abre o raio-X simultâneo de **Último Mês (`1m`), Semestre (`6m`), Ano (`1y`) e Total Histórico**, gráfico de 12 meses, Top SKUs, histórico de pedidos (incluindo cancelados) e imprime ficha PDF individual.
+### Jornada 3 — Matrícula Única, Suspensão/Férias, Reativação & Demissão c/ Relatório Mensal (`/dashboard/usuarios` & `/dashboard/desempenho`)
+1. Cada colaborador criado recebe automaticamente uma **Matrícula única** derivada do seu ID (`MAT-00001`), além de **Telefone**, **Situação Funcional** (`Atuando`, `Suspenso` ou `Em Férias`) e **Data de Admissão**.
+2. Na tela `/dashboard/usuarios`, os cards mantêm visual limpo e exibem um **botão singelo de `Info`** ([`ModalInfoUsuario.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/users/ModalInfoUsuario.jsx)).
+3. No popup de ficha do colaborador, o `ADMIN` pode **Suspender**, colocar **Em Férias** (`PATCH /users/:id/situation`, bloqueando login e rotas com `403` na hora) e, para colaboradores suspensos ou afastados, acionar **Reativar Colaborador** ou **Demitir / Cancelar Matrícula** (`DELETE /users/:id`).
+4. Ao demitir, a conta e avatar são removidos fisicamente mantendo snapshots imutáveis, e o sistema exibe imediatamente o **Relatório Final de Desligamento** ([`ModalRelatorioDesligamento.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/users/ModalRelatorioDesligamento.jsx)) pronto para PDF A4 com identificação enxuta (**Nome, E-mail e `Matrícula (CANCELADA)`**), **Data de Início**, **Data de Término** e todas as vendas filtradas **mês a mês pelos meses trabalhados**.
+5. Em `/dashboard/desempenho` ([`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx)), `ADMIN` e `GERENTE` pesquisam qualquer colaborador ativo, suspenso ou desligado pela **Matrícula (`MAT-000XX`)**, ID antigo, nome ou e-mail e geram o PDF individual focado em Nome, E-mail e Matrícula.
 
 ### Jornada 4 — Relatório Executivo PDF A4 & Planilhas em Lote
 1. No Dashboard, `ADMIN` escolhe a rede inteira (`"Todas as Lojas"`) ou 1 filial no [`ModalExportarRelatorio.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/ModalExportarRelatorio.jsx); `GERENTE` gera da sua loja; `OPERADOR` gera apenas suas próprias vendas (`scope: 'user'`).
