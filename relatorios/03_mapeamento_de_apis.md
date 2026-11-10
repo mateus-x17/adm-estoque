@@ -1,293 +1,290 @@
 # 📑 RELATÓRIO TÉCNICO 03 — MAPEAMENTO DE APIS, CONTRATOS E CADEIAS DE EXECUÇÃO
-## Projeto: Estoque.OS — Catálogo Completo de Endpoints (Fase 1.4)
-**Data da Auditoria:** 2026-11-08  
-**Classificação do Projeto:** Nível de Refinamento `MEDIUM`  
-**Responsável Técnico:** Senior Software Architect / Lead Auditor  
-**Documento de Origem:** `PROMPT_MASTER_UNIFICADO.md`  
+## Projeto: Estoque.OS — Catálogo Completo de Endpoints (Sincronizado Fase G / Multi-Tenant)
+**Data da Atualização:** 2026-11-10  
+**Branch Auditada:** `feature/multitenant`  
+**Responsável Técnico:** Engenheiro de Software Sênior / Arquiteto de Auditoria  
 
 ---
 
 ## 1. Visão Geral da Superfície da API
 
-A API do **Estoque.OS** é composta por **34 rotas HTTP registradas no Express**:
+A API do **Estoque.OS** é composta por **42 rotas HTTP registradas no Express** (além da exposição de arquivos estáticos em `USE /uploads`):
 - **Rotas Públicas:** 4 rotas (`GET /`, `GET /test-db`, `POST /auth/login`, `POST /auth/register`).
-- **Rotas Protegidas por Autenticação JWT:** 30 rotas.
-  - **Acesso Operacional Geral (ADMIN, GERENTE, OPERADOR):** 11 rotas (`/users/me`, `/users/names`, `/products`, `/products/:id`, `/products/count`, `/products/stats`, `/products/:id/adjust`, `/categories`, `/categories/count`, `/suppliers`, `/suppliers/count`, `/suppliers/:id`, `/movements`).
-  - **Acesso Gerencial Restrito (ADMIN, GERENTE):** 11 rotas (Criação e edição de Produtos, Categorias e Fornecedores; Métricas de operadores `/movements/user-stats` e `/suppliers/stats`).
-  - **Acesso Administrativo Exclusivo (ADMIN):** 8 rotas (CRUD completo de usuários `/users/*`, deleção de produtos `/products/:id` e deleção de categorias `/categories/:id`).
+- **Rotas Protegidas por Autenticação JWT + Tenant Ativo + Usuário Ativo (`authMiddleware`):** 38 endpoints isolados estritamente pelo `empresaId` do estabelecimento autenticado:
+  - **Acesso Operacional / Todos os Cargos (`ADMIN`, `GERENTE`, `OPERADOR`):** 15 endpoints (`/users/me` GET/PUT, `/products` GET, `/products/:id` GET, `/products/count`, `/products/stats`, `/products/:id/adjust`, `/categories` GET, `/categories/count`, `/suppliers` GET, `/suppliers/count`, `/suppliers/stats`, `/suppliers/:id` GET, `/movements` GET *[escopo individual para OPERADOR]*, `/movements/sales-report` GET *[escopo individual para OPERADOR]*).
+  - **Acesso Gerencial e Administrativo (`ADMIN`, `GERENTE`):** 14 endpoints (CRUD e Soft Delete de Produtos, Categorias e Fornecedores; importação/exportação `.xlsx`/`.csv`; dropdown `/users/names`; métricas de vendedores `/movements/user-stats`).
+  - **Acesso Administrativo Exclusivo (`ADMIN`):** 9 endpoints (Gestão completa de colaboradores `/users/*` + `/users/:id/status` + rotas destrutivas `DELETE /products/:id`, `DELETE /categories/:id` e `DELETE /suppliers/:id`).
+
+> **Isolamento Cross-Tenant:** Tentativas de ler, alterar ou excluir recursos pertencentes a outra `Empresa` retornam `404 Not Found` no serviço porque todas as queries exigem `where: { id, empresaId }`.
 
 ---
 
 ## 2. Inventário de Endpoints por Módulo
 
-### 2.1 Módulo de Autenticação (`/auth`)
+### 2.1 Módulo de Autenticação (`/auth`) — 2 rotas
 
 #### 1. `POST /auth/login`
-- **Arquivo e Handler:** [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js#L16) → [`authController.js#loginController`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/authController.js#L6)
-- **Autenticação / Middlewares:** `loginLimiter` (10 req/15 min por IP), `validateRequest({ required: ['email', 'senha'] })`.
-- **Entrada:**
-  - Headers: `Content-Type: application/json`
-  - Body: `{ email: string, senha: string }`
-- **Cadeia de Execução:** `requestLogger` → `loginLimiter` → `validateRequest` → `loginController` → `authService.authenticateUser` → `prisma.usuario.findUnique` → `bcrypt.compare` → `jwt.sign`.
-- **Tabelas Acessadas:** `Usuario` (leitura).
-- **Saída:** Status `200 OK`.
-  ```json
-  {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": 1,
-      "nome": "Lucas Silva",
-      "email": "lucas.admin@example.com",
-      "role": "ADMIN",
-      "imagem": null,
-      "createdAt": "2026-01-10T10:00:00.000Z",
-      "updatedAt": "2026-03-01T14:30:00.000Z"
-    }
-  }
-  ```
-- **Erros Possíveis:** `400` (email/senha ausentes ou inválidos), `401` (credenciais inválidas), `429` (muitas tentativas).
-- **Sinalização Crítica:** Validação de formato de e-mail aplicada pelo middleware genérico; sem normalização prévia de caixa (case-sensitive lookup no Postgres).
+- **Arquivo e Handler:** [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js#L35-L40) → [`authController.js#loginController`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/authController.js#L11)
+- **Middlewares:** `loginLimiter` (15 req/15 min por IP), `validateRequest({ required: ['email', 'senha'] })`.
+- **Entrada:** `{ email: string, senha: string, lojaSlug?: string }`.
+- **Cadeia de Execução:** `requestLogger` → `loginLimiter` → `validateRequest` → `loginController` → `authService.authenticateUser` (normaliza e-mail em minúsculas; se `lojaSlug` ausente e e-mail/senha existirem em múltiplas lojas ativas, devolve seletor `{ requiresStoreSelection: true, stores }`; verifica `usuario.ativo` e `empresa.ativo`; gera JWT com `expiresIn: '8h'` contendo `id, role, empresaId, empresaSlug, empresaNome`).
+- **Saída:** `200 OK` `{ token, user }` ou `{ requiresStoreSelection: true, stores }`.
+- **Erros:** `400`, `401` (credenciais inválidas), `403` (usuário ou estabelecimento inativo), `429`.
 
 #### 2. `POST /auth/register`
-- **Arquivo e Handler:** [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js#L20) → [`authController.js#registerController`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/authController.js#L19)
-- **Autenticação / Middlewares:** `validateRequest({ required: ['nome', 'email', 'senha'] })`.
-- **Entrada:** Body: `{ nome: string, email: string, senha: string }`.
-- **Cadeia de Execução:** `requestLogger` → `validateRequest` → `registerController` → `authService.registerUser` → `prisma.usuario.findUnique` → `bcrypt.hash` → `prisma.usuario.create`.
-- **Tabelas Acessadas:** `Usuario` (leitura e inserção).
-- **Saída:** Status `201 Created`. Retorna `{ message: string, usuario: UserSafe }`.
-- **Sinalização Crítica (`PROBLEMA - Catálogo I10`):** **Ausência de rate limiting nesta rota**. Ao contrário do `/login`, a rota de registro não possui limitador contra criação massiva de contas automatizadas (spam/botnet).
+- **Arquivo e Handler:** [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js#L43-L48) → [`authController.js#registerController`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/authController.js#L35)
+- **Middlewares:** `registerLimiter` (10 req/1 hora por IP), `validateRequest({ required: ['nomeLoja', 'nome', 'email', 'senha'] })`.
+- **Entrada:** `{ nomeLoja: string, slug?: string, cnpj?: string, telefone?: string, nome: string, email: string, senha: string }`.
+- **Cadeia:** `registerLimiter` → `validateRequest` → `authService.registerStoreAndAdmin` (gera slug único, executa `$transaction` criando `Empresa` + usuário fundador com papel `ADMIN`, emite JWT inicial).
+- **Saída:** `201 Created` `{ message, token, user, usuario, empresa }`.
 
 ---
 
-### 2.2 Módulo de Usuários (`/users`)
+### 2.2 Módulo de Usuários (`/users`) — 9 rotas
 
 #### 3. `GET /users/me`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L25) → [`userController.js#getMe`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L126)
-- **Autenticação / Middlewares:** `authMiddleware`.
-- **Cadeia:** `authMiddleware` (valida token e busca usuário) → `getMe` → `userService.getUserById(req.user.id)` → `prisma.usuario.findUnique`.
-- **Tabelas Acessadas:** `Usuario` (duas consultas: uma pelo middleware e outra pelo serviço).
-- **Saída:** `200 OK` com dados do próprio usuário.
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L26) → [`userController.js#getMe`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L191)
+- **Middlewares:** `authMiddleware` (validação JWT + cache 60s com verificação `ativo` de usuário e empresa).
+- **Saída:** `200 OK` com usuário sanitizado e objeto `{ id, nome, slug }` da `empresa`.
 
 #### 4. `PUT /users/me`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L26-L31) → [`userController.js#updateMe`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L142)
-- **Autenticação / Middlewares:** `authMiddleware`, `upload.single("imagem")`, `validateRequest({ required: ["nome", "email"] })`.
-- **Entrada:** Multipart/form-data com `nome`, `email`, opcional `senha`, `role`, `removerImagem` e arquivo `imagem`.
-- **Cadeia:** `authMiddleware` → `multer` → `validateRequest` → `updateMe` (guardrail de role: se `!isAdmin && role !== undefined` lança 403) → `uploadToCloudinary` → `userService.updateUser`.
-- **Tabelas:** `Usuario` (update).
-- **Saída:** `200 OK`.
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L27-L32) → [`userController.js#updateMe`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L202)
+- **Middlewares:** `authMiddleware`, `upload.single("imagem")`, `validateRequest({ required: ["nome", "email"] })`.
+- **Regras:** Envia eventual foto para `estoque-os/lojas/<slug>/usuarios` no Cloudinary; bloqueia alteração de `role` por não-`ADMIN` (HTTP `403`); invalida `userCache` e `namesCacheByTenant`.
 
 #### 5. `GET /users/names`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L35) → [`userController.js#getUserNames`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L32)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE", "OPERADOR")`.
-- **Cadeia:** Consulta otimizada com projeção `select: { id: true, nome: true }` ordenada alfabeticamente.
-- **Saída:** `200 OK` com array `Array<{ id: number, nome: string }>`.
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L35) → [`userController.js#getUserNames`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L53)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`. *(Bloqueado com `403` para `OPERADOR` por regra de sigilo entre vendedores).*
+- **Cadeia:** Cache por tenant (`namesCacheByTenant`, TTL 30s) retornando `{ id, nome, role }[]` apenas de colaboradores ativos (`ativo: true`) da loja.
 
 #### 6. `POST /users`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L42-L46) → [`userController.js#createUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L13)
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L40-L45) → [`userController.js#createUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L27)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN")`, `upload.single("imagem")`, `validateRequest({ required: ['nome', 'email', 'senha', 'role'] })`.
-- **Saída:** `201 Created`.
+- **Regras:** Valida `role` ∈ `{ADMIN, GERENTE, OPERADOR}` e unicidade `[empresaId, email]`. Upload opcional na subpasta da loja no Cloudinary. Status `201`.
 
 #### 7. `GET /users`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L48) → [`userController.js#listUsers`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L50)
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L47) → [`userController.js#listUsers`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L86)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN")`.
-- **Query Params:** `page` (default 1), `limit` (default 10), `search`, `role`.
-- **Saída:** `200 OK` com `{ data: User[], pagination: { page, limit, total, totalPages } }`.
+- **Query Params:** `page`, `limit`, `search`, `role`, `status` (`ativos` | `inativos` | `todos`).
 
 #### 8. `GET /users/:id`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L49) → [`userController.js#getUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L74)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN")`.
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L48) → [`userController.js#getUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L112)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN")`. Retorna `404` se pertencer a outro tenant.
 
 #### 9. `PUT /users/:id`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L51-L55) → [`userController.js#updateUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L89)
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L50-L55) → [`userController.js#updateUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L126)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN")`, `upload.single("imagem")`, `validateRequest({ required: ['nome', 'email', 'role'] })`.
+- **Regras:** Bloqueia rebaixamento do último `ADMIN` ativo da loja (`400`), invalida `userCache` e `namesCacheByTenant`.
 
-#### 10. `DELETE /users/:id`
-- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L57) → [`userController.js#deleteUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L112)
+#### 10. `PATCH /users/:id/status`
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L58) → [`userController.js#toggleUserStatus`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L159)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN")`, `validateRequest({ required: ['ativo'] })`.
+- **Regras:** Alterna `ativo` (`parseBooleanFlag`), impede auto-inativação ou inativação do último `ADMIN` da loja, limpa `userCache` imediatamente (bloqueando próximas chamadas do usuário inativado com HTTP `403`).
+
+#### 11. `DELETE /users/:id`
+- **Arquivo e Handler:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js#L60) → [`userController.js#deleteUser`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js#L176)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN")`.
-- **Sinalização Crítica (`PROBLEMA`):** O backend implementa todas as travas e a deleção real, mas a interface frontend em [`Usuarios.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Usuarios.jsx#L231-L238) possui o botão com exclusão simulada e não chama esta rota!
+- **Regras:** Previne autoexclusão e exclusão do último `ADMIN`. Se houver movimentações históricas, realiza **Soft Delete automático** (`{ softDeleted: true, user }`); se sem histórico, exclui mídia do Cloudinary/disco e remove do banco (`{ softDeleted: false }`). Conectado à UI real em [`Usuarios.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Usuarios.jsx#L121-L143).
 
 ---
 
-### 2.3 Módulo de Produtos (`/products`)
+### 2.3 Módulo de Produtos & Planilhas (`/products`) — 12 rotas
 
-#### 11. `GET /products/count`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L25) → [`productController.js#countProducts`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L23)
+#### 12. `GET /products/count`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L46) → [`productController.js#countProducts`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L26)
+- **Middlewares:** `authMiddleware`. Conta apenas produtos ativos (`ativo: true`) da loja.
+
+#### 13. `GET /products/stats`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L47) → [`productController.js#getProductStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L39)
+- **Middlewares:** `authMiddleware`. Retorna `{ total, lowStock, totalValue, lowStockList }` apenas de produtos ativos da loja (patrimônio em `Decimal` via SQL nativo). No frontend, [`useDashboardData.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/hooks/useDashboardData.js) unifica a chamada em paralelo evitando requisições duplicadas.
+
+#### 14. `GET /products/export`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L48) → [`productController.js#exportProducts`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L204)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`.
+- **Query Params:** `format` (`xlsx` | `csv`), `status` (`ativos` | `inativos` | `todos`).
+- **Saída:** Buffer binário via `ExcelJS` (`application/vnd.openxmlformats...` ou `text/csv; charset=utf-8` com BOM UTF-8).
+
+#### 15. `GET /products/import/template`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L49) → [`productController.js#downloadImportTemplate`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L232)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`.
+- **Saída:** Planilha modelo com cabeçalhos e 2 exemplos prontos em `.xlsx` ou `.csv`.
+
+#### 16. `POST /products/import`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L50-L55) → [`productController.js#importProducts`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L251)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `uploadSpreadsheet.single("file")` (Multer `memoryStorage`, limite 2MB, extensão `.xlsx`/`.csv`).
+- **Query/Body:** `mode` (`preview` | `commit`), máximo 5.000 linhas por arquivo.
+- **Comportamento:** Em `preview`, retorna `200` com `validCount`, `invalidCount`, `errors`, `previewRows`, `newCategories`, `newSuppliers`. Em `commit`, aborta atomicamente com `400` se houver erros ou cria categorias, fornecedores e produtos em `prisma.$transaction` (`201 Created`).
+
+#### 17. `GET /products`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L58) → [`productController.js#listProducts`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L13)
 - **Middlewares:** `authMiddleware`.
-- **Saída:** `200 OK` `{ count: number }`.
+- **Query Params:** `page`, `limit` (teto de 100 salvo `'all'`), `search`, `sortPrice`, `categoriaId`, `status` (`ativos` | `inativos` | `todos`).
 
-#### 12. `GET /products/stats`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L26) → [`productController.js#getProductStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L36)
-- **Middlewares:** `authMiddleware`.
-- **Cadeia:** `count()`, `count({ where: { quantidade: { lt: 10 } } })`, `findMany(take: 5)` e `$queryRaw` para `SUM(preco * quantidade)`.
-- **Saída:** `{ total, lowStock, totalValue, lowStockList }`.
-- **Sinalização Crítica:** No frontend, tanto [`KPISection.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/KPISection.jsx) quanto [`LowStockAlert.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/LowStockAlert.jsx) disparam requisições simultâneas para esta mesma rota ao carregar o dashboard, duplicando chamadas.
+#### 18. `GET /products/:id`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L59) → [`productController.js#getProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L52)
+- **Middlewares:** `authMiddleware`. Escopado por `empresaId`.
 
-#### 13. `GET /products`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L30) → [`productController.js#listProducts`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L10)
-- **Middlewares:** `authMiddleware`.
-- **Query Params:** `page`, `limit` (ou `'all'`), `search`, `sortPrice`, `categoriaId`.
-- **Saída:** `{ data: Produto[], pagination: { page, limit, total, pages } }`.
+#### 19. `POST /products`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L62-L68) → [`productController.js#createProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L66)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `upload.single("imagem")`, `validateRequest({ required: ['nome', 'preco', 'quantidade'] })`.
+- **Regras:** Valida pertencimento de `categoriaId` e `fornecedorId` opcionais à loja; salva mídia em `estoque-os/lojas/<slug>/produtos`.
 
-#### 14. `GET /products/:id`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L31) → [`productController.js#getProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L50)
-- **Middlewares:** `authMiddleware`.
+#### 20. `PUT /products/:id`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L70-L76) → [`productController.js#updateProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L93)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `upload.single("imagem")`, `validateRequest({ required: ['nome', 'preco', 'quantidade'] })`.
 
-#### 15. `POST /products`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L36-L41) → [`productController.js#createProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L65)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `upload.single("imagem")`, `validateRequest({ required: ['nome', 'preco', 'quantidade', 'categoriaId'] })`.
-- **Saída:** `201 Created`.
+#### 21. `PATCH /products/:id/status`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L78-L83) → [`productController.js#toggleProductStatus`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L126)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ['ativo'] })`.
 
-#### 16. `PUT /products/:id`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L43-L48) → [`productController.js#updateProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L85)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `upload.single("imagem")`, `validateRequest({ required: ['nome', 'preco', 'quantidade', 'categoriaId'] })`.
+#### 22. `DELETE /products/:id`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L86) → [`productController.js#deleteProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L148)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN")`. Soft Delete automático (`softDeleted: true`) se houver movimentações.
 
-#### 17. `DELETE /products/:id`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L50) → [`productController.js#deleteProduct`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L105)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN")`.
-
-#### 18. `POST /products/:id/adjust`
-- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L55-L59) → [`productController.js#adjustQuantity`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L122)
+#### 23. `POST /products/:id/adjust`
+- **Arquivo e Handler:** [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js#L89-L94) → [`productController.js#adjustQuantity`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/productController.js#L166)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE", "OPERADOR")`, `validateRequest({ required: ['quantidade', 'tipo'] })`.
-- **Entrada:**
-  - Path: `id` (ID do produto).
-  - Body: `{ quantidade: number, tipo: "REPOSICAO"|"VENDA"|"ENTRADA"|"SAIDA", observacao?: string }`.
-- **Cadeia:** `authMiddleware` → `roleMiddleware` → `validationMiddleware` → `adjustQuantity` → `productService.adjustProductQuantity` → `prisma.$transaction`.
-- **Tabelas:** `Produto` (leitura e atualização) e `Movimento` (inserção).
-- **Saída:** `200 OK` `{ ok: true, novaQuantidade: number, movimento: Movimento }`.
-- **Sinalização Crítica (`PROBLEMA - Catálogo I1`):** Falta de lock pessimista (`SELECT FOR UPDATE`) no saldo lido dentro da transação Prisma.
+- **Cadeia:** `Idempotency-Key` com namespace por tenant + debounce 1.2s → `prisma.$transaction` → `SELECT ... FOR UPDATE WHERE id = ... AND "empresaId" = ...` → bloqueia item inativo (`400`) e saldo insuficiente (`400`) → grava `Movimento` + atualiza `Produto`.
 
 ---
 
-### 2.4 Módulo de Categorias (`/categories`)
+### 2.4 Módulo de Categorias (`/categories`) — 6 rotas
 
-#### 19. `GET /categories/count`
-- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L16) → [`categoryController.js#countCategories`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L23)
-- **Middlewares:** `authMiddleware`. Retorna `{ count: number }`.
+#### 24. `GET /categories/count`
+- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L21) → [`categoryController.js#countCategories`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L22)
+- **Middlewares:** `authMiddleware`.
 
-#### 20. `GET /categories`
-- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L19) → [`categoryController.js#listCategories`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L10)
-- **Middlewares:** `authMiddleware`. Retorna array `Categoria[]` sem paginação (`PROBLEMA B10`).
+#### 25. `GET /categories`
+- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L24) → [`categoryController.js#listCategories`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L10)
+- **Middlewares:** `authMiddleware`. Aceita query `status` (`ativos`, `inativos`, `todos`). Inclui `_count.produtos`. *(Observação remanescente: listagem sem `skip`/`take` explícito — aceitável para catálogos curtos de categorias).*
 
-#### 21. `POST /categories`
-- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L23) → [`categoryController.js#createCategory`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L38)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ['nome'] })`. Status `201 Created`.
+#### 26. `POST /categories`
+- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L27) → [`categoryController.js#createCategory`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L33)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ['nome'] })`. Valida chave composta `empresaId_nome`. Status `201`.
 
-#### 22. `PUT /categories/:id`
-- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L24) → [`categoryController.js#updateCategory`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L54)
+#### 27. `PUT /categories/:id`
+- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L28) → [`categoryController.js#updateCategory`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L45)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ['nome'] })`.
 
-#### 23. `DELETE /categories/:id`
-- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L27) → [`categoryController.js#deleteCategory`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L70)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN")`.
+#### 28. `PATCH /categories/:id/status`
+- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L29) → [`categoryController.js#toggleCategoryStatus`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L57)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ['ativo'] })`.
+
+#### 29. `DELETE /categories/:id`
+- **Arquivo e Handler:** [`categoryRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/categoryRoutes.js#L32) → [`categoryController.js#deleteCategory`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/categoryController.js#L69)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN")`. Se houver produtos associados, executa Soft Delete automático.
 
 ---
 
-### 2.5 Módulo de Fornecedores (`/suppliers`)
+### 2.5 Módulo de Fornecedores (`/suppliers`) — 8 rotas
 
-#### 24. `GET /suppliers/stats`
-- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L19) → [`supplierController.js#getSupplierStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L88)
-- **Middlewares:** `authMiddleware` (sem restrição de papel, livre para operadores).
-- **Cadeia:** Consulta Prisma com include triplo (`fornecedor -> produtos -> movimentos`) e agregações em memória no Node.js (`PROBLEMA I4`).
-
-#### 25. `POST /suppliers`
-- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L22-L28) → [`supplierController.js#criarFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L10)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ["nome", "email", "telefone", "endereco"] })`.
-
-#### 26. `PUT /suppliers/:id`
-- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L30-L36) → [`supplierController.js#atualizarFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L53)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ["nome", "email", "telefone", "endereco"] })`.
-
-#### 27. `DELETE /suppliers/:id`
-- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L38-L43) → [`supplierController.js#deletarFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L70)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`.
-
-#### 28. `GET /suppliers`
-- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L46) → [`supplierController.js#listarFornecedores`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L27)
-- **Middlewares:** `authMiddleware`. Retorna `{ fornecedores: Fornecedor[] }` sem paginação (`PROBLEMA B10`).
-
-#### 29. `GET /suppliers/count`
-- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L47) → [`supplierController.js#countFornecedores`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L39)
+#### 30. `GET /suppliers/stats`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L23) → [`supplierController.js#getSupplierStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L82)
 - **Middlewares:** `authMiddleware`.
+- **Cadeia:** Agregação SQL nativa via `$queryRaw` com `LEFT JOIN` entre `Fornecedor`, `Produto` e `Movimento` filtrando `f."empresaId"` e `f."ativo" = true` (`supplierService.js`).
 
-#### 30. `GET /suppliers/:id`
-- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L48) → [`supplierController.js#obterFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L138)
-- **Middlewares:** `authMiddleware`.
+#### 31. `GET /suppliers`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L26) → [`supplierController.js#listarFornecedores`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L23)
+- **Middlewares:** `authMiddleware`. Aceita `status` (`ativos`, `inativos`, `todos`). Retorno `{ fornecedores }`. *(Sem paginação SQL atualmente).*
+
+#### 32. `GET /suppliers/count`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L27) → [`supplierController.js#countFornecedores`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L35)
+
+#### 33. `GET /suppliers/:id`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L28) → [`supplierController.js#obterFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L93)
+
+#### 34. `POST /suppliers`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L31-L36) → [`supplierController.js#criarFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L8)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ["nome"] })`. *(Campos de contato opcionais)*.
+
+#### 35. `PUT /suppliers/:id`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L38-L43) → [`supplierController.js#atualizarFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L46)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ["nome"] })`.
+
+#### 36. `PATCH /suppliers/:id/status`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L45-L50) → [`supplierController.js#toggleFornecedorStatus`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L58)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`, `validateRequest({ required: ["ativo"] })`.
+
+#### 37. `DELETE /suppliers/:id`
+- **Arquivo e Handler:** [`supplierRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/supplierRoutes.js#L53-L57) → [`supplierController.js#deletarFornecedor`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js#L70)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN")`. Se houver produtos associados, executa Soft Delete automático.
 
 ---
 
-### 2.6 Módulo de Movimentações (`/movements`)
+### 2.6 Módulo de Movimentações (`/movements`) — 3 rotas
 
-#### 31. `GET /movements/sales-report`
-- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L16) → [`movementController.js#getSalesReport`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L38)
+#### 38. `GET /movements/sales-report`
+- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L15) → [`movementController.js#getSalesReport`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L50)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE", "OPERADOR")`.
-- **Query Params:** `period` (`'1m'` - 30 dias, `'6m'` - 180 dias, `'1y'` - 365 dias).
-- **Cadeia:** `getSalesReportData(period)` → busca saídas do tipo `VENDA` com joins em `Produto` e `Usuario` → consolida faturamento, volume de peças, ticket médio, top produtos e timeline estruturada para gráficos em barras/linhas e exportação PDF.
-- **Saída:** `200 OK` com `{ period, periodLabel, startDate, endDate, summary, topProdutos, timeline }`.
+- **Query Params:** `period` (`'1m'`, `'6m'`, `'1y'`).
+- **Isolamento:** `ADMIN`/`GERENTE` recebem `scope: 'store'` (toda a loja); `OPERADOR` recebe `scope: 'user'` (exclusivamente suas próprias vendas).
 
-#### 32. `GET /movements/user-stats`
-- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L20) → [`movementController.js#getUserStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L21)
-- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`.
-- **Query Params:** `from`, `to`.
-- **Cadeia:** Consulta agregada via `$queryRaw` único agrupando por `usuarioId` com contagem e volume financeiro.
-- **Saída:** `200 OK` com estatísticas por colaborador.
+#### 39. `GET /movements/user-stats`
+- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L18) → [`movementController.js#getUserStats`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L31)
+- **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE")`. *(Bloqueado com `403` para `OPERADOR`).*
+- **Cadeia:** Query SQL nativa `$queryRaw` única com `JOIN` filtrada por `u."empresaId" = tenantId`.
 
-#### 33. `GET /movements`
-- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L24) → [`movementController.js#listMovements`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L9)
+#### 40. `GET /movements`
+- **Arquivo e Handler:** [`movementRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/movementRoutes.js#L22) → [`movementController.js#listMovements`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js#L14)
 - **Middlewares:** `authMiddleware`, `permit("ADMIN", "GERENTE", "OPERADOR")`.
-- **Query Params:** `page`, `limit` (aceita `'all'`), `search`, `tipo`, `date`, `from`, `to`, `order`, `usuarioId`.
-- **Saída:** `200 OK` com dados paginados.
+- **Isolamento:** Se `req.user.role === 'OPERADOR'`, `effectiveUsuarioId` é forçado para `req.user.id`, ignorando qualquer `?usuarioId` forjado na URL.
+- **Observação:** Suporta `limit=all` (usado pelos gráficos de linha/barra do frontend — passível de otimização com endpoint agregado futuro).
 
 ---
 
-### 2.7 Rotas de Infraestrutura e Diagnóstico
+### 2.7 Infraestrutura e Diagnóstico — 2 rotas (+ `/uploads`)
 
-#### 34. `GET /`
-- Retorna texto simples: `"🚀 Backend Estoque rodando"`. Rota pública de healthcheck L4/L7.
+#### 41. `GET /`
+- [`index.js#L63`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L63): Healthcheck HTTP público.
 
-#### 35. `GET /test-db`
-- Executa raw query: `prisma.$queryRaw\`SELECT NOW()`` e retorna timestamp do PostgreSQL/Neon. Rota pública de diagnóstico de conectividade.
+#### 42. `GET /test-db`
+- [`index.js#L66-L73`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L66-L73): Raw query `SELECT NOW()` para diagnóstico de banco.
 
 ---
 
-## 3. Matriz Sintética de Verificação de Endpoints
+## 3. Matriz Sintética de Verificação de Endpoints (Estado Atual Fase G)
 
-| Verbo | Rota | Autenticação | Papéis Autorizados | Validação de Entrada | Tabelas Acessadas | Status / Falha Mapeada |
-| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| `POST` | `/auth/login` | Não | Público | `required: ['email', 'senha']` | `Usuario` | `IMPLEMENTADO (verificado)` (Rate limit ativo) |
-| `POST` | `/auth/register`| Não | Público | `required: ['nome', 'email', 'senha']`| `Usuario` | `PROBLEMA I10` (Sem rate limit) |
-| `GET` | `/users/me` | JWT | Todos | Nenhuma | `Usuario` | `IMPLEMENTADO (verificado)` |
-| `PUT` | `/users/me` | JWT | Todos | `required: ['nome', 'email']` | `Usuario` | `IMPLEMENTADO (verificado)` (Guardrail role ativo) |
-| `GET` | `/users/names` | JWT | Todos | Nenhuma | `Usuario` | `IMPLEMENTADO (verificado)` (Projeção enxuta) |
-| `POST` | `/users` | JWT | `ADMIN` | `required: ['nome', 'email', 'senha', 'role']` | `Usuario` | `IMPLEMENTADO (verificado)` |
-| `GET` | `/users` | JWT | `ADMIN` | Query: `page, limit, search, role` | `Usuario` | `IMPLEMENTADO (verificado)` (Paginado) |
-| `GET` | `/users/:id` | JWT | `ADMIN` | Path: `id` | `Usuario` | `IMPLEMENTADO (verificado)` |
-| `PUT` | `/users/:id` | JWT | `ADMIN` | `required: ['nome', 'email', 'role']` | `Usuario` | `PROBLEMA B7` (Sem trava de demotion do último admin) |
-| `DELETE`| `/users/:id` | JWT | `ADMIN` | Path: `id` | `Usuario` | `PROBLEMA` (Simulado na interface frontend) |
-| `GET` | `/products/count`| JWT | Todos | Nenhuma | `Produto` | `IMPLEMENTADO (verificado)` |
-| `GET` | `/products/stats`| JWT | Todos | Nenhuma | `Produto` | `IMPLEMENTADO (verificado)` (Agregação SQL nativa) |
-| `GET` | `/products` | JWT | Todos | Query: `page, limit, search, sortPrice`| `Produto, Categoria, Fornecedor` | `IMPLEMENTADO (verificado)` (Paginado) |
-| `GET` | `/products/:id` | JWT | Todos | Path: `id` | `Produto, Categoria, Fornecedor` | `IMPLEMENTADO (verificado)` |
-| `POST` | `/products` | JWT | `ADMIN, GERENTE`| `required: ['nome', 'preco', 'quantidade', 'categoriaId']` | `Produto` | `IMPLEMENTADO (verificado)` (Upload Cloudinary) |
-| `PUT` | `/products/:id` | JWT | `ADMIN, GERENTE`| `required: ['nome', 'preco', 'quantidade', 'categoriaId']` | `Produto` | `IMPLEMENTADO (verificado)` (Limpeza de fotos) |
-| `DELETE`| `/products/:id` | JWT | `ADMIN` | Path: `id` | `Produto, Movimento` | `IMPLEMENTADO (verificado)` (Checa FK de movimentos) |
-| `POST` | `/products/:id/adjust`| JWT | `ADMIN, GERENTE, OPERADOR` | `required: ['quantidade', 'tipo']` | `Produto, Movimento` | `PROBLEMA I1` (Transação sem lock atômico no banco) |
-| `GET` | `/categories/count`| JWT | Todos | Nenhuma | `Categoria` | `IMPLEMENTADO (verificado)` |
-| `GET` | `/categories`| JWT | Todos | Nenhuma | `Categoria` | `PROBLEMA B10` (Listagem sem paginação) |
-| `POST` | `/categories`| JWT | `ADMIN, GERENTE`| `required: ['nome']` | `Categoria` | `IMPLEMENTADO (verificado)` (Unicidade validada) |
-| `PUT` | `/categories/:id`| JWT | `ADMIN, GERENTE`| `required: ['nome']` | `Categoria` | `IMPLEMENTADO (verificado)` |
-| `DELETE`| `/categories/:id`| JWT | `ADMIN` | Path: `id` | `Categoria, Produto` | `IMPLEMENTADO (verificado)` (Impede deleção se FK ativa) |
-| `GET` | `/suppliers/stats`| JWT | Todos | Nenhuma | `Fornecedor, Produto, Movimento`| `PROBLEMA I4` (Agregação tripla em memória no Node) |
-| `POST` | `/suppliers` | JWT | `ADMIN, GERENTE`| `required: ['nome', 'email', 'telefone', 'endereco']` | `Fornecedor` | `PROBLEMA` (Controller ignora supplierService) |
-| `PUT` | `/suppliers/:id`| JWT | `ADMIN, GERENTE`| `required: ['nome', 'email', 'telefone', 'endereco']` | `Fornecedor` | `PROBLEMA` (Controller ignora supplierService) |
-| `DELETE`| `/suppliers/:id`| JWT | `ADMIN, GERENTE`| Path: `id` | `Fornecedor, Produto` | `IMPLEMENTADO (verificado)` |
-| `GET` | `/suppliers` | JWT | Todos | Nenhuma | `Fornecedor` | `PROBLEMA B10` (Listagem sem paginação) |
-| `GET` | `/suppliers/count`| JWT | Todos | Nenhuma | `Fornecedor` | `IMPLEMENTADO (verificado)` |
-| `GET` | `/suppliers/:id`| JWT | Todos | Path: `id` | `Fornecedor` | `IMPLEMENTADO (verificado)` |
-| `GET` | `/movements/sales-report`| JWT | `ADMIN, GERENTE, OPERADOR` | Query: `period ('1m', '6m', '1y')` | `Movimento, Produto, Usuario` | `IMPLEMENTADO (verificado)` (Agregação temporal e exportação PDF) |
-| `GET` | `/movements/user-stats`| JWT | `ADMIN, GERENTE`| Query: `from, to` | `Movimento, Usuario` | `PROBLEMA I3` (N+1 queries manuais via Promise.all) |
-| `GET` | `/movements` | JWT | Todos | Query: filtros complexos, `limit: all` | `Movimento, Produto, Usuario` | `PROBLEMA I4` (Suporta limit=all sem teto máximo) |
-| `GET` | `/` | Não | Público | Nenhuma | Nenhuma | `IMPLEMENTADO (verificado)` (Healthcheck L4/L7) |
-| `GET` | `/test-db` | Não | Público | Nenhuma | Nenhuma | `IMPLEMENTADO (verificado)` (Raw query diagnostic) |
-| `POST` | `/movements` | - | - | - | - | `INEXISTENTE` (Documentado no README mas inexistente) |
-| `GET` | `/movements/:id`| - | - | - | - | `INEXISTENTE` (Documentado no README mas inexistente) |
-
+| Verbo | Rota | Auth | Papéis Autorizados | Status Atual |
+| :--- | :--- | :---: | :---: | :--- |
+| `POST` | `/auth/login` | Não | Público | `CORRIGIDO / TESTADO` (Seletor multi-loja, 15 req/15m, bloqueio inativo 403) |
+| `POST` | `/auth/register` | Não | Público | `CORRIGIDO / TESTADO` (Cria Loja + ADMIN + rateLimit 10/h) |
+| `GET` | `/users/me` | JWT | Todos | `IMPLEMENTADO (verificado)` |
+| `PUT` | `/users/me` | JWT | Todos | `IMPLEMENTADO (verificado)` (Bloqueia escalação de role + pasta do tenant) |
+| `GET` | `/users/names` | JWT | `ADMIN, GERENTE` | `CORRIGIDO / TESTADO` (Cache por tenant 30s + bloqueio OPERADOR 403) |
+| `POST` | `/users` | JWT | `ADMIN` | `IMPLEMENTADO (verificado)` (E-mail único por loja) |
+| `GET` | `/users` | JWT | `ADMIN` | `IMPLEMENTADO (verificado)` (Paginado + filtro `status`) |
+| `GET` | `/users/:id` | JWT | `ADMIN` | `IMPLEMENTADO (verificado)` (Cross-tenant 404) |
+| `PUT` | `/users/:id` | JWT | `ADMIN` | `CORRIGIDO / TESTADO` (Bloqueia demotion último admin) |
+| `PATCH` | `/users/:id/status` | JWT | `ADMIN` | `CORRIGIDO / TESTADO` (Soft Delete + invalidação de cache 403) |
+| `DELETE` | `/users/:id` | JWT | `ADMIN` | `CORRIGIDO / TESTADO` (Fallback Soft Delete + UI conectada) |
+| `GET` | `/products/count` | JWT | Todos | `IMPLEMENTADO (verificado)` (Ativos do tenant) |
+| `GET` | `/products/stats` | JWT | Todos | `IMPLEMENTADO (verificado)` (`Decimal(10,2)` + consolidado na UI) |
+| `GET` | `/products/export` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO / TESTADO` (`.xlsx` e `.csv` ExcelJS) |
+| `GET` | `/products/import/template` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO / TESTADO` (`.xlsx` e `.csv` ExcelJS) |
+| `POST` | `/products/import` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO / TESTADO` (`preview` e `commit` atômico) |
+| `GET` | `/products` | JWT | Todos | `IMPLEMENTADO (verificado)` (Filtro `status`, `categoriaId`, `search`) |
+| `GET` | `/products/:id` | JWT | Todos | `IMPLEMENTADO / TESTADO` (Cross-tenant 404) |
+| `POST` | `/products` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO (verificado)` (Pasta tenant Cloudinary) |
+| `PUT` | `/products/:id` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO (verificado)` |
+| `PATCH` | `/products/:id/status` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO (verificado)` |
+| `DELETE` | `/products/:id` | JWT | `ADMIN` | `CORRIGIDO / TESTADO` (Fallback Soft Delete se houver histórico) |
+| `POST` | `/products/:id/adjust` | JWT | Todos | `CORRIGIDO / TESTADO` (`FOR UPDATE` + `Idempotency-Key` + bloqueia inativo) |
+| `GET` | `/categories/count` | JWT | Todos | `IMPLEMENTADO (verificado)` |
+| `GET` | `/categories` | JWT | Todos | `IMPLEMENTADO` *(sem paginação SQL; aceitável para poucos itens)* |
+| `POST` | `/categories` | JWT | `ADMIN, GERENTE` | `CORRIGIDO / TESTADO` (`@@unique([empresaId, nome])`) |
+| `PUT` | `/categories/:id` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO (verificado)` |
+| `PATCH` | `/categories/:id/status` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO (verificado)` |
+| `DELETE` | `/categories/:id` | JWT | `ADMIN` | `IMPLEMENTADO` (Fallback Soft Delete se produtos vinculados) |
+| `GET` | `/suppliers/stats` | JWT | Todos | `CORRIGIDO / TESTADO` (SQL nativo `LEFT JOIN`) |
+| `GET` | `/suppliers` | JWT | Todos | `IMPLEMENTADO` *(sem paginação SQL; filtro `status` ativo)* |
+| `GET` | `/suppliers/count` | JWT | Todos | `IMPLEMENTADO (verificado)` |
+| `GET` | `/suppliers/:id` | JWT | Todos | `IMPLEMENTADO (verificado)` |
+| `POST` | `/suppliers` | JWT | `ADMIN, GERENTE` | `CORRIGIDO / TESTADO` (Via `supplierService`, apenas `nome` obrigatório) |
+| `PUT` | `/suppliers/:id` | JWT | `ADMIN, GERENTE` | `CORRIGIDO / TESTADO` (Via `supplierService`) |
+| `PATCH` | `/suppliers/:id/status` | JWT | `ADMIN, GERENTE` | `IMPLEMENTADO (verificado)` |
+| `DELETE` | `/suppliers/:id` | JWT | `ADMIN` | `IMPLEMENTADO` (Exclusivo `ADMIN`, fallback Soft Delete) |
+| `GET` | `/movements/sales-report` | JWT | Todos | `CORRIGIDO / TESTADO` (`scope: 'store'` vs `'user'`) |
+| `GET` | `/movements/user-stats` | JWT | `ADMIN, GERENTE` | `CORRIGIDO / TESTADO` (SQL nativo único + bloqueio `OPERADOR`) |
+| `GET` | `/movements` | JWT | Todos | `CORRIGIDO / TESTADO` (Escopo forçado p/ `OPERADOR`; aceita `limit=all`) |
+| `GET` | `/` | Não | Público | `IMPLEMENTADO (verificado)` |
+| `GET` | `/test-db` | Não | Público | `IMPLEMENTADO (verificado)` |

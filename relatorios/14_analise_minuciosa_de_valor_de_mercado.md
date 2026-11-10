@@ -1,225 +1,180 @@
-# 14 — ANÁLISE MINUCIOSA DE VALOR DE MERCADO E VALUATION
-## Avaliação Financeira Independente, Due Diligence Técnica e Precificação de Ativos
+# 14 — ANÁLISE MINUCIOSA DE VALOR DE MERCADO E VALUATION (PÓS-FASE G)
+## Avaliação Financeira Independente, Due Diligence Técnica e Precificação Realista de Ativos
 
-> **Status:** CONCLUÍDO (100%)  
-> **Data de Emissão:** 08 de Novembro de 2026  
+> **Status:** ATUALIZADO APÓS IMPLEMENTAÇÃO DE MULTI-TENANCY, SOFT DELETE, PLANILHAS E AUDITORIA E2E  
+> **Data de Emissão:** 10 de Novembro de 2026  
+> **Branch Auditada:** `feature/multitenant`  
 > **Perfis de Avaliação:** Engenheiro de Software Sênior / Arquiteto de Sistemas, Analista de M&A de Software e Investidor Cético  
-> **Objeto Auditado:** Estoque.OS (Backend Node.js/Express, Frontend React/Vite, Banco PostgreSQL Neon)  
-> **Taxa de Câmbio Oficial:** US$ 1,00 = R$ 5,51 (Cotação comercial de fechamento)  
-> **Critério de Rigor:** Rotulagem explícita de `[FATO]`, `[INFERÊNCIA]` e `[SUPOSIÇÃO]`. Avaliação neutra e pessimista fundamentada na realidade empírica do código e do mercado.
+> **Objeto Auditado:** Estoque.OS (Backend Node.js/Express 5, Frontend React 19/Vite, PostgreSQL Neon, Cloudinary)  
+> **Critério de Rigor:** Separação explícita de `[FATO]` (observado diretamente nos arquivos/execuções), `[INFERÊNCIA]` (dedução técnica fundamentada) e `[SUPOSIÇÃO]` (premissa de mercado não verificável no repositório). *Potencial vale zero até virar receita.*  
+> **Aviso sobre Benchmarks Externos:** Os valores comparativos de mercado (Acquire.com/Flippa 2024–2026, Bling/Tiny/MarketUp, taxas PJ no Brasil e exterior) baseiam-se em referências de mercado conhecidas sem consulta web neste momento (`[SUPOSIÇÃO]` de mercado sujeita a variação cambial e regional).
 
 ---
 
-### Sumário Executivo do Relatório
+### Sumário Executivo — Quanto o Estoque.OS Realmente Vale Hoje
 
-| Dimensão Avaliada | Cenário Pessimista (Prob.) | Cenário Realista (Prob.) | Cenário Otimista (Prob.) | Confiança Metodológica |
-| :--- | :---: | :---: | :---: | :---: |
-| **A) SaaS / Assinatura Mensal** *(DCF a 48% a.a.)* | **R$ 0,00** / *US$ 0* (60%) | **R$ 5.500,00** / *US$ 1.000* (30%) | **R$ 24.000,00** / *US$ 4.350* (10%) | **Alta** (Status atual) |
-| **A) Múltiplo de ARR SaaS** *(MicroAcquire / Flippa)* | **R$ 0,00** / *US$ 0* | **R$ 0,00** / *US$ 0* | **R$ 0,00** / *US$ 0* | **100%** (ARR = R$ 0) |
-| **B1) Custo de Reposição Líquido** *(Replacement Cost)* | **R$ 2.200,00** / *US$ 400* (50%) | **R$ 4.800,00** / *US$ 870* (40%) | **R$ 8.500,00** / *US$ 1.540* (10%) | **Alta** (Baseado em 7.861 LOC) |
-| **B2) Build vs. Buy** *(Venda para Software House/Empresa)* | **R$ 0,00** / *US$ 0* (60%) | **R$ 3.500,00** / *US$ 635* (30%) | **R$ 7.000,00** / *US$ 1.270* (10%) | **Alta** |
-| **B3) Valor Estratégico de M&A** *(IP, Patentes, Efeito Rede)* | **R$ 0,00** / *US$ 0* (100%) | **R$ 0,00** / *US$ 0* (0%) | **R$ 0,00** / *US$ 0* (0%) | **100%** (Commodity) |
-| **B4) Preço de Fechamento em Marketplace de Código** | **R$ 0,00** / *US$ 0* (55%) | **R$ 4.000,00** / *US$ 725* (35%) | **R$ 10.000,00** / *US$ 1.815* (10%) | **Média-Alta** (Acquire.com 2024-2026) |
+| Dimensão Avaliada | Cenário Pessimista (Prob.) | Cenário Realista (Prob.) | Cenário Otimista (Prob.) | Base Metodológica |
+| :--- | :---: | :---: | :---: | :--- |
+| **A) Múltiplo de ARR SaaS HOJE** *(Valor comprovado)* | **R$ 0,00** | **R$ 0,00** | **R$ 0,00** | **100% `[FATO]`**: 0 clientes pagantes / ARR = R$ 0 |
+| **A) VPL SaaS Projetado (36m)** *(DCF a 48% a.a.)* | **R$ 0,00** *(55%)* | **R$ 7.500,00** *(35%)* | **R$ 29.000,00** *(10%)* | `[SUPOSIÇÃO]`: Depende 100% de tração comercial |
+| **B1) Custo de Reposição Líquido** *(Replacement Cost)* | **R$ 3.500,00** *(35%)* | **R$ 8.000,00** *(50%)* | **R$ 13.500,00** *(15%)* | `[INFERÊNCIA]`: ~14.385 LOC código/schema/testes + descontos |
+| **B2) Teto Build vs. Buy** *(Compra p/ uso interno)* | **R$ 0,00** *(45%)* | **R$ 7.000,00** *(45%)* | **R$ 12.000,00** *(10%)* | `[INFERÊNCIA]`: Custo de fazer do zero vs adaptar |
+| **B3) Valor Estratégico de M&A** *(IP / Patentes / Rede)* | **R$ 0,00** *(100%)* | **R$ 0,00** *(0%)* | **R$ 0,00** *(0%)* | **`[FATO]`**: Software sem fosso tecnológico único |
+| **B4) Preço Realista em Marketplace de Código** *(Starter Kit)* | **R$ 0,00** *(40%)* | **R$ 6.600,00** *(45%)* | **R$ 14.000,00** *(15%)* | `[SUPOSIÇÃO]`: Comparáveis *white-label* multi-tenant pré-receita |
 
----
-
-## 1. MAPEAMENTO FUNCIONAL FIEL "AS IS" (SEM INVENÇÕES)
-
-Uma auditoria justa e responsável avalia estritamente as linhas de código que existem e executam hoje no repositório.
-
-### 1.1. O que o software REALMENTE faz hoje:
-- `[FATO]` **Autenticação e Perfis (RBAC):** Login com JWT assinado e hashing de senhas via bcrypt (salt 10). Suporte a três níveis de permissão: `ADMIN`, `GERENTE` e `OPERADOR` (`authRoutes.js`, `authMiddleware.js`, `roleMiddleware.js`).
-- `[FATO]` **Catálogo de Produtos:** CRUD completo com campos de nome, descrição, preço unitário (`Decimal(10,2)`), quantidade em estoque, categoria associada, fornecedor e foto em alta resolução (`productService.js`).
-- `[FATO]` **Upload de Mídia em Nuvem:** Envio assíncrono para o Cloudinary CDN com proteção de timeout de 10 segundos e expurgo garantido de arquivos temporários do disco local (`cloudinaryConfig.js`).
-- `[FATO]` **Ajuste Transacional de Estoque:** Registro de operações categorizadas exclusivamente como `REPOSICAO` (entrada) ou `VENDA` (saída) via rota `/products/:id/adjust`. O ajuste utiliza transação interativa com bloqueio pessimista no PostgreSQL (`SELECT ... FOR UPDATE`), garantindo consistência atômica contra condições de corrida e impedindo saldo negativo (`productService.js:233-249`).
-- `[FATO]` **Livro-Razão e Auditoria:** Histórico imutável de movimentações registrando timestamp da operação, identificador do produto, operador responsável, tipo e justificativa textual (`movementService.js`).
-- `[FATO]` **Módulos de Apoio:** Cadastro e listagem paginada de Categorias de produtos e Fornecedores parceiros (`categoryService.js`, `supplierService.js`).
-- `[FATO]` **Dashboard Executivo:** Interface construída com React e Recharts exibindo KPIs de patrimônio financeiro estocado, alertas visuais de ruptura de estoque (produtos com saldo baixo), gráficos de movimentações recentes e produtividade por operador agregada em SQL nativo (`movementService.js:156-170`).
-- `[FATO]` **Módulo Nativo de Exportação de Relatórios de Vendas em PDF:** Funcionalidade acionada diretamente no Dashboard (`ModalExportarRelatorio.jsx` e `GET /movements/sales-report`), permitindo consolidar faturamento total, volume de peças, ticket médio e top 5 produtos em três horizontes temporais (Último Mês / 30d, Últimos 6 Meses e Último 1 Ano), com gráficos vetoriais em barras ou linhas (SVG) e exportação nativa formatada em página A4 com layout oficial de auditoria.
-
-### 1.2. O que o software NÃO FAZ (Recursos Inexistentes no Código):
-- `[FATO]` **Ausência de Multi-Tenancy:** Não existe nenhuma coluna de organização ou empresa (`empresaId`, `tenantId`) no banco de dados (`schema.prisma`). O software é estritamente **single-tenant**. Se dois clientes acessarem a mesma instância, um enxergará o estoque e os dados do outro.
-- `[FATO]` **Ausência de Módulo Fiscal (Zero NF-e / NFC-e):** Não existe integração com SEFAZ, emissão de Nota Fiscal Eletrônica, cálculo de ICMS, PIS, COFINS ou geração de arquivos SPED.
-- `[FATO]` **Inexistência de Módulo de Pedidos Real:** A tela "Pedidos" no frontend (`Pedidos.jsx`) consome a rota `/movements`. Não existe tabela de pedidos, pedido de compra/venda, faturamento, carrinho de múltiplos itens, cálculo de frete ou controle de status (*Pendente*, *Separado*, *Faturado*, *Entregue*).
-- `[FATO]` **Sem Hardware / Leitor de Código de Barras:** Não há suporte a códigos de barras (EAN-13), QR codes, impressão de etiquetas térmicas ou coletores de dados industriais.
-- `[FATO]` **Sem Controle Físico de Depósito (WMS):** Não existe endereçamento de armazém (rua, módulo, prateleira, nível, box), nem controle de lotes, nem data de validade.
-- `[FATO]` **Sem Soft-Delete (Inativação Lógica):** Se um usuário ou produto possuir qualquer movimentação vinculada, a exclusão é permanentemente rejeitada (`userService.js:231`, `productService.js:158`). Como não existe o campo `ativo: Boolean`, um colaborador demitido não pode ser inativado pelo administrador na interface.
-- `[FATO]` **Sem Faturamento / Gateway de Pagamento:** Não há integração com Stripe, Asaas, Mercado Pago, planos de assinatura ou controle de cobrança recorrente.
-- `[FATO]` **Sem Recuperação de Senha:** Não existe funcionalidade de "esqueci minha senha" por envio de e-mail com token temporário.
+> **Veredito Direto:** Como **negócio SaaS hoje**, o ativo vale **R$ 0,00** porque não há faturamento, contratos nem gateway de pagamento. Como **ativo de código / SaaS starter kit multi-tenant pronto para personalização**, o valor subiu objetivamente frente à avaliação pré-Fase G (de ~R$ 3.500–R$ 4.800 para a faixa **R$ 6.600 a R$ 8.500 à vista** no Brasil), porque agora entrega Multi-Tenancy isolado, Soft Delete real, importação `.xlsx`/`.csv`, 6 baterias E2E reais e frontend responsivo completo. Ainda assim, liquidez sem clientes continua baixa.
 
 ---
 
-## 2. AUDITORIA TÉCNICA CRÍTICA E IMPACTO NO VALUATION
+## 1. MÉTRICAS REAIS DO REPOSITÓRIO E MAPEAMENTO "AS IS"
 
-A qualidade técnica de uma base de código afeta diretamente o coeficiente de desconto aplicado em processos de *due diligence* de M&A.
+### 1.1 Inventário Exato Medido (`[FATO]`)
+*(Nota de retificação rigorosa: a versão anterior deste relatório de 08/11 afirmava ">38.000 linhas"; a contagem real medida sobre o código atual sem `node_modules`/`.git`/`dist`/`uploads` é a seguinte):*
+- `[FATO]` **Total de arquivos rastreados/úteis:** **153 arquivos**.
+  - `backend/src/`: **30 arquivos** (**4.007 linhas**).
+  - `frontend/src/`: **71 arquivos** (**9.027 linhas**).
+  - `backend/tests/` + `backend/prisma/`: **11 arquivos** (**1.351 linhas**).
+  - `relatorios/`: **14 arquivos `.md`** (**4.122 linhas**), além de configurações e documentos na raiz (`README.md`, `00_REGISTRO_DE_PROGRESSO.md`).
+- `[FATO]` **Código-fonte + Schema + Seed + Testes:** **14.385 linhas**.
+- `[FATO]` **Histórico Git:** **222 commits** antes da Fase G (`mateus`: 156, `mateus-x17`: 66), desde **18/09/2025** (~14 meses de evolução por autor único).
+- `[FATO]` **Verificação Executada nesta Sessão:**
+  - `npm --prefix backend test` (`multitenant_audit.test.mjs`): **Exit code 0 — 6/6 baterias aprovadas** contra API Node/Express + banco PostgreSQL Neon real.
+  - `npm --prefix backend run reset:seed`: **Exit code 0** — 2 estabelecimentos completos populados com fotos no Cloudinary e histórico de 12 meses.
+  - `npm --prefix frontend run build` (`vite build`): **Exit code 0** (2.413 módulos transformados).
+  - `npm --prefix frontend run lint` (`eslint .`): **Exit code 0** (0 erros, 0 warnings).
 
-| Área Técnica | Nota (0 a 10) | Evidência Principal no Código | Impacto Direto no Valuation |
-| :--- | :---: | :--- | :--- |
-| **Arquitetura & Organização** | **6,0** | Separação em Services/Controllers é positiva, mas backend é single-tenant e `EditarItem.jsx` (592 linhas) concentra acoplamento severo. | Comprador precisa reescrever o schema do banco para viabilizar escala. |
-| **Qualidade do Código** | **5,5** | Código legível e documentado, porém 100% JavaScript puro (.js/.jsx) sem qualquer tipagem estática (TypeScript). | Dívida técnica crônica para times médios. Desconto de 15%. |
-| **Testes & Confiabilidade** | **1,0** | **Zero testes automatizados versionados no Git.** `package.json` traz `"test": "echo \"Error: no test specified\" && exit 1"`. Sem CI/CD. | **Maior destruidor de valor técnico.** Desconto de 35% a 50% na due diligence. |
-| **Segurança da Informação** | **4,5** | Hashing bcrypt e Helmet ativos, mas token JWT fica em `localStorage` (risco XSS) e histórico do git registrou credenciais passadas. | Exigirá auditoria de segurança antes de ir a público. |
-| **Performance & Infra** | **5,0** | Agregação SQL enxuta, mas trava de concorrência e cache residem em memória volátil (`Map()`). Rota aceita `limit=all`. | Não suporta escalabilidade horizontal sem Redis. |
-| **Documentação & Onboarding** | **7,0** | Excelente conjunto de relatórios didáticos na pasta `relatorios/` e `README.md` abrangente. | Reduz o atrito de entendimento inicial para o comprador. |
-| **Dependência do Autor** | **2,0** | **Bus Factor = 1.** 100% dos 220 commits realizados por um único desenvolvedor (`mateus`). | Exigirá cláusula contratual de suporte pós-venda. |
-| **Prontidão de Produção** | **3,0** | Inexistência de `Dockerfile`, `docker-compose.yml` ou monitoramento de erros em tempo real (Sentry). | Custo de setup de DevOps transferido ao comprador. |
+### 1.2 O que o software REALMENTE faz hoje (`[FATO]`):
+1. **Multi-Tenancy Nativo por Estabelecimento (`Empresa` / `empresaId`):** Registro público cria loja + usuário fundador `ADMIN`; e-mail único **por loja** (`@@unique([empresaId, email])`) com seletor automático de estabelecimentos no login caso o usuário atue em múltiplas lojas (`requiresStoreSelection`); isolamento em todas as queries (cross-tenant retorna `404`); pastas isoladas no Cloudinary (`estoque-os/lojas/<slug>/produtos|usuarios`).
+2. **RBAC Estrito em 3 Níveis:**
+   - `ADMIN`: governança total da loja, gestão de equipe (`/users*`) e exclusões (`DELETE`).
+   - `GERENTE`: gerencia catálogo, fornecedores, categorias, importação/exportação e acompanha vendas de toda a loja; bloqueado em `/users` e `DELETE` (`403`).
+   - `OPERADOR`: movimenta estoque e visualiza **exclusivamente suas próprias movimentações e vendas** (`GET /movements` força `usuarioId` e `/movements/sales-report` aplica `scope: 'user'`), bloqueado em `/users/names` e `/movements/user-stats` (`403`).
+3. **Soft Delete (`ativo: Boolean`) com Preservação Histórica:** Inativação reversível (`PATCH /:id/status`) e fallback automático em `DELETE /:id` para `Usuario`, `Produto`, `Categoria` e `Fornecedor` quando há histórico vinculado. Contas ou lojas inativadas recebem `403` imediatamente (com invalidação instantânea de cache); produtos inativos são bloqueados em `POST /products/:id/adjust` (`400`).
+4. **Importação e Exportação Nativa de Planilhas (`.xlsx` / `.csv`) via `ExcelJS`:** Download de planilha modelo, exportação do catálogo por loja/status e importação em 2 etapas (`preview` com detecção de erros/novas categorias/fornecedores e `commit` atômico via `prisma.$transaction`, limite de 2MB e 5.000 linhas).
+5. **Controle Transacional & Financeiro:** Preços em `Decimal(10, 2)`, movimentações serializadas por `SELECT ... FOR UPDATE`, `Idempotency-Key` por tenant, debounce 1.2s, índices compostos e métricas SQL sem N+1.
+6. **Dashboard, Exportação PDF A4 & Landing Page Responsiva:** Exportação nativa em PDF com gráficos vetoriais SVG (1 mês, 6 meses, 1 ano) respeitando escopo da loja vs. operador, seção Multi-Tenant na Home e layout mobile polido.
 
----
-
-## 3. ANÁLISE DE MERCADO E CONCORRÊNCIA REAL
-
-### 3.1. A Dinâmica da Dor no Brasil
-`[FATO]` A gestão de estoque físico em papel ou planilha causa prejuízos financeiros reais em comércios.  
-`[FATO]` No entanto, no ambiente empresarial brasileiro, **o estoque está intimamente atrelado à legislação fiscal**. Quase a totalidade dos comércios formais (ME, EPP, Simples Nacional) é obrigada por lei a emitir NFC-e ou NF-e em cada saída de mercadoria. Um software que gerencia apenas a prateleira física, mas não gera o documento fiscal, obriga o lojista a manter retrabalho de dupla digitação.
-
-### 3.2. Comparativo de Concorrentes Diretos (Benchmarks de Mercado 2025/2026)
-- **Bling ERP (Líder em PMEs e E-commerce):**
-  - *Preço:* A partir de **R$ 60,00 / mês** (Plano Cobalto).
-  - *O que oferece:* Emissão ilimitada de NF-e, NFC-e e NFS-e, frente de caixa (PDV), sincronização bidirecional de estoque com Mercado Livre, Shopee, Amazon e Shopify, controle de depósitos e conciliação bancária.
-- **Tiny ERP:**
-  - *Preço:* A partir de **R$ 80,00 a R$ 120,00 / mês**.
-  - *O que oferece:* Foco extremo em separação física, picking, packing e emissão massiva de pedidos de e-commerce.
-- **MarketUp:**
-  - *Preço:* **R$ 0,00 (Gratuito)** ou planos adicionais de R$ 50/mês.
-  - *O que oferece:* PDV, emissor fiscal e controle de estoque gratuito subsidiado por patrocinadores.
-- **InvenTree / Snipe-IT (Open Source):**
-  - *Preço:* **R$ 0,00**.
-  - *O que oferece:* Soluções abertas maduras para controle de inventário físico e ativos internos.
-
-### 3.3. Fosso Competitivo (Moat)
-`[FATO]` **O fosso competitivo do Estoque.OS hoje é ZERO.**  
-Não há patentes, modelos de IA proprietários, efeitos de rede ou barreiras de entrada tecnológicas. Trata-se de uma implementação competente de um CRUD com interface visual moderna. Qualquer desenvolvedor experiente consegue replicar essa suíte funcional em poucas semanas.
+### 1.3 O que o software AINDA NÃO FAZ (`[FATO]`):
+1. **Zero Clientes, Zero MRR e Zero Gateway de Assinatura:** Não há integração com Stripe, Asaas, Mercado Pago, planos mensais, *trial* expirável nem painel SuperAdmin da plataforma SaaS.
+2. **Zero Módulo Fiscal (NF-e / NFC-e / SEFAZ / SAT):** Impede substituir sistemas fiscais obrigatórios para grande parte do varejo formal no Brasil.
+3. **Módulo de "Pedidos" Ainda Baseado em Movimentos Unitários:** A rota frontend `/pedidos` lê `GET /movements`. Não existe entidade `Pedido` / `ItemPedido` com carrinho de múltiplos itens, cliente final, formas de pagamento, frete ou status logístico (*Pendente*, *Faturado*, *Entregue*).
+4. **Sem Recuperação de Senha ("Esqueci minha senha"):** Ausência de fluxo transacional de redefinição via e-mail.
+5. **Sem Hardware / WMS / Lotes:** Sem leitor de código de barras (EAN-13), impressão de etiquetas, validade/lote ou endereçamento de estoque.
+6. **Sem Frontend Tests, CI/CD ou Docker:** Existe suíte E2E de backend (`6/6`), porém 0% de testes automatizados no frontend, sem GitHub Actions e sem `Dockerfile`.
+7. **Sem Tipagem Estática (TypeScript):** Todo o código permanece em JS/JSX puro.
 
 ---
 
-## 4. AVALIAÇÃO MONETÁRIA DETALHADA: MODALIDADE A (SaaS / ASSINATURA)
+## 2. AUDITORIA TÉCNICA CRÍTICA (NOTAS ATUALIZADAS 0–10)
 
-### 4.1. Premissas de Modelagem
-- **ARPU Viável (Ticket Médio Praticável):** **R$ 59,00 / mês** (*US$ 10,70*). Como o sistema não emite nota fiscal, não é viável cobrar um valor superior aos R$ 60/mês do Bling.
-- **Churn Mensal Médio:** **6,5% ao mês** *(taxa conservadora padrão para pequenos comércios sem integração contábil no Brasil)*.
-- **CAC Médio (Custo de Aquisição de Cliente):** **R$ 380,00** por cliente fechado via prospecção direta ou anúncios locais.
-- **Custo Operacional de Infra:** R$ 120,00 a R$ 250,00/mês (PostgreSQL em nuvem, host Node.js, Cloudinary).
-- **Custo do Tempo do Autor:** R$ 65,00/hora (mediana salarial PJ para Full Stack Pleno no Brasil), dedicando 20 horas mensais para suporte, atendimento a dúvidas e correções = **R$ 1.300,00/mês de custo de dedicação**.
+| Área Técnica | Nota Antiga (08/11) | Nota Atual (10/11) | Justificativa & Evidências Diretas (`[FATO]`) |
+| :--- | :---: | :---: | :--- |
+| **Arquitetura & Organização** | 6,0 | **7,5** | Multi-Tenancy em banco e CDN sólido (`Empresa`, `empresaId` em todas as tabelas e serviços), 42 rotas organizadas em MVC+Service. Pontos negativos remanescentes: `EditarItem.jsx` (563 linhas) segue concentrando lógica multi-entidade e não há camada dedicada de pedidos. |
+| **Qualidade do Código** | 5,5 | **6,5** | Padronização de erros (`AppError`), sanitizadores, comentários consistentes em pt-BR e `eslint .` zerado com 0 warnings. Penalização por 0% TypeScript e uso pontual de `fetch` direto fora do `apiClient.js`. |
+| **Testes & Confiabilidade** | 1,0 | **5,0** | **Avanço expressivo:** `backend/tests/multitenant_audit.test.mjs` testa 6 fluxos críticos E2E contra DB real (multi-tenancy, login multi-loja, isolamento `OPERADOR`/`GERENTE`, Soft Delete + cache, `.xlsx`/`.csv`). Segue em 5,0 porque não há testes unitários, nem de frontend, nem CI/CD automático. |
+| **Segurança da Informação** | 4,5 | **6,0** | `Helmet`, `CORS`, `rate-limit` no login/cadastro, Bcrypt 10, `authMiddleware` com checagem `ativo` de usuário/loja e sigilo de `OPERADOR` no backend. Permanece desconto pelo token JWT em `localStorage` (risco XSS), falta de senha mínima forte e ausência de recuperação de senha. |
+| **Performance & Escalabilidade** | 5,0 | **6,5** | Índices compostos multi-tenant, SQL nativo sem N+1 e caches em memória com invalidação. Limitações: caches e rate limit em `Map()` local impedem múltiplos nós Node sem Redis; gráficos ainda chamam `movements?limit=all`. |
+| **Documentação & Onboarding** | 7,0 | **8,0** | `README.md`, registro de progresso e 14 relatórios sincronizados, seed 2-lojas reproduzível com `npm run reset:seed`. |
+| **Dependência do Autor (`Bus Factor`)** | 2,0 | **2,0** | `[FATO]` 100% dos commits de um único desenvolvedor (`mateus` / `mateus-x17`). |
+| **Prontidão para Produção** | 3,0 | **5,5** | Graceful shutdown, Pino + `X-Request-Id`, build Vite e deploy Vercel/Render funcionais; ainda faltam Docker, Sentry/APM e billing SaaS. |
+| **Riscos Legais & Licenças** | — | **7,5** | Dependências padrão permissivas (MIT/ISC/Apache no npm: Express, Prisma, React, ExcelJS, Tailwind, Recharts). O risco comercial vem da ausência de termos/LGPD formais e proteção contra vazamento via XSS (`localStorage`). |
+| **Completude de Produto** | — | **6,5** | Ciclo núcleo de estoque, equipe multi-loja, Soft Delete, planilhas e PDFs está **pronto e integrado**; faltam pedidos reais multi-item, recuperação de senha e cobrança SaaS. |
 
-### 4.2. Projeção Financeira em 3 Cenários (36 Meses)
-
-```
-[Evolução de MRR Projetada - 36 Meses]
-Cenário Otimista:   R$ 6.490/mês (110 clientes) -------------------------> ARR: R$ 77.880
-Cenário Realista:   R$ 2.655/mês (45 clientes)  ------------> ARR: R$ 31.860
-Cenário Pessimista: R$ 354/mês   (6 clientes)   --> ARR: R$ 4.248
-```
-
-| Métrica | Cenário Pessimista (Prob. 60%) | Cenário Realista (Prob. 30%) | Cenário Otimista (Prob. 10%) |
-| :--- | :---: | :---: | :---: |
-| **Base de Clientes (12m)** | 3 clientes | 12 clientes | 25 clientes |
-| **Base de Clientes (24m)** | 5 clientes | 28 clientes | 65 clientes |
-| **Base de Clientes (36m)** | 6 clientes | 45 clientes | 110 clientes |
-| **MRR no Mês 36** | **R$ 354,00** (*US$ 64*) | **R$ 2.655,00** (*US$ 481*) | **R$ 6.490,00** (*US$ 1.177*) |
-| **ARR no Mês 36** | **R$ 4.248,00** (*US$ 770*) | **R$ 31.860,00** (*US$ 5.782*) | **R$ 77.880,00** (*US$ 14.134*) |
-| **Lucro Líquido do Autor (Mês 36)** | **- R$ 1.066,00/mês (Prejuízo)** | **+ R$ 905,00/mês** | **+ R$ 4.690,00/mês** |
-
-### 4.3. Valuation por Fluxo de Caixa Descontado (DCF) e Múltiplo de ARR
-Para um microSaaS individual sem tração e pré-operacional, o mercado adota taxa de desconto de risco de capital de **45% a 50% ao ano**:
-- **Cenário Pessimista:** Fluxo livre negativo perpétuo. **Valuation = R$ 0,00 ($0,00)**.
-- **Cenário Realista:** Valor Presente Líquido (VPL) dos fluxos descontados a 48% a.a. = **R$ 5.500,00** (*US$ 1.000,00*).
-- **Cenário Otimista:** Valor Presente Líquido (VPL) descontado = **R$ 24.000,00** (*US$ 4.350,00*).
-- **Valuation por Múltiplo de ARR Hoje:** Como o ARR é comprovadamente R$ 0,00, **o múltiplo de receita resulta matematicamente em R$ 0,00 ($0,00)**.
-
-> **Conclusão de Viabilidade:** No cenário realista, após 3 anos de trabalho e 45 clientes conquistados, o software entrega **R$ 905,00 de lucro mensal líquido**. Operar o Estoque.OS como SaaS nas condições atuais paga substancialmente menos do que um estágio de programação, destruindo valor financeiro se comparado a um emprego formal de desenvolvedor.
+### Maiores Riscos Remanescentes & Custo de Correção (`[INFERÊNCIA]`)
+1. **Zero tração comercial / sem billing SaaS:** Custo para integrar Stripe/Asaas + webhooks + tela de planos: **24h–32h** (**R$ 2.400–R$ 3.200**).
+2. **JWT em `localStorage` + falta de recuperação de senha:** Custo p/ cookies `HttpOnly` + fluxo de e-mail (Resend/Nodemailer): **16h** (**R$ 1.600**).
+3. **Ausência de testes de Frontend (Vitest/Playwright) + CI/CD:** **20h** (**R$ 2.000**).
+4. **Ausência de emissão fiscal NF-e/NFC-e (PlugNotas/FocusNFe):** **40h–60h** (**R$ 4.000–R$ 6.000** + custo mensal API fiscal).
+5. **Módulo de Pedidos real multi-item vs tela atual de movimentações:** **24h** (**R$ 2.400**).
+6. **Cache/Idempotência em RAM (`Map`) + Upload síncrono Cloudinary:** Migração p/ Redis + BullMQ: **20h** (**R$ 2.000**).
+7. **Falta de Tipagem TypeScript na base JS:** **40h+** (**R$ 4.000+**).
+8. **`GET /movements?limit=all` nos gráficos:** Criar endpoint agregado SQL no backend: **6h** (**R$ 600**).
+9. **Sem Docker / `docker-compose.yml`:** **4h** (**R$ 400**).
+10. **Limites de tamanho de strings (`@db.VarChar`) e paginação em categorias/fornecedores:** **4h** (**R$ 400**).
 
 ---
 
-## 5. AVALIAÇÃO MONETÁRIA DETALHADA: MODALIDADE B (VENDA DE CÓDIGO / ATIVO)
+## 3. AVALIAÇÃO MONETÁRIA — MODALIDADE A (SAAS / ASSINATURA)
 
-Uma empresa ou software house que compre o código para implantá-lo internamente ou utilizá-lo como base para projetos avalia a compra sob 4 metodologias clássicas de M&A:
+### 3.1 Realidade Hoje (Múltiplo de Receita)
+`[FATO]` **Valuation por Múltiplo de ARR HOJE = R$ 0,00.**
+Um projeto sem clientes pagantes, sem receita recorrente (`MRR = 0`, `ARR = 0`) e sem gateway de pagamento tem **zero tração comprovada**. No mercado de SaaS (MicroAcquire/Acquire.com), múltiplos de `2x–4x ARR` aplicam-se sobre lucro/receita provada; multiplicar por zero resulta em zero.
 
-### 5.1. Método 1: Custo de Reposição Líquido (Replacement Cost)
-- **Tamanho do Ativo Próprio:**
-  - Backend: 29 arquivos JS (~2.253 linhas).
-  - Frontend: 69 arquivos JS/JSX (~5.608 linhas).
-  - **Total de Código Próprio Escrito:** **~7.861 linhas**.
-- **Esforço para Reconstrução por Desenvolvedor Sênior:**
-  - Com frameworks modernos e componentes prontos, um engenheiro full stack sênior reconstrói este mesmo escopo do zero em **90 a 120 horas de trabalho**.
-- **Custo Bruto de Reconstrução:**
-  - Brasil (PJ Sênior médio a R$ 100/h): 100h x R$ 100 = **R$ 10.000,00**.
-  - Internacional (Contractor médio a US$ 50/h): 100h x US$ 50 = **US$ 5.000,00** (*R$ 27.550,00*).
-- **Deduções Técnicas de Due Diligence:**
-  - *Falta de Testes Automatizados no repositório:* **- 35%** (comprador terá que escrever do zero).
-  - *Falta de Multi-tenancy:* **- 20%** (limita uso interno a uma única empresa).
-  - *JavaScript puro sem tipagem estática (TypeScript):* **- 10%**.
-  - *Ausência de Docker e monitoramento de logs:* **- 5%**.
+### 3.2 Projeção Hipotética com Premissas Declaradas (`[SUPOSIÇÃO]`)
+*Com a implementação do Multi-Tenancy e das planilhas `.xlsx`/`.csv`, o software finalmente tornou-se **tecnicamente viável** para vender múltiplas contas na mesma infraestrutura compartilhada e reduzir o tempo de onboarding de catálogo de horas para minutos.*
+
+- **Premissas:** ARPU realista sem módulo fiscal: **R$ 59,00 a R$ 79,00/mês** *(competindo com Bling Cobalto ~R$ 60/mês e MarketUp gratuito, porém atraindo microcomércios informais ou equipes internas de almoxarifado)*; Churn mensal conservador: **6,0%/mês**; CAC comercial estimado: **R$ 350,00**; Infraestrutura Vercel+Render+Neon+Cloudinary inicial: ~**R$ 150/mês**; Custo de oportunidade de suporte/manutenção do autor (15h/mês a R$ 65/h): **R$ 975/mês**.
+- **Cenário Pessimista (55% prob.):** Não converte usuários gratuitos/demo em pagantes sem NF-e ou cobrança integrada -> **VPL = R$ 0,00**.
+- **Cenário Realista (35% prob.):** Fecha ~45–50 lojas pagantes até o mês 36 a R$ 69/mês (~R$ 3.100–R$ 3.450 MRR; lucro líquido ~R$ 1.500/mês após deduzir suporte e infra) -> **VPL (taxa de desconto 48% a.a.) ≈ R$ 7.500,00**.
+- **Cenário Otimista (10% prob.):** Encontra nicho que não depende de NF-e interna (almoxarifados internos, franquias pequenas, bazares), atinge ~110 lojas até o mês 36 -> **VPL ≈ R$ 29.000,00**.
+
+---
+
+## 4. AVALIAÇÃO MONETÁRIA — MODALIDADE B (VENDA DE CÓDIGO / ATIVO DE IP)
+
+### 4.1 Método 1: Custo de Reposição Líquido (`Replacement Cost`)
+- **Escopo Verificado (`[FATO]`):** ~**14.385 linhas** (101 arquivos de código em `src/` + schema/migrations/seed/testes), **42 rotas HTTP**, Multi-Tenant completo, Soft Delete, motor `ExcelJS`, exportação PDF com gráficos SVG, upload isolado Cloudinary e suíte E2E `6/6`.
+- **Esforço de Reconstrução (`[INFERÊNCIA]`):** Um desenvolvedor full-stack sênior levaria entre **140h e 180h** (média **160h**) para escrever, testar, estilizar e integrar todo esse escopo do zero.
+- **Custo Bruto de Reconstrução (`[SUPOSIÇÃO]` salarial):**
+  - Brasil (PJ Pleno/Sênior a R$ 100/h): **160h x R$ 100 = R$ 16.000,00**.
+  - Exterior (Contractor a US$ 50/h): **US$ 8.000,00**.
+- **Deduções Objetivas de Due Diligence (o que mudou após a Fase G):**
+  - ~~Falta de Multi-Tenancy (-20%)~~ -> **ELIMINADO.**
+  - ~~Falta de Soft Delete e Planilhas~~ -> **ELIMINADO.**
+  - Testes apenas no backend (falta unitários, frontend e CI/CD): **- 20%** *(reduzido frente aos -35% anteriores)*.
+  - JavaScript puro sem TypeScript: **- 10%**.
+  - Segurança (`localStorage` JWT + sem recuperação de senha) e falta de Docker: **- 10%**.
+  - Sem gateway de cobrança SaaS / pedidos multi-item reais: **- 10%**.
+  - *Desconto total acumulado:* **- 50%** *(vs. -70% no relatório de 08/11)*.
 - **Valor de Reposição Líquido:**
-  - **Brasil:** R$ 10.000,00 - 70% de descontos = **R$ 3.000,00 a R$ 4.800,00**.
-  - **Internacional:** US$ 5.000,00 - 70% de descontos = **US$ 1.500,00** (*R$ 8.265,00*).
+  - **Brasil:** R$ 16.000 x (1 - 0,50) = **R$ 8.000,00** *(faixa realista R$ 6.500 a R$ 9.500)*.
 
-### 5.2. Método 2: Análise Build vs. Buy (Visão do Comprador Corporativo)
-Se uma empresa média precisa de um painel de controle de estoque interno:
-- *Custo de construir do zero internamente:* R$ 10.000,00.
-- *Custo de adaptação do código alheio:* A equipe interna precisará de **35 a 45 horas** para ler o código de terceiros, refatorar o componente de 592 linhas (`EditarItem.jsx`), criar testes e integrar às rotinas internas (40h x R$ 80/h = R$ 3.200,00).
-- *Margem de risco exigida pela diretoria:* R$ 3.000,00.
-- **Teto que a empresa aceita pagar pelo código:** R$ 10.000 - R$ 3.200 - R$ 3.000 = **R$ 3.800,00**.
+### 4.2 Método 2: Build vs. Buy (Empresa ou Software House Compradora)
+- Custo interno para construir escopo equivalente: **R$ 16.000**.
+- Custo de absorção pelo comprador (entender código sem TypeScript, adaptar regras de negócio próprias, adicionar cookies `HttpOnly`/Docker/testes frontend ~55h x R$ 100/h): **R$ 5.500**.
+- Margem de risco para diretoria aceitar código terceiro: **R$ 3.500**.
+- **Teto Racional de Compra Corporativa:** R$ 16.000 - R$ 5.500 - R$ 3.500 = **R$ 7.000,00**.
 
-### 5.3. Método 3: Valor Estratégico de M&A
-`[FATO]` **R$ 0,00 ($0,00).** Não há patentes, segredos industriais ou parcerias comerciais exclusivas.
-
-### 5.4. Método 4: Comparáveis de Mercado (Acquire.com / Flippa / MicroAcquire)
-- *Realidade dos Marketplaces (2024–2026):* Softwares e MVPs pré-receita em stack React/Node.js sem tração são transacionados como *Starter Kits* acelerados.
-- Faixa usual de fechamento: **US$ 500 a US$ 1.500** (*R$ 2.750 a R$ 8.265*), com a mediana de transações orbitando em **US$ 750** (*R$ 4.130,00*).
+### 4.3 Método 3 e 4: Valor Estratégico M&A e Marketplaces (*Starter Kits*)
+- **Valor Estratégico de IP/Patentes:** **R$ 0,00** (`[FATO]` — stack padrão sem segredo algorítmico).
+- **Marketplaces Internacionais (Flippa / CodeCanyon / Acquire.com pré-receita):** SaaS Boilerplates / Starter Kits multi-tenant funcionais com UI moderna em React + Node + Postgres são negociados entre **US$ 800 e US$ 2.500** (*mediana prática ~**US$ 1.200 / R$ 6.600** à cotação de R$ 5,51*).
 
 ---
 
-## 6. REALITY CHECK: O ESFORÇO VS. O RETORNO FINANCEIRO
+## 5. REALITY CHECK: O PREÇO EM QUE SAI NEGÓCIO HOJE
 
-```
-[Comparativo de Custo de Oportunidade]
-Valor do Tempo Investido (300h x R$ 65/h):  R$ 19.500,00 ===========================
-Preço Máximo de Fechamento Realista:       R$  4.500,00 =====
-Retorno Efetivo do Tempo Gasto:             23,0% do esforço recuperado
-```
-
-1. **O projeto pagou o esforço?** **NÃO.** O autor dedicou aproximadamente 300 horas ao longo de 14 meses (220 commits). O valor de mercado dessas horas como prestador de serviços seria de R$ 19.500 a R$ 25.000. O valor de liquidação de mercado atual do código (R$ 3.000 a R$ 5.000) recupera menos de 25% do tempo investido.
-2. **Qual é o preço em que sai negócio de verdade?** **R$ 3.000 a R$ 5.000 à vista** com transferência do repositório e 10 horas de suporte para dúvidas.
-3. **Qual é o preço ilusório?** Qualquer valor acima de **R$ 15.000,00**. Nenhuma empresa racional adquire um código pré-operacional sem testes e sem clientes por esse valor.
-4. **Liquidez e Chance de Venda:** A chance de vender este código no mercado aberto hoje sem uma carteira de clientes é de **menos de 20%**, com prazo médio de fechamento de **4 a 8 meses**.
+- **Preço justo realista de mercado hoje (Código Fonte + Repositório):** **R$ 6.500,00 a R$ 8.500,00** à vista com passagem de bastão (10h de handover técnico).
+- **Preço ilusório sem clientes:** Pedir acima de **R$ 18.000–R$ 25.000** sem receita recorrente nem NF-e trava a venda, pois sai mais barato para uma empresa contratar um freelancer sênior sob medida exatamente nas regras dela.
+- **Liquidez:** Continua limitada (**~25%–30%**) para venda pura de código pré-receita em 3–6 meses; a verdadeira alavanca não é vender código cru, e sim conquistar primeiros clientes pagantes.
 
 ---
 
-## 7. ROTEIRO ESTRATÉGICO: COMO SUBIR CONSIDERAVELMENTE O VALOR DO SOFTWARE
+## 6. ROTEIRO ESTRATÉGICO DE VALORIZAÇÃO (STATUS ATUALIZADO)
 
-Para elevar o valuation deste ativo de **R$ 4.000 para R$ 50.000 a R$ 100.000+**, o caminho não é mexer no design visual, mas sim eliminar as barreiras de tração e arquitetura.
+### 6.1 O que JÁ FOI ENTREGUE do Roteiro Anterior (`[FATO]`):
+- ✅ **Multi-Tenancy Nativo (`Empresa` + `empresaId` + Cloudinary isolado):** **CONCLUÍDO & TESTADO**.
+- ✅ **Soft Delete (`ativo: Boolean`) em todas as entidades:** **CONCLUÍDO & TESTADO**.
+- ✅ **Importação & Exportação `.xlsx`/`.csv` nativa (`ExcelJS`):** **CONCLUÍDO & TESTADO**.
+- ✅ **Suíte E2E de Auditoria Backend (`6/6` cenários):** **CONCLUÍDO & TESTADO**.
+- ✅ **Relatório Executivo em PDF com Gráficos (`1m`, `6m`, `1y`):** **CONCLUÍDO**.
 
-### 7.1. Top 8 Ações de Maior Retorno por Esforço (Ordenadas por ROI)
+### 6.2 Próximas Alavancas para Saltar de ~R$ 7.500 para R$ 40.000–R$ 100.000+
 
-| # | Ação Recomendada | Esforço Técnico | Impacto Estimado no Valuation | Justificativa de Negócio |
-| :-: | :--- | :---: | :---: | :--- |
-| **1** | **Conquistar 5 Clientes Pagantes Locais (Piloto)** | 30h comerciais | **+ R$ 20.000 a R$ 35.000** | Transforma o projeto de "código solto" para "empresa operacional com tração comprovada". Multiplicador #1 no Acquire.com. |
-| **2** | **Implementar Multi-Tenancy Nativo (`tenantId`)** | 60h código | **+ R$ 12.000 a R$ 18.000** | Permite operar como SaaS em nuvem única compartilhada, eliminando o custo de gerenciar uma máquina para cada cliente. |
-| **3** | **Escrever Suíte de Testes Automatizados (Vitest/Supertest)** | 24h código | **+ R$ 5.000 a R$ 8.000** | Elimina a maior objeção em auditorias técnicas de compradores seniores e CTOs. |
-| **4** | **Adicionar Inativação Lógica / Soft Delete (`ativo: Boolean`)** | 8h código | **+ R$ 2.500 a R$ 3.500** | Resolve a falha que impede demitir funcionários ou descontinuar produtos com histórico de movimentações. |
-| **5** | **Integração de Emissão de NF-e Simples (via PlugNotas / FocusNFe)** | 40h código | **+ R$ 25.000 a R$ 40.000** | Destrava o mercado formal brasileiro: o lojista passa a poder usar o sistema como emissor oficial. |
-| **6** | **Adicionar Leitura de Código de Barras (Câmera / USB)** | 12h código | **+ R$ 4.000 a R$ 6.000** | Dá utilidade prática imediata para operadores no balcão e no chão de depósito. |
-| **7** | **Importação e Exportação de Planilhas (.xlsx / .csv)** | 12h código | **+ R$ 3.000 a R$ 5.000** | Reduz a zero a barreira de onboarding: o lojista sobe 500 produtos em 1 minuto. |
-| **8** | **Migração de Tokens para Cookies `HttpOnly` e Setup Docker** | 10h código | **+ R$ 3.000 a R$ 4.500** | Fecha riscos de segurança XSS e viabiliza deploy com um comando (`docker compose up`). |
-
-### 7.2. O que NÃO vale a pena fazer (Desperdício de Energia)
-- **Não faça redesign de telas:** A interface visual atual já é atraente, responsiva e agradável. Ninguém deixará de comprar por causa do visual.
-- **Não tente criar um ERP tributário completo do zero:** Concorrer com sistemas como Omie ou Sankhya em regras fiscais complexas exige milhões em capital de giro. Foque em resolver a operação do microcomerciante.
-
-> **Nota de Atualização de Valorização Técnica:** A entrega da funcionalidade nativa de **Exportação de Relatórios de Vendas em PDF** no Dashboard com agregação histórica de 1 mês, 6 meses e 1 ano e gráficos vetoriais em barras/linhas soluciona uma das principais lacunas visuais da interface (o botão que anteriormente era estático) e agrega valor percebido imediato de **+ R$ 2.000 a R$ 3.500** na avaliação de completude técnica e de produto para potenciais compradores.
+| Prioridade | Ação Estratégica | Esforço Estimado | Impacto Esperado | Por que muda o jogo |
+| :-: | :--- | :---: | :--- | :--- |
+| **1** | **Conquistar 5 a 10 Clientes Pagantes Locais (Piloto Real)** | 30h–50h comerciais | **+ R$ 20.000 a R$ 40.000** | Retira o valuation do zero em ARR; prova retenção, preço e encaixe produto-mercado. |
+| **2** | **Gateway SaaS (`Stripe` / `Asaas` / `Mercado Pago`) + Planos** | 24h–32h código | **Habilita receita automática** | Fecha o ciclo de assinatura recorrente self-service a partir da landing page já existente. |
+| **3** | **Emissão Fiscal NFC-e / NF-e (via PlugNotas / FocusNFe)** | 40h–60h código | **+ R$ 25.000 a R$ 45.000** | Principal barreira para o varejo formal brasileiro abandonar papel ou Bling. |
+| **4** | **Recuperação de Senha + Cookies `HttpOnly` + Docker/CI-CD** | 16h–24h código | **+ R$ 3.500 a R$ 6.000** | Reduz descontos de segurança e onboarding técnico em due diligence. |
+| **5** | **Módulo de Pedidos Multi-Item + Leitor de Código de Barras** | 24h–36h código | **+ R$ 5.000 a R$ 10.000** | Transforma vendas unitárias em caixa/PDV ágil de balcão. |
 
 ---
 
-## 8. REGISTRO DE SINCRONIZAÇÃO COM O GITHUB
+## 7. SITUAÇÃO ATUAL DO REPOSITÓRIO E LIMITAÇÕES DA ANÁLISE
 
-- `[FATO]` **Diagnóstico de Divergência:** O repositório local continha alterações e commits pendentes que deixavam a branch local à frente do remoto (`ahead of 'origin/main' by 1 commit`).
-- `[FATO]` **Ação de Sincronização Executada:** Foi disparado o comando `git push origin main` com sucesso, sincronizando a árvore local com o repositório oficial no GitHub (`https://github.com/mateus-x17/adm-estoque.git`).
-- `[FATO]` **Integridade de Branches:** Confirmado que existe apenas a branch `main` ativa no repositório remoto e que a árvore de trabalho encontra-se totalmente alinhada e limpa.
+- `[FATO]` **Branch de Trabalho:** As implementações da Fase G encontram-se na branch **`feature/multitenant`** para revisão prévia antes de merge na **`main`** (onde está configurado o deploy automático em Render/Vercel).
+- `[FATO]` **Nível de Confiabilidade desta Auditoria:** **Alta nos fatos técnicos do código** (todos os 153 arquivos contabilizados, rotas, schema Prisma, suite backend `6/6`, build Vite e ESLint executados nesta sessão); **Média-Baixa nas projeções financeiras** por dependerem de variáveis externas não presentes no código (cac real, conversão comercial, negociação B2B).
 
----
-
-## 9. DECLARAÇÃO DE LIMITAÇÕES E CONFIANÇA
-
-- **Nível de Confiança da Avaliação:** **92%**
-- **Justificativa:** 100% dos 156 arquivos e mais de 38.000 linhas de código e documentação do projeto foram examinados minuciosamente. As estimativas financeiras baseiam-se em dados de mercado de 2024–2026 para custos de engenharia, concorrência e transações de microSaaS. Os 8% restantes dependem de variáveis não presentes nos arquivos (existência de contatos comerciais, intenções de compra verbais ou parcerias externas que o desenvolvedor tenha conduzido fora do repositório).
-
+### Perguntas Decisivas em Aberto para Fechar a Avaliação Comercial:
+1. Já existe algum estabelecimento usando o sistema em produção (mesmo em beta gratuito) ou alguma negociação comercial em andamento?
+2. Qual é o foco principal desejado agora: colocar 3–5 comércios locais para validar receita mensal (**SaaS**) ou usar o projeto como vitrine/portfólio sênior / venda de código?

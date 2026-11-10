@@ -1,102 +1,65 @@
-# FASE 8 — MATRIZ CONSOLIDADA DE FALHAS
+# FASE 8 — MATRIZ CONSOLIDADA DE FALHAS (ATUALIZADA PÓS-FASE G)
 **Projeto:** Estoque.OS  
-**Data:** 08/11/2026  
-**Nível:** MEDIUM  
-**Status do Mapeamento:** Em andamento (Fase 8 de 8)
+**Data da Atualização:** 10/11/2026  
+**Branch Auditada:** `feature/multitenant`  
+**Observação Metodológica:** Todos os status abaixo refletem inspeção direta nos arquivos atuais e execução de `npm --prefix backend test` (`multitenant_audit.test.mjs` — 6/6) + `vite build` + `eslint .`.  
 
 ---
 
-## 1. VISÃO GERAL DA MATRIZ
+## 1. LEGENDA DE STATUS
 
-Esta matriz consolida a auditoria completa de segurança, integridade, escalabilidade e qualidade do código do **Estoque.OS**, cobrindo rigorosamente o catálogo de verificação obrigatório definido na **Seção 6 do PROMPT_MASTER_UNIFICADO.md**.
-
-### Legenda de Status
-- `ENCONTRADO / ABERTO`: Falha verificada no código-fonte ou banco de dados, aguardando execução do plano de implementação.
-- `PARCIAL`: Mecanismo existe mas possui brechas ou exceções identificadas.
-- `NÃO ENCONTRADO`: Classe de falha não verificada (com indicação do local inspecionado onde o controle está adequado).
-- `NÃO VERIFICÁVEL`: Dependente de infraestrutura de nuvem externa ou permissões fora do repositório local.
+- `CORRIGIDO / TESTADO`: Corrigido no código-fonte e validado por execução/teste automatizado real.
+- `CORRIGIDO / VERIFICADO`: Corrigido/verificado por leitura direta de código e compilação/lint.
+- `PARCIAL / ABERTO`: Mitigado parcialmente, mas com limitação conhecida e documentada.
+- `ENCONTRADO / ABERTO`: Falha ou ausência estrutural ainda pendente no código atual.
 
 ---
 
-## 2. AUDITORIA DAS FALHAS BÁSICAS (B1 A B11)
+## 2. AUDITORIA DAS FALHAS BÁSICAS (`B1` A `B11`)
 
-| Código | Descrição da Falha | Status Atual | Evidência / Localização no Código | Impacto / Severidade |
+| Código | Descrição da Falha | Status Atual | Evidência / Localização Atual no Código | Severidade Residual |
 |---|---|---|---|---|
-| **B1** | Segredos e credenciais em logs, código, repositório ou respostas de erro | `NÃO ENCONTRADO` | Inspecionado `.env.example`, `server.js` e `.gitignore`. Credenciais reais do Neon e Cloudinary estão isoladas no arquivo `.env` local (ignorado pelo git). Respostas de erro tratadas no `errorHandler.js` não expõem senhas. | Baixa (Controlado) |
-| **B2** | Escalada de privilégio por *mass assignment* (papel aceito do cliente em rotas públicas ou privadas) | `PARCIAL / ABERTO` | Inspecionado [`authService.js#L73-L84`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/authService.js#L73-L84). No registro (`POST /auth/register`), o papel é fixado como `OPERADOR` (`papel: 'OPERADOR'`). Porém, no `updateUser` em [`userService.js#L78`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/userService.js#L78), se um payload contiver `papel`, a alteração é aceita sem validação se o papel alvo é válido (`OPERADOR`, `GERENTE`, `ADMIN`). | Média |
-| **B3** | Autorização ausente, só no frontend ou inconsistente com a UI (IDOR) | `CORRIGIDO / TESTADO` | Conectado método `deleteUser` real na interface [`Usuarios.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Usuarios.jsx) e na API do frontend [`users.api.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/users.api.js), eliminando modal fake de simulação. | Baixa (Resolvido) |
-| **B4** | Validação e sanitização de entrada ausentes ou fracas (tipos, limites, tamanho de upload) | `PARCIAL / ABERTO` | Inspecionado [`productService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productService.js) e [`upload.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/middlewares/upload.js). O Multer limita arquivos a 5MB e filtra MIME types. Porém, strings como `nome` e `motivo` não possuem limites máximos de caracteres no Prisma schema (tipo `String` mapeado para `text` ilimitado no PostgreSQL). | Média |
-| **B5** | Erros fora do tratamento central; vazamento de stack trace; códigos HTTP inadequados | `NÃO ENCONTRADO` | Inspecionado [`backend/src/middlewares/errorHandler.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/middlewares/errorHandler.js). O middleware central intercepta erros do Prisma (`P2002`, `P2025`, etc.) e oculta o stack trace em ambiente de produção (`process.env.NODE_ENV === 'production'`). | Baixa (Adequado) |
-| **B6** | Exclusão/atualização que viola integridade referencial e retorna 500; ON DELETE indefinido | `CORRIGIDO / TESTADO` | A exclusão de usuários e fornecedores valida previamente vínculos no banco (`_count.movimentos > 0` e `_count.produtos > 0`), retornando erro 400 explicativo amigável antes de disparar exceção de integridade referencial. | Baixa (Resolvido) |
-| **B7** | Autoexclusão, remoção do último administrador ou rebaixamento do último administrador | `CORRIGIDO / TESTADO` | Implementada guarda determinística em [`userService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/userService.js) em `updateUser` e `deleteUser`. Se `adminCount <= 1`, rebaixamentos ou exclusões são bloqueados com erro 400. Validado em teste automatizado. | Baixa (Resolvido) |
-| **B8** | Frontend que quebra com estado nulo (sem guarda de rota, sem loading/erro/vazio) | `NÃO ENCONTRADO` | Inspecionado [`frontend/src/routes/`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/routes/) e páginas. O roteamento utiliza `PrivateRoute.jsx` com verificação de autenticação e papel (`allowedRoles`), e as páginas implementam componentes de spinner e tabelas com mensagem de "Nenhum registro encontrado". | Baixa (Adequado) |
-| **B9** | Chamadas HTTP espalhadas, fora de um cliente único (headers e erros duplicados) | `CORRIGIDO / TESTADO` | Adicionado interceptor global de resposta em [`apiClient.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/apiClient.js) para captura de HTTP 401 e redirecionamento limpo para login; removido arquivo mock legado `dados.js`. | Baixa (Resolvido) |
-| **B10** | Listagens sem paginação ou com `limit` ilimitado | `PARCIAL / ABERTO` | Inspecionado [`movementService.js#L14`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/movementService.js#L14). Se a requisição enviar `limit=all` ou valores abusivos como `limit=100000`, o backend acata sem impor um teto rígido (`MAX_PAGE_SIZE`), permitindo consumo abusivo de RAM. | Média |
-| **B11** | Senhas sem hash adequado, tokens sem expiração, CORS aberto demais, falta de headers | `PARCIAL / ABERTO` | Inspecionado [`app.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/app.js) e `authService.js`. O hash usa `bcrypt` com custo 10 e JWT com expiração de 7 dias (adequado). Porém, `helmet()` não está configurado e o CORS em desenvolvimento aceita origens genéricas sem lista estrita de domínios. | Média |
+| **B1** | Segredos em logs, código ou respostas | `CONTROLADO (PÓS-CLEANUP)` | `backend/.env` devidamente ignorado no Git (verificado com `git status --ignored`); [`errorHandler.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/errorHandler.js) retorna apenas `{ error: message }`. Logs de token removidos de `EditarItem.jsx`. *(Recomendação contínua: rotacionar senhas que já transitaram fora do repo).* | Baixa |
+| **B2** | Escalada de privilégio por *mass assignment* | `CORRIGIDO / TESTADO` | `authService.registerStoreAndAdmin` cria nova `Empresa` + fundador `ADMIN` intencionalmente; `userController.updateMe` lança `403` se não-`ADMIN` tentar enviar `role`; `userService.createUser`/`updateUser` validam whitelist `["ADMIN", "GERENTE", "OPERADOR"]`. | Resolvida |
+| **B3** | Autorização ausente, só no frontend ou IDOR | `CORRIGIDO / TESTADO` | Multi-Tenancy (`empresaId`) isola 100% das queries (`404` em acesso cruzado); `OPERADOR` isolado no backend (`GET /movements` força `req.user.id`, `/users/names` e `/movements/user-stats` exigem `ADMIN|GERENTE`, `sales-report` aplica `scope: 'user'`); UI real conectada ao `DELETE`. | Resolvida |
+| **B4** | Validação de entrada e limites de texto | `PARCIAL / ABERTO` | Multer limita uploads (5MB imagem / 2MB planilha até 5.000 linhas) e `validationMiddleware.js` valida obrigatórios, e-mail e números `>= 0`. Porém `schema.prisma` mantém campos `String` (`text` sem teto de tamanho) e não exige complexidade mínima de senha no cadastro. | Média |
+| **B5** | Tratamento centralizado de erros | `CORRIGIDO / VERIFICADO` | [`backend/src/utils/errorHandler.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/errorHandler.js) captura `AppError` e erros gerais enviando `{ error: message }` sem expor `stack` na resposta HTTP. *(Obs.: erros não previstos do Prisma caem como 500 se não interceptados no service).* | Baixa |
+| **B6** | Deleção com violação de FK / erro 500 | `CORRIGIDO / TESTADO` | `userService`, `productService`, `categoryService` e `supplierService` verificam vínculos e executam **Soft Delete automático** (`ativo = false`, `softDeleted: true`), mantendo integridade histórica. | Resolvida |
+| **B7** | Autoexclusão ou lockout do último `ADMIN` | `CORRIGIDO / TESTADO` | [`userService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/userService.js) bloqueia autoexclusão, auto-inativação e remoção/inativação/rebaixamento do último `ADMIN` ativo da loja. | Resolvida |
+| **B8** | Frontend quebrando com estado nulo / sem rotas protegidas | `CORRIGIDO / VERIFICADO` | `Sidebar.jsx` protegido contra usuário nulo; `routes.jsx` valida autenticação e `allowedRoles` por rota (incluindo exclusividade `ADMIN` em `/usuarios`); feedback de loading/vazio presente nas telas. | Resolvida |
+| **B9** | Chamadas HTTP espalhadas fora do cliente único | `PARCIAL / MELHORADO` | `apiClient.js` centraliza JSON, `FormData`, download de Blob e interceptor 401. *(Obs.: `EditarItem.jsx` e `LoginForm.jsx` ainda contêm `fetch` direto para formulários/seleção de loja, embora padronizados com `VITE_API_BASE_URL`).* | Baixa |
+| **B10** | Listagens sem paginação ou `limit=all` ilimitado | `PARCIAL / ABERTO` | `GET /products` e `GET /users` paginam até 100 por página. Porém `GET /movements` aceita `limit=all` (usado nos gráficos do Dashboard/Movimentações) e `GET /categories` / `GET /suppliers` não paginam. | Média |
+| **B11** | Headers de segurança, JWT e armazenamento de token | `PARCIAL / ABERTO` | `helmet({ crossOriginResourcePolicy: "cross-origin" })` e `cors({ origin: FRONTEND_URL })` **ESTÃO ATIVOS** em [`index.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L39-L48); Bcrypt usa custo 10 e JWT expira em `8h`. **Lacuna real:** token JWT permanece em `localStorage` no navegador (vulnerável se houver XSS), sem migração para cookie `HttpOnly`. | Média |
 
 ---
 
-## 3. AUDITORIA DAS FALHAS INTERMEDIÁRIAS (I1 A I11)
+## 3. AUDITORIA DAS FALHAS INTERMEDIÁRIAS (`I1` A `I11`)
 
-| Código | Descrição da Falha | Status Atual | Evidência / Localização no Código | Impacto / Severidade |
+| Código | Descrição da Falha | Status Atual | Evidência / Localização Atual no Código | Severidade Residual |
 |---|---|---|---|---|
-| **I1** | Condição de corrida / *lost update* em saldos e estoques | `CORRIGIDO / TESTADO` | Implementado bloqueio de linha pessimista `FOR UPDATE` no PostgreSQL em [`productService.js#adjustProductQuantity`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productService.js) dentro de `prisma.$transaction`. Serialização garantida sob concorrência. Validado em teste. | Baixa (Resolvido) |
-| **I2** | Operações multi-passo sem transação (estado parcial) | `CORRIGIDO / TESTADO` | A operação de ajuste e gravação de histórico foi unificada em transação interativa com isolamento e validação atômica em [`productService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productService.js). | Baixa (Resolvido) |
-| **I3** | N+1 consultas ao banco | `CORRIGIDO / TESTADO` | Eliminado o loop de consultas paralelas com $1+2N$ queries em [`movementController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/movementController.js). A agregação agora é feita via query SQL relacional única com `JOIN` em [`movementService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/movementService.js). Validado em teste. | Baixa (Resolvido) |
-| **I4** | Agregação, soma e contagem feitas em memória no Node.js | `CORRIGIDO / TESTADO` | Substituído o triplo `include` com múltiplos loops `forEach` em [`supplierController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/supplierController.js) por agregação SQL nativa com `LEFT JOIN` em [`supplierService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/supplierService.js). Desacoplamento completo do controller. | Baixa (Resolvido) |
-| **I5** | Consulta sem projeção (trazendo colunas e relações desnecessárias) | `PARCIAL / ABERTO` | Inspecionado [`productService.js#getProducts`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productService.js#L21). A listagem traz campos e relacionamentos inteiros sem cláusula `select` enxuta para telas que exigem apenas colunas básicas. | Baixa |
-| **I6** | Índices ausentes para filtros/ordenações ou índices redundantes | `CORRIGIDO / TESTADO` | Criados índices compostos no PostgreSQL Neon: `Movimento_produtoId_data_idx` (btree em `produtoId, data`) e `Produto_categoriaId_quantidade_idx` (btree em `categoriaId, quantidade`), acelerando ordenações e filtros de estoque baixo. | Baixa (Resolvido) |
-| **I7** | Dinheiro ou quantidade fracionária em ponto flutuante (Float) | `CORRIGIDO / TESTADO` | Coluna `preco` alterada no PostgreSQL Neon para `numeric(10, 2)` via Prisma Schema (`Decimal @db.Decimal(10, 2)`). Eliminadas anomalias e dízimas de ponto flutuante IEEE 754 em cálculos contábeis e de patrimônio. | Baixa (Resolvido) |
-| **I8** | Verificações "checar e depois agir" (TOCTOU) sem proteção no banco | `CORRIGIDO / TESTADO` | A verificação de saldo agora é feita após o lock exclusivo `FOR UPDATE` da linha no banco, garantindo que o saldo verificado não seja alterado por nenhuma outra thread antes do update. | Baixa (Resolvido) |
-| **I9** | Ausência de idempotência em operações repetíveis (duplo clique) | `CORRIGIDO / TESTADO` | Implementado suporte a cabeçalho `Idempotency-Key` com cache e trava debounce automática de 1.2s contra cliques múltiplos em [`productService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productService.js). Testado com sucesso. | Baixa (Resolvido) |
-| **I10** | Ausência de rate limiting em rotas de cadastro ou recuperação | `CORRIGIDO / TESTADO` | Implementado limitador rigoroso `registerLimiter` (máximo de 10 cadastros por IP por hora) em [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js). Proteção contra DoS e bots. | Baixa (Resolvido) |
-| **I11** | Testes automatizados ausentes nas regras críticas de negócio | `ENCONTRADO / ABERTO` | Inspecionado [`backend/package.json`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/package.json). O projeto possui **0% de cobertura de testes**, sem nenhuma ferramenta instalada (`vitest`, `jest`, `supertest`). | Alta |
+| **I1** | Condição de corrida / *lost update* | `CORRIGIDO / TESTADO` | Lock pessimista `SELECT ... FOR UPDATE WHERE id AND "empresaId"` em `productService.adjustProductQuantity` dentro de `prisma.$transaction`. | Resolvida |
+| **I2** | Operações multi-passo sem transação | `CORRIGIDO / TESTADO` | Criação de Loja+Admin (`authService`), ajuste de estoque (`productService`) e importação de planilhas (`productSpreadsheetService`) encapsulados em `prisma.$transaction`. | Resolvida |
+| **I3** | N+1 consultas ao banco | `CORRIGIDO / TESTADO` | `movementService.getUserStatsAggregated` consolidado em query SQL nativa única com `JOIN` e filtro `u."empresaId"`. | Resolvida |
+| **I4** | Agregação em memória RAM no Node.js | `CORRIGIDO / MELHORADO` | `/suppliers/stats` e `/products/stats` calculam agregados direto no PostgreSQL. *(Apenas `StockFlowChart` no frontend ainda pede `movements?limit=all`).* | Baixa |
+| **I5** | Consulta sem projeção | `PARCIAL / ABERTO` | `listProductsPaginated` ainda traz relações completas `categoria` e `fornecedor`; `Categoria` e `Fornecedor` não têm `createdAt`/`updatedAt`. | Baixa |
+| **I6** | Índices ausentes ou redundantes | `CORRIGIDO / MELHORADO` | Índices compostos multi-tenant criados (`[empresaId, ativo]`, `[empresaId, categoriaId, quantidade]`, `[empresaId, produtoId, data]`). *(2 índices menores redundantes em `Empresa.slug` e `Usuario[empresaId,email]` junto de `@unique`)*. | Baixa |
+| **I7** | Preço em ponto flutuante (`Float`) | `CORRIGIDO / TESTADO` | `Produto.preco` migrado para `Decimal @db.Decimal(10, 2)` (`numeric(10, 2)` no PostgreSQL). | Resolvida |
+| **I8** | TOCTOU sem lock no banco | `CORRIGIDO / TESTADO` | Validação de produto ativo e saldo disponível ocorre após `FOR UPDATE`. | Resolvida |
+| **I9** | Ausência de idempotência | `CORRIGIDO / TESTADO` | `Idempotency-Key` com namespace do tenant (`${empresaId}:${key}`) e debounce 1.2s em `productService.js`. | Resolvida |
+| **I10** | Falta de rate limiting no cadastro | `CORRIGIDO / TESTADO` | `registerLimiter` (10 req/h) e `loginLimiter` (15 req/15m) ativos em [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js#L11-L32). | Resolvida |
+| **I11** | Ausência de testes automatizados e CI/CD | `PARCIAL / MELHORADO` | Criada suíte oficial [`backend/tests/multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) (`npm --prefix backend test` — **6/6 baterias E2E aprovadas**). Ainda **faltam** testes unitários isolados, testes automatizados de **frontend** (Vitest/Playwright) e pipeline **CI/CD**. | Média |
 
 ---
 
-## 4. AUDITORIA DAS FALHAS AVANÇADAS (A1 A A8)
+## 4. AUDITORIA DAS FALHAS AVANÇADAS (`A1` A `A8`)
 
-| Código | Descrição da Falha | Status Atual | Evidência / Localização no Código | Impacto / Severidade |
+| Código | Descrição da Falha | Status Atual | Evidência / Localização Atual no Código | Severidade Residual |
 |---|---|---|---|---|
-| **A1** | Dados muito lidos e pouco alterados sem cache e sem estratégia de invalidação | `CORRIGIDO / TESTADO` | Implementada camada de cache em memória com TTL de 60s em [`authMiddleware.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/middlewares/authMiddleware.js) e TTL de 30s em [`userController.js#getUserNames`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js). Invalidação atômica em updates/deletes via `invalidateUserCache`. Latência reduzida de 1341ms para 3.22ms. | Baixa (Resolvido) |
-| **A2** | Trabalho pesado ou lento dentro do request que deveria ser assíncrono | `ENCONTRADO / ABERTO` | Inspecionado [`productService.js#L48`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productService.js#L48) e [`cloudinary.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/cloudinary.js). O upload da foto do produto para o Cloudinary nos EUA ocorre de forma síncrona dentro da requisição HTTP, bloqueando o socket por vários segundos. | Alta |
-| **A3** | Integrações externas sem timeout, retry com backoff ou circuit breaker | `CORRIGIDO / TESTADO` | Implementado timeout estrito de 10 segundos com `Promise.race` em [`cloudinaryConfig.js#uploadToCloudinary`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/config/cloudinaryConfig.js), com expurgo garantido de arquivos temporários do disco no bloco `finally`. Validado em teste. | Baixa (Resolvido) |
-| **A4** | Conexões de banco sem pooling/limite; consultas lentas sem monitoramento | `ENCONTRADO / ABERTO` | Inspecionado `backend/.env`. O Prisma conecta diretamente na porta 5432 do Neon sem utilizar a string de pool PgBouncer (porta 6543), arriscando esgotar slots de conexão sob 100 usuários simultâneos. | Alta |
-| **A5** | Estado em memória do processo que impede escalar horizontalmente | `PARCIAL / ABERTO` | Inspecionado `rateLimiter.js`. O contador de requisições do rate limit reside na memória do processo Express. Ao executar em cluster PM2 ou múltiplos containers, cada processo tem seu próprio contador isolado. | Média |
-| **A6** | Ausência de observabilidade: logs não estruturados e sem Correlation ID | `CORRIGIDO / TESTADO` | Implementada geração de UUID e injeção do cabeçalho `X-Request-Id` em [`requestLogger.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/middlewares/requestLogger.js). Logs HTTP estruturados via Pino contendo requestId, method, path, status, durationMs e user. | Baixa (Resolvido) |
-| **A7** | Sem health checks, graceful shutdown ou plano de contingência | `CORRIGIDO / TESTADO` | Implementado encerramento gracioso (*Graceful Shutdown*) em [`index.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js) capturando `SIGTERM` e `SIGINT`, fechando o servidor HTTP e desconectando o Prisma Client com timeout de contingência. | Baixa (Resolvido) |
-| **A8** | Entrada de tráfego sem proxy/TLS/compressão e sem balanceamento | `ENCONTRADO / ABERTO` | Inspecionado arquitetura de execução. O servidor atende HTTP puro diretamente na porta 5000 do Node.js sem Nginx na frente, sem compressão gzip de JSONs e sem balanceador de carga. | Alta |
-
----
-
-## 5. RESUMO CONSOLIDADO POR SEVERIDADE
-
-```
-+-------------------------------------------------------------------------------+
-| CRÍTICA (2 falhas):                                                           |
-| - I1 (Lost Update / Race Condition no Saldo de Estoque)                       |
-| - I3 (N+1 Queries em Estatísticas de Usuário - Pico de 3.12s)                 |
-+-------------------------------------------------------------------------------+
-| ALTA (9 falhas):                                                              |
-| - B6 (Erro 500 em deleção de usuário com movimentações)                       |
-| - B7 (Brecha de lockout/rebaixamento do último Administrador)                 |
-| - I4 (Agregação de fornecedores em memória na RAM do Node)                    |
-| - I7 (Preço do produto em Float ao invés de Decimal)                          |
-| - I8 (TOCTOU sem lock pessimista no banco)                                    |
-| - I9 (Ausência de chave de idempotência contra duplo clique)                  |
-| - I10 (Ausência de rate limiting no registro de novas contas)                 |
-| - I11 (Ausência de testes automatizados - 0% de cobertura)                    |
-| - A2 (Upload síncrono bloqueante no Cloudinary durante o request)             |
-| - A4 (Conexão direta sem PgBouncer em banco serverless)                       |
-| - A8 (Ausência de proxy reverso Nginx e compressão)                           |
-+-------------------------------------------------------------------------------+
-| MÉDIA (9 falhas):                                                             |
-| - B2, B3, B4, B9, B10, B11, I6, A1, A3, A5, A6, A7                           |
-+-------------------------------------------------------------------------------+
-| BAIXA / CONTROLADO (2 itens):                                                 |
-| - B1 (Credenciais isoladas em .env), B5 (Tratamento centralizado de erros)    |
-+-------------------------------------------------------------------------------+
-```
-
-Todas as falhas catalogadas como `ABERTO` possuem seu plano de resolução detalhado nos relatórios [`08_melhorias_por_componente.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/08_melhorias_por_componente.md) e [`10_plano_consolidado_de_implementacao.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/10_plano_consolidado_de_implementacao.md).
-
+| **A1** | Falta de cache e estratégia de invalidação | `CORRIGIDO / TESTADO` | `userCache` (60s) em `authMiddleware.js` e `namesCacheByTenant` (30s) em `userController.js`, com invalidação imediata em `update/toggleStatus/delete` (validado no Teste 5 -> 403 imediato). | Baixa (single-node) |
+| **A2** | Trabalho lento síncrono no HTTP request | `ENCONTRADO / ABERTO` | Upload de fotos para Cloudinary em `createProduct`/`updateProduct`/`createUser`/`updateUser` ainda ocorre de forma síncrona durante o request HTTP. | Média |
+| **A3** | Integração externa sem timeout | `CORRIGIDO / TESTADO` | `uploadToCloudinary` possui `Promise.race` com timeout rígido de **10s** e limpeza de arquivo temporário no `finally`. | Resolvida |
+| **A4** | Pooling de conexão Neon em produção | `DEPENDE DE ENV` | Suporta string pooler PgBouncer na variável `DATABASE_URL`; exige confirmação de uso da URL `-pooler` nas variáveis do servidor de produção (Render). | Média |
+| **A5** | Estado em memória impedindo escala horizontal | `PARCIAL / ABERTO` | `userCache`, `namesCacheByTenant`, `idempotencyStore`, `recentOperations` e `rate-limit` residem em RAM local do processo Node.js (exigirá Redis para múltiplas instâncias). Há também 1 declaração morta `loginLimiter` em [`index.js#L60`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L60). | Média |
+| **A6** | Logs estruturados e Correlation ID | `CORRIGIDO / TESTADO` | `Pino` JSON logger + UUID `X-Request-Id` ativos em `requestLogger.js`. *(Ainda sem APM/Sentry externo)*. | Resolvida |
+| **A7** | Health checks e Graceful Shutdown | `CORRIGIDO / TESTADO` | Rotas `/`, `/test-db` e rotina `shutdown('SIGTERM'/'SIGINT')` desconectando HTTP + Prisma com fallback de 10s em `index.js`. | Resolvida |
+| **A8** | Proxy reverso, Docker e automação de deploy | `PARCIAL / PAAS` | Deploy atual delega TLS/CDN/Compressão para **Vercel + Render**; repositório ainda não possui `Dockerfile` / `docker-compose.yml` para portabilidade imediata on-premise. | Baixa/Média |

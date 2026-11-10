@@ -1,221 +1,130 @@
 # FASE 6 — ARQUITETURA E SYSTEM DESIGN
 **Projeto:** Estoque.OS  
-**Data:** 08/11/2026  
-**Nível:** MEDIUM (Foco: Concorrência e Escalabilidade para +100 Usuários Simultâneos)  
-**Status do Mapeamento:** Em andamento (Fase 6 de 8)
+**Data da Atualização:** 10/11/2026  
+**Branch:** `feature/multitenant`  
+**Nível:** MEDIUM (Arquitetura Multi-Tenant Atual vs. Alvo para +100 Usuários Simultâneos)  
 
 ---
 
 ## 1. VISÃO COMPARATIVA GERAL
 
-Esta seção contrasta a arquitetura técnica implementada atualmente no **Estoque.OS** com a arquitetura alvo recomendada para suportar com estabilidade operacional e baixa latência **mais de 100 usuários corporativos simultâneos**.
+Esta análise contrasta a arquitetura efetivamente implementada no **Estoque.OS** após as **Fases A–G** (Multi-Tenant, Soft Delete, Cache In-Memory, Lock `FOR UPDATE`, `ExcelJS` nativo, Pino + `X-Request-Id` e Graceful Shutdown) com a arquitetura alvo recomendada para escalar horizontalmente acima de **100 operadores simultâneos** em múltiplas instâncias.
 
-### 1.1 Diagrama da Arquitetura Atual
+### 1.1 Diagrama da Arquitetura Atual (Pós-Fase G)
 
 ```mermaid
 flowchart TD
-    subgraph Clients["Navegadores Clientes (+100 Usuários)"]
-        UserA["Operador A (Desktop)"]
-        UserB["Gerente B (Mobile)"]
-        UserC["Admin C (Desktop)"]
+    subgraph Clients["Navegadores Clientes (Multi-Estabelecimento)"]
+        Store1["Lojas Tenant 1..N\n(ADMIN, GERENTE, OPERADOR)"]
     end
 
-    subgraph Frontend["Frontend SPA"]
-        ViteDev["Vite Dev Server (Porta 5173)\nou Build Estático SPA"]
+    subgraph Frontend["Frontend SPA (Vercel / Vite)"]
+        ReactApp["React 19 + Tailwind + Zustand\nExportação PDF A4 + Modais Portal"]
     end
 
-    subgraph BackendProcess["Backend Monolítico (Processo Único Node.js)"]
-        Express["Express App (Porta 5000)\nSingle Thread / Event Loop"]
-        PrismaClient["Prisma Client v5.22.0\nSem Pooling Externo"]
+    subgraph BackendProcess["Backend Monólito Modular (Render / Node.js ESM)"]
+        Express["Express 5.1.0 + Helmet + CORS\nRate Limit em Memória (/auth)"]
+        CacheMem["Caches & Travas em Memória (Map)\n- Auth User Cache (60s)\n- Nomes Dropdown por Tenant (30s)\n- Idempotency & Debounce (10m / 1.2s)"]
+        Spreadsheet["Motor Nativo ExcelJS\nImport/Export .xlsx e .csv (Multer 2MB)"]
+        PrismaClient["Prisma ORM v6.16.2\nTransações + SELECT FOR UPDATE"]
     end
 
-    subgraph CloudServices["Serviços em Nuvem"]
-        NeonDB["PostgreSQL Neon Serverless\nAWS us-east-1 (Virgínia)\nLatência Base: ~141ms"]
-        Cloudinary["Cloudinary API (EUA)\nUpload Síncrono no Request"]
+    subgraph CloudServices["Serviços Externos em Nuvem"]
+        NeonDB["PostgreSQL Neon (AWS us-east-1)\nMulti-Tenant via empresaId + Decimal(10,2)"]
+        Cloudinary["Cloudinary CDN\nestoque-os/lojas/<slug>/produtos|usuarios\nTimeout rígido 10s + unlink local"]
     end
 
-    UserA & UserB & UserC -->|HTTP Direto sem Proxy/TLS| Express
-    UserA & UserB & UserC -->|Carrega Assets| ViteDev
-    Express -->|Bloqueia Request no Upload| Cloudinary
-    Express -->|Conexões Diretas TCP/SSL WAN| NeonDB
+    Store1 -->|HTTPS + JWT| ReactApp
+    ReactApp -->|REST JSON + Multipart| Express
+    Express --> CacheMem
+    Express --> Spreadsheet
+    Express --> PrismaClient
+    Express -->|Upload Síncrono c/ Timeout 10s| Cloudinary
+    PrismaClient -->|TCP/SSL WAN| NeonDB
 ```
 
-#### Características da Arquitetura Atual
-- **Processo Único:** Backend executado em processo Node.js único sem gerenciador de cluster (PM2 ou Docker).
-- **Sem Proxy Reverso:** Requisições chegam diretamente ao Express; ausência de terminação TLS nativa, compactação Gzip/Brotli e rate limiting em nível de rede.
-- **Acoplamento Síncrono com Terceiros:** Upload de fotos de produtos aguarda a resposta do Cloudinary (EUA) antes de responder ao navegador do usuário.
-- **Latência WAN em Cada Operação:** Cada verificação de usuário ou consulta simples sofre a penalidade de ~141ms de ida e volta para a AWS us-east-1.
-- **Estado Parcial em Memória:** Rate limiter armazenado em memória local do processo (incompatível com múltiplas instâncias).
+#### Características Reais da Arquitetura Atual
+- **Monólito Modular Multi-Tenant Stateless em Banco:** Isolamento estrito em banco único via `empresaId` e índices compostos em todos os modelos (`Empresa`, `Usuario`, `Categoria`, `Fornecedor`, `Produto`, `Movimento`), além de subpastas isoladas no Cloudinary.
+- **Processamento Nativo em Node.js:** Importação/exportação de planilhas executada diretamente pelo serviço [`productSpreadsheetService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productSpreadsheetService.js) via `ExcelJS`, evitando o custo operacional de manter um microservidor/worker Python separado no Render.
+- **Observabilidade e Encerramento:** Logger estruturado `Pino` com `X-Request-Id` (`requestLogger.js`), cabeçalhos `Helmet`, e `Graceful Shutdown` (`SIGTERM`/`SIGINT`) em [`index.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L93-L116).
+- **Ponto de Atenção para Escala Horizontal:** `userCache` (`authMiddleware.js`), `namesCacheByTenant` (`userController.js`), `idempotencyStore`/`recentOperations` (`productService.js`) e `express-rate-limit` residem na **memória RAM local (`Map`)** de uma única instância Node.js. Escalar para 2+ containers quebraria a consistência desses caches e limitadores sem Redis.
 
 ---
 
-### 1.2 Diagrama da Arquitetura Recomendada
+### 1.2 Diagrama da Arquitetura Recomendada (+100 Usuários Simultâneos / Multi-Instância)
 
 ```mermaid
 flowchart TD
-    subgraph Edge["Camada Edge / Segurança"]
-        CF["Cloudflare / DNS & CDN\nProteção DDoS, WAF, TLS 1.3\nCache de Assets Estáticos"]
+    subgraph Edge["Camada Edge / CDN"]
+        CF["Vercel Edge / Cloudflare\nWAF, TLS 1.3, Compressão Brotli"]
     end
 
-    subgraph ReverseProxy["Camada de Entrada (Proxy Reverso)"]
-        Nginx["Nginx / Traefik\nTerminação SSL, Compressão Brotli\nRate Limiting por IP/Rota\nLoad Balancer Round-Robin"]
+    subgraph ApplicationCluster["Cluster de Aplicação (2+ Containers Node.js)"]
+        Node1["Instância Node 1"]
+        Node2["Instância Node 2"]
     end
 
-    subgraph ApplicationCluster["Cluster de Aplicação (Stateless)"]
-        Node1["Instância Node.js 1 (PM2 / Container)"]
-        Node2["Instância Node.js 2 (PM2 / Container)"]
-    end
-
-    subgraph CacheAndQueue["Camada de Cache e Mensageria"]
-        Redis[("Redis 7.x In-Memory Store\n- Cache de Sessão/Usuários (TTL 60s)\n- Fila de Uploads (BullMQ)\n- Chaves de Idempotência")]
+    subgraph CacheAndQueue["Cache Compartilhado e Filas"]
+        Redis[("Redis 7.x / Upstash\n- Auth & Tenant Cache\n- Rate Limit Distribuído\n- Idempotência + BullMQ Jobs")]
     end
 
     subgraph Workers["Workers Assíncronos"]
-        Worker1["Worker de Uploads e Relatórios\nProcessamento em Background"]
+        Worker1["Worker Mídia & Lotes >5k linhas"]
     end
 
-    subgraph DatabaseLayer["Camada de Banco de Dados"]
-        PgBouncer["PgBouncer / Neon Connection Pooling\nPool de Conexões Transacionais"]
-        PostgresPrimary[("PostgreSQL Neon Primary\nÍndices Otimizados + Coluna Decimal")]
+    subgraph DatabaseLayer["Persistência Gerenciada"]
+        PgBouncer["Neon PgBouncer Pooler"]
+        PostgresPrimary[("PostgreSQL Neon\nMulti-Tenant + Índices + Decimal")]
     end
 
-    subgraph External["Serviços Externos"]
-        CloudinaryCloud["Cloudinary CDN\nProcessamento Assíncrono"]
+    subgraph External["Armazenamento de Mídia"]
+        CloudinaryCloud["Cloudinary CDN"]
     end
 
-    CF --> Nginx
-    Nginx --> Node1 & Node2
+    CF --> Node1 & Node2
     Node1 & Node2 <--> Redis
-    Node1 & Node2 -->|Jobs| Redis
     Redis --> Worker1
     Worker1 --> CloudinaryCloud
-    Worker1 --> PgBouncer
     Node1 & Node2 --> PgBouncer
+    Worker1 --> PgBouncer
     PgBouncer --> PostgresPrimary
 ```
 
 ---
 
-## 2. AVALIAÇÃO SISTEMÁTICA POR COMPONENTE
+## 2. AVALIAÇÃO SISTEMÁTICA POR COMPONENTE (PÓS-FASE G)
 
-Classificação de cada tecnologia conforme as regras da Seção 8 do Prompt Master: **necessário agora**, **prematuro** ou **inadequado**, explicitando o problema concreto que o justifica.
+### 2.1 Proxy Reverso, TLS e Compressão
+- **Estado Atual:** Em produção na dupla **Vercel (Frontend)** + **Render (Backend)**, o roteamento Edge HTTPS é provido pela plataforma; porém, em self-hosting cru no VPS, ainda não há `Nginx`/`Dockerfile` versionado no repositório nem middleware `compression()` no Express.
+- **Classificação:** **NECESSÁRIO EM SELF-HOSTING / CONFIGURÁVEL VIA PLATAFORMA EM PAAS**.
 
----
+### 2.2 Clusterização e Escala Horizontal
+- **Estado Atual:** Instância única Node.js (compatível com plano Starter do Render).
+- **Classificação:** **NECESSÁRIO AO PASSAR DE 1 INSTÂNCIA (PM2 / Réplicas) + PREMATURO usar Kubernetes hoje**.
 
-### 2.1 Proxy Reverso e Terminação TLS (Nginx / Caddy / Cloudflare)
-- **Classificação:** **NECESSÁRIO AGORA**.
-- **Problema Concreto que Justifica:**
-  Atualmente, o Express atende requisições HTTP diretamente na porta 5000. Em um ambiente corporativo com mais de 100 usuários simultâneos:
-  1. A terminação de TLS (HTTPS) na camada do Node.js consome ciclos valiosos do Event Loop que deveriam estar processando lógica de negócios.
-  2. Arquivos estáticos do frontend (JS bundles, CSS, fontes) consom sockets do Node.js.
-  3. Ausência de compressão Gzip/Brotli faz com que respostas JSON paginadas trafeguem sem compressão, aumentando a latência percebida em redes corporativas ou móveis.
-- **Implementação Recomendada:**
-  Utilizar Nginx como reverse proxy na frente da aplicação, terminando SSL (Let's Encrypt), compactando respostas com Gzip/Brotli e roteando `/api/` para o cluster Node.js e `/` para o build estático do Vite.
+### 2.3 Camada de Cache Compartilhado (Redis / Upstash)
+- **O que já existe:** Cache `Map()` em RAM em `authMiddleware.js` (60s, invalidado no `PATCH/PUT/DELETE`) e `userController.js` (30s por `empresaId`), mitigando o roundtrip WAN (~141ms) para AWS `us-east-1`.
+- **O que falta para cluster (>1 instância):** Migrar `userCache`, `namesCacheByTenant`, `idempotencyStore` e `rate-limit` para Redis compartilhado. Sem isso, uma segunda instância não enxerga a invalidação nem o bloqueio de idempotência da primeira.
 
----
+### 2.4 Fila de Tarefas Assíncronas (BullMQ)
+- **Estado Atual:** Uploads de imagens até 5MB ocorrem no ciclo HTTP síncrono com proteção de timeout de 10s (`Promise.race` + `fs.unlink`), e planilhas `.xlsx`/`.csv` operam em memória até 2MB / 5.000 linhas dentro do request.
+- **Classificação:** **OPCIONAL HOJE (para <= 5.000 linhas e imagens < 5MB)**; **NECESSÁRIO com BullMQ** caso lojas passem a importar catálogos > 10.000 SKUs ou múltiplas imagens em lote.
 
-### 2.2 Balanceamento de Carga e Escala Horizontal (Múltiplas Instâncias)
-- **Classificação:** **NECESSÁRIO AGORA (Cluster Local via PM2)** / **PREMATURO (Kubernetes / Multi-Região)**.
-- **Problema Concreto que Justifica:**
-  O Node.js executa em thread única de JavaScript. Se uma requisição pesada (como o cálculo atual de estatísticas com N+1 ou upload síncrono) ocupar a CPU por 200ms, todas as outras 99 requisições de outros operadores ficam enfileiradas esperando o Event Loop desocupar.
-- **Implementação Recomendada:**
-  - **Agora:** Executar a aplicação via **PM2 em modo cluster** (`pm2 start src/server.js -i max`), distribuindo requisições entre todos os núcleos de CPU disponíveis no servidor (ex: 2 a 4 instâncias locais).
-  - **Prematuro:** Orquestração complexa com Kubernetes (K8s) ou arquitetura distribuída multi-nuvem seria um desperdício de tempo e complexidade para o porte atual do projeto.
+### 2.5 Pooling de Conexões (Neon PgBouncer)
+- **Classificação:** **OBRIGATÓRIO EM PRODUÇÃO.** Sempre usar a URL `-pooler` do Neon (`?sslmode=require&pgbouncer=true` quando aplicável) para impedir esgotamento de conexões sob picos de concorrência. *(Regra de manutenção: URL direta sem pooler apenas para executar `prisma migrate deploy` se necessário).*
 
----
+### 2.6 Separação em Microsserviços (ou Worker Python Externo)
+- **Classificação:** **INADEQUADO.**
+- **Justificativa Concreta:** O código soma **101 arquivos de código em `src/`** (30 backend + 71 frontend), **6 tabelas relacionais** e **42 rotas HTTP**. Introduzir microsserviços ou um servidor Python separado apenas para planilhas adicionaria latência de rede, custo de segundo container e falhas distribuídas sem ganho técnico frente ao motor nativo já entregue em [`productSpreadsheetService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productSpreadsheetService.js).
 
-### 2.3 Camada de Cache em Memória Compartilhado (Redis)
-- **Classificação:** **NECESSÁRIO AGORA (Para Sessão, Auth e Dropdowns)**.
-- **Problema Concreto que Justifica:**
-  O banco de dados do projeto está hospedado no Neon na região AWS us-east-1 (Virgínia), enquanto os usuários e o servidor local estão no Brasil.
-  A latência base de roundtrip é de **141.2ms**. Toda requisição autenticada dispara uma consulta `findUnique` para validar o usuário no `authMiddleware.js`.
-  Com 100 usuários simultâneos clicando na interface, são centenas de roundtrips de 141ms desperdiçados apenas para checar se o token pertence a um usuário ativo.
-- **Implementação Recomendada:**
-  1. Armazenar o cache de sessão/usuário ativo no Redis com TTL de 60 segundos.
-  2. Cachear a lista leve de usuários para dropdowns (`GET /users/names`) e catálogo estático de categorias.
-  3. Armazenar chaves de idempotência de movimentações para evitar clique duplo.
+### 2.7 Observabilidade e Telemetria
+- **Estado Atual:** **Pino Logger JSON** + **Correlation ID (`X-Request-Id`)** + rotas `/test-db` e `/` **JÁ IMPLEMENTADOS**.
+- **Lacuna Remanescente:** Falta apenas coleta externa de exceções/APM (ex.: Sentry) e endpoint `/metrics` caso migre para VPS dedicada.
 
 ---
 
-### 2.4 Fila de Tarefas Assíncronas (BullMQ / RabbitMQ)
-- **Classificação:** **NECESSÁRIO AGORA (BullMQ para Uploads de Imagem)** / **INADEQUADO (RabbitMQ / Kafka)**.
-- **Problema Concreto que Justifica:**
-  Ao cadastrar ou editar um produto com imagem, o método `uploadToCloudinary` executa `fs.writeFile`, faz o upload HTTPS multipart para o Cloudinary nos EUA, aguarda a resposta e só então grava no banco e responde ao usuário.
-  Se a conexão internacional oscilar, o request fica preso por 3 a 8 segundos segurando o socket HTTP do navegador.
-- **Implementação Recomendada:**
-  - **Agora:** BullMQ integrado ao Redis para enfileirar tarefas secundárias (upload de imagens em alta resolução, logs de auditoria em arquivo, relatórios PDF pesados). A API responde `202 Accepted` ou salva uma imagem de preview imediata e delega o processamento pesado ao worker.
-  - **Inadequado:** Apache Kafka ou RabbitMQ dedicado adicionariam complexidade de infraestrutura desproporcional para o escopo.
+## 3. RESUMO EXECUTIVO DE CAPACIDADE
 
----
-
-### 2.5 Gerenciamento e Pooling de Conexões com o Banco (PgBouncer)
-- **Classificação:** **NECESSÁRIO AGORA**.
-- **Problema Concreto que Justifica:**
-  O PostgreSQL aloca um processo do sistema operacional para cada conexão aberta. No plano Neon Serverless, o limite de conexões simultâneas é restrito. Se 100 usuários dispararem requisições simultâneas em um cluster de instâncias Node.js com o Prisma (que por padrão abre um pool local por processo), o banco esgota conexões com o erro `FATAL: remaining connection slots are reserved for non-replication superuser connections`.
-- **Implementação Recomendada:**
-  Utilizar a URL com pooling do Neon (porta `6543` com PgBouncer integrado nativamente pelo provedor), configurando a connection string no `.env` para usar pooling de transação (`pgbouncer=true&connection_limit=10`).
-
----
-
-### 2.6 Separação em Microsserviços
-- **Classificação:** **INADEQUADO**.
-- **Problema Concreto que Justifica:**
-  O sistema possui 86 arquivos, 4 tabelas relacionais (`usuarios`, `produtos`, `fornecedores`, `movimentos`) e 34 endpoints.
-  Separar um sistema deste porte em microsserviços (ex: "Serviço de Usuários", "Serviço de Estoque", "Serviço de Relatórios") introduziria latência de rede entre serviços, complexidade de transações distribuídas (Saga), inconsistência eventual e custos desnecessários de infraestrutura, piorando o desempenho.
-- **Veredito:** Manter o **Monólito Modular Stateless**, aplicando separação clara de pastas e camadas de serviço (Controller, Service, Repository/Prisma).
-
----
-
-### 2.7 Observabilidade e Telemetria (Pino + OpenTelemetry / Prometheus)
-- **Classificação:** **NECESSÁRIO AGORA (Pino + Métricas Express)** / **PREMATURO (OpenTelemetry Distribuído Completo)**.
-- **Problema Concreto que Justifica:**
-  Atualmente, o projeto utiliza `console.log` e `console.error` sem padrão estruturado JSON, sem Correlation ID (Request ID) e sem registro do tempo de execução de cada rota. Quando ocorre um erro sob concorrência, é impossível rastrear qual usuário ou requisição gerou o erro nos logs.
-- **Implementação Recomendada:**
-  - Substituir o Morgan/Console pelo **Pino** (logger JSON de altíssima performance para Node.js).
-  - Middleware de Request ID injetando cabeçalho `X-Request-Id` em cada requisição.
-  - Endpoint seguro de métricas `GET /metrics` expondo métricas Prometheus de latência e consumo de memória.
-
----
-
-## 3. DIMENSIONAMENTO DE RECURSOS PARA +100 USUÁRIOS SIMULTÂNEOS
-
-### 3.1 Projeção de Throughput e Conexões
-- **Base de Usuários:** 100 usuários simultâneos ativos operando no sistema.
-- **Taxa de Requisições por Usuário:** Estima-se 1 requisição a cada 3 a 5 segundos por operador ativo durante pico de operação.
-- **Throughput do Sistema no Pico:**
-  $$\text{Throughput} \approx \frac{100 \text{ usuários}}{3 \text{ segundos}} \approx 33,3 \text{ RPS (Requisições por Segundo)}$$
-- **Capacidade Atual com N+1:**
-  A rota `GET /movements/user-stats` levou `2.23s` sob concorrência 10. Em 33 RPS, o backend atual colapsaria com timeout e esgotamento do pool.
-- **Capacidade com Otimizações Propostas (Fase 5):**
-  Com a rota agregada em SQL nativo (~180ms p50) e cache de autenticação em memória, cada requisição consome menos de 2ms de CPU no Node.js. Um cluster de 2 a 4 workers Node.js suporta com folga mais de **150 a 200 RPS**, atendendo perfeitamente a meta de +100 usuários.
-
-### 3.2 Dimensionamento de Servidor Recomendado
-| Componente | Especificação Mínima Recomendada | Finalidade |
-|---|---|---|
-| **CPU** | 2 vCPUs (Intel Xeon / AMD EPYC) | 2 workers Node.js (PM2 cluster) + 1 worker Nginx |
-| **Memória RAM** | 2 GB a 4 GB RAM | 300 MB por worker Node + 100 MB Redis + Sistema Operacional |
-| **Armazenamento** | 20 GB SSD NVMe | Sistema, logs estruturados e builds estáticos |
-| **Banco de Dados** | Neon PostgreSQL (Plano Launch ou Pro) | Pool PgBouncer ativo (limite de 20-50 conexões transacionais) |
-| **Cache/Filas** | Redis Server 7.x (local ou Upstash) | Cache de usuários, rate limiting distribuído e BullMQ |
-
----
-
-## 4. RESUMO EXECUTIVO DO SYSTEM DESIGN
-
-```
-+-----------------------------------------------------------------------------------+
-|                           FLUXO DE UMA REQUISIÇÃO OTIMIZADA                       |
-+-----------------------------------------------------------------------------------+
-| 1. Cliente (HTTPS) -> Cloudflare Edge (CDN / WAF / Proteção DDoS)                 |
-| 2. Cloudflare -> Nginx Reverse Proxy (Gzip, Terminação SSL, Rate Limit)           |
-| 3. Nginx -> PM2 Node.js Cluster (Balanceamento Round-Robin entre CPU Cores)       |
-| 4. Node.js -> Middleware de Auth checa Token no Redis Cache (Economia de 141ms)   |
-| 5. Node.js -> Service executa Transação Atômica com Lock no PostgreSQL Neon       |
-| 6. PgBouncer -> Pool reutilizado sem esgotamento de conexões                      |
-| 7. Se houver upload de mídia -> Dispara Job no BullMQ e responde imediatamente     |
-| 8. Resposta compactada devolvida ao Cliente em < 200ms                            |
-+-----------------------------------------------------------------------------------+
-```
-
-A arquitetura recomendada não introduz ferramentas supérfluas ou microsserviços desnecessários, focando cirurgicamente na resolução da latência WAN e no controle de concorrência necessários para 100 usuários simultâneos.
-
+- **Concorrência de Escrita em Estoque:** Protegida por `SELECT ... FOR UPDATE` + `empresaId` e trava de idempotência/debounce.
+- **Gargalos Eliminados (Fases B–G):** N+1 em `/movements/user-stats`, N+1/triplo include em `/suppliers/stats`, cálculos financeiros em `Float`, falta de isolamento multi-tenant e ausência de Soft Delete.
+- **Principal Limite Técnico Atual:** Gráficos de histórico no frontend (`StockFlowChart.jsx` e `Movimentacoes.jsx`) ainda consomem `GET /movements?limit=all` carregando todo o histórico do tenant na abertura da tela — ponto prioritário para otimização por agregação SQL no futuro quando uma loja ultrapassar milhares de movimentações.

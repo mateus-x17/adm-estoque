@@ -3,138 +3,156 @@
 ## 1. Visão Geral
 
 ### 1.1 O que é o sistema
-O **Sistema de Gerenciamento de Estoque** é uma aplicação web fullstack desenvolvida para o controle abrangente de mercadorias, categorias, fornecedores e controle de usuários. O sistema permite acompanhar o fluxo de entrada e saída de produtos em tempo real, garantindo rastreabilidade por operador e fornecendo métricas estratégicas para a tomada de decisão.
+O **Estoque.OS** é uma aplicação web fullstack **Multi-Tenant** desenvolvida para o controle de mercadorias, categorias, fornecedores, movimentações e equipes por estabelecimento. Cada loja opera em um ambiente lógico e de mídia totalmente isolado (`Empresa` / `empresaId`), mantendo histórico imutável de movimentações, inativação lógica (Soft Delete), onboarding em lote por planilhas (`.xlsx`/`.csv`) e relatórios executivos em PDF.
 
 ### 1.2 Funcionalidades
-- **Gestão de Autenticação e Controle de Acesso (RBAC):** Sistema de login seguro via JWT com permissões baseadas em papéis (`ADMIN`, `GERENTE`, `OPERADOR`).
-- **Gestão de Produtos:** Cadastro, edição, exclusão e listagem paginada de produtos com upload de fotos, filtros por nome/categoria e ordenação de preços.
-- **Gestão de Categorias:** Organização de itens por categorias personalizadas.
-- **Gestão de Fornecedores:** Controle de informações de contato e vínculo direto com produtos.
-- **Movimentações de Estoque:** Registro de entradas e saídas de produtos com atualização automática de saldo, vinculação do operador e adição de observações.
-- **Gestão de Usuários:** Administração de contas e atribuição de funções por administradores.
-- **Upload de Mídias em Nuvem (Cloudinary):** Integração com o Cloudinary para hospedagem de imagens de produtos e avatares de usuários com URLs seguras HTTPS (mantendo gravação local histórica).
-- **Dashboard e Relatórios Estatísticos:** Métricas sobre valor total em estoque, número de produtos e alerta automático de estoque baixo (< 10 unidades).
-- **Customização Visual:** Suporte nativo a temas Claro e Escuro (Dark/Light mode).
+- **Arquitetura Multi-Tenant por Estabelecimento (`Empresa`):** Abertura pública de novas lojas com criação automática do usuário fundador `ADMIN`, suporte a e-mail único por loja (seletor automático de loja no login para usuários em múltiplas unidades) e subpastas isoladas no Cloudinary (`estoque-os/lojas/<slug>/...`).
+- **Controle de Acesso e Isolamento RBAC (`ADMIN`, `GERENTE`, `OPERADOR`):**
+  - `ADMIN`: Acesso irrestrito à loja (inclui colaboradores, cargos e exclusão/inativação definitiva).
+  - `GERENTE`: Visão gerencial completa da loja, catálogo, importação/exportação em lote e métricas de vendedores (sem acesso à gestão de contas ou deleções).
+  - `OPERADOR`: Acesso operacional restrito ao próprio trabalho — visualiza catálogo ativo e movimenta estoque (`REPOSICAO`/`VENDA`), mas visualiza **exclusivamente suas próprias vendas e movimentações** (sem acesso a métricas ou histórico de colegas).
+- **Inativação Lógica (Soft Delete `ativo: Boolean`):** Colaboradores, produtos, categorias e fornecedores com histórico preservado podem ser inativados/reativados sem quebrar auditoria nem integridade referencial, bloqueando login e novas vendas em registros inativos.
+- **Importação & Exportação Nativa de Planilhas (`.xlsx` / `.csv`):** Motor em Node.js via `exceljs` com download de planilha modelo, pré-validação detalhada linha a linha (`preview`), criação automática de categorias/fornecedores ausentes e gravação transacional atômica por estabelecimento (`commit`).
+- **Gestão de Produtos, Categorias e Fornecedores:** CRUD completo com upload de fotos para CDN, filtro por status (`Ativos`, `Inativos`, `Todos`) e busca paginada.
+- **Movimentações Transacionais de Estoque:** Entradas (`REPOSICAO`) e saídas (`VENDA`) com lock pessimista `FOR UPDATE` no PostgreSQL, `Idempotency-Key`, trava anti-duplo clique e livro-razão rastreável.
+- **Dashboard e Relatórios Executivos em PDF:** Gráficos interativos (`Recharts`), métricas patrimoniais em `Decimal(10, 2)` e exportação nativa em PDF A4 (`1m`, `6m`, `1y`) respeitando o escopo da loja (`ADMIN`/`GERENTE`) ou individual (`OPERADOR`).
+- **Customização Visual & Mobile:** Tema Claro/Escuro e interface Glassmorphism adaptada para celulares e desktops.
 
 ### 1.3 Valor entregue
-O sistema elimina o controle manual de produtos, reduz erros de inventário e previne rupturas de estoque através de alertas inteligentes. Além disso, proporciona transparência operacional ao registrar qual usuário executou cada entrada ou saída de mercadorias.
+O sistema elimina planilhas soltas e erros manuais de inventário, previne rupturas com alertas de baixo estoque, acelera o cadastro inicial de centenas de itens via `.xlsx`/`.csv` e garante sigilo operacional entre vendedores e isolamento estrito entre lojas distintas na mesma infraestrutura em nuvem.
 
 ---
 
 ## 2. Requisitos do Sistema
 
 ### 2.1 Requisitos Funcionais
-1. O sistema deve permitir autenticação de usuários via e-mail e senha com geração de token JWT.
-2. O sistema deve permitir a criação, leitura, atualização e exclusão (CRUD) de produtos.
-3. O sistema deve permitir o upload e gerenciamento de fotos de produtos e avatares de usuários no Cloudinary.
-4. O sistema deve permitir a categorização de produtos e associação com fornecedores.
-5. O sistema deve registrar cada movimentação de estoque (`ENTRADA` ou `SAIDA`), atualizando automaticamente a quantidade do produto e vinculando o usuário responsável.
-6. O sistema deve proibir movimentações de saída que resultem em saldo de estoque negativo.
-7. O sistema deve permitir que administradores gerenciem outros usuários e alterem suas funções.
-8. O sistema deve permitir que o usuário logado visualize e edite suas informações de perfil na página de configurações.
-9. O sistema deve exibir estatísticas consolidadas contendo a contagem total de produtos, alerta de baixo estoque e o valor financeiro acumulado.
+1. O sistema deve permitir o cadastro público de novos estabelecimentos (criando `Empresa` + usuário `ADMIN`) e login via e-mail/senha com suporte a seletor multi-loja quando o mesmo e-mail existir em mais de um estabelecimento.
+2. O sistema deve isolar 100% das consultas, gravações, exclusões, planilhas e pastas no Cloudinary (`estoque-os/lojas/<slug>/...`) pelo `empresaId` do estabelecimento autenticado.
+3. O sistema deve permitir a criação, leitura, atualização, inativação lógica (`ativo: Boolean`) e exclusão de produtos, categorias, fornecedores e colaboradores.
+4. O sistema deve permitir importação em lote de produtos via `.xlsx`/`.csv` com modo de pré-visualização (`preview`) e gravação transacional atômica (`commit`), além da exportação do catálogo nos mesmos formatos e download de planilha modelo.
+5. O sistema deve registrar movimentações de estoque (`REPOSICAO` ou `VENDA`, aceitando aliases `ENTRADA`/`SAIDA`), atualizando saldo com lock `FOR UPDATE` e bloqueando movimentações de saldo negativo ou em itens inativos.
+6. O sistema deve restringir o perfil `OPERADOR` para visualizar exclusivamente suas próprias movimentações e seu próprio relatório de vendas, vedando acesso a métricas e dropdowns de outros vendedores.
+7. O sistema deve exibir estatísticas consolidadas da loja (ou individuais para operadores) e permitir exportar relatórios de vendas em PDF (`1m`, `6m`, `1y`).
+8. O sistema deve permitir ao usuário autenticado consultar e atualizar seu próprio perfil em `/configuracoes`, vedando auto-escalação de privilégio.
 
 ### 2.2 Requisitos Não Funcionais
-- **Segurança:** Autenticação baseada em JSON Web Token (JWT), senhas criptografadas com BcryptJS, cabeçalhos de segurança com Helmet, proteção CORS e rate-limiting na rota de autenticação.
-- **Performance:** Respostas REST céleres com Express.js, paginação otimizada no banco PostgreSQL via Prisma ORM e consultas indexadas.
-- **Escalabilidade:** Arquitetura desacoplada entre backend (API) e frontend (SPA), com armazenamento externo de mídia em CDN (Cloudinary).
-- **Usabilidade:** Interface moderna e responsiva construída em React + Vite + Tailwind CSS, com suporte a tema escuro/claro.
+- **Segurança:** Autenticação via JWT (`expiresIn: '8h'`), hash BcryptJS (custo 10), Helmet, CORS configurável, Rate Limit no login (15 req/15min) e cadastro (10 req/h), e bloqueio imediato via invalidação de cache quando usuário ou loja são inativados.
+- **Performance:** Cache em memória por usuário (TTL 60s) e dropdown por loja (TTL 30s), consultas SQL agregadas sem N+1 e índices compostos indexados por `empresaId`.
+- **Integridade Financeira:** Preços tipados como `Decimal(10, 2)` (`numeric(10,2)` no PostgreSQL) sem imprecisão de ponto flutuante binário.
+- **Usabilidade:** SPA em React 19 + Vite + Tailwind CSS com tema escuro/claro e responsividade mobile aprimorada.
 
 ---
 
 ## 3. Regras de Negócio
-- Apenas usuários com função `ADMIN` têm permissão para criar, editar, listar e excluir outros usuários do sistema.
-- Apenas usuários `ADMIN` e `GERENTE` têm permissão para cadastrar, editar e remover produtos, categorias e fornecedores.
-- Usuários com função `OPERADOR` possuem acesso de leitura aos cadastros e permissão para realizar movimentações de estoque (`ENTRADA` e `SAIDA`).
-- Uma movimentação do tipo `SAIDA` não pode ser realizada se a quantidade solicitada for superior ao saldo atual disponível do produto.
-- A quantidade de produtos em estoque não pode assumir valores negativos.
-- Cada usuário no sistema deve possuir um e-mail único.
-- O nome de cada categoria de produtos deve ser único.
-- Usuários não-administradores não podem alterar seu próprio papel (role) através da tela de configurações.
+- **Isolamento de Tenant:** Todas as operações autenticadas validam pertencimento ao `empresaId` extraído do JWT verificado no banco. Cross-tenant resulta em `404 Not Found`.
+- **RBAC por Nível:**
+  - Apenas `ADMIN` cria, edita, lista, inativa ou exclui colaboradores (`/users`) e aciona rotas `DELETE` de produtos, categorias e fornecedores.
+  - `ADMIN` e `GERENTE` gerenciam catálogo, categorias, fornecedores, planilhas (`.xlsx`/`.csv`), inativam/reativam itens (`PATCH /:id/status`) e consultam métricas de vendedores (`/movements/user-stats` e `/users/names`).
+  - `OPERADOR` movimenta estoque (`POST /products/:id/adjust`) e consulta apenas suas próprias vendas/movimentações.
+- **Unicidade Escopada por Loja:** O e-mail do usuário e o nome da categoria devem ser únicos **dentro do mesmo estabelecimento** (`@@unique([empresaId, email])` e `@@unique([empresaId, nome])`), permitindo que a mesma pessoa trabalhe em lojas distintas.
+- **Soft Delete Automático & Reversível:** Caso usuário, produto, categoria ou fornecedor possua histórico/vínculo no banco, `DELETE /:id` aplica automaticamente `ativo = false` preservando o histórico; contas/lojas inativas recebem `403` na autenticação e produtos inativos não podem ser movimentados (`400`).
+- **Integridade & Governança:** Saldo não pode ficar negativo; um usuário não pode excluir/inativar a própria conta nem rebaixar/excluir o último `ADMIN` ativo da loja; não-administradores não podem alterar o próprio cargo em `/users/me`.
 
 ---
 
 ## 4. Arquitetura de Software
 
 ### 4.1 Visão Geral
-O projeto é estruturado como uma aplicação desacoplada (Cliente-Servidor API RESTful):
-- **Backend:** Node.js com Express e padrão em camadas (Routes -> Middlewares -> Controllers -> Services -> Prisma ORM -> PostgreSQL / Cloudinary).
-- **Frontend:** Single Page Application (SPA) em React com Vite, Tailwind CSS para estilização e Zustand para gerenciamento de estado global.
+O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Tenant:
+- **Backend:** Node.js (ESM) com Express 5 em camadas (`Routes -> Middlewares -> Controllers -> Services -> Prisma ORM -> PostgreSQL / Cloudinary`), incluindo motor nativo de planilhas com `ExcelJS`.
+- **Frontend:** Single Page Application (SPA) em React 19 + Vite, Tailwind CSS e Zustand (`useAuthStore`, `useUserStore`, `useThemeStore`).
 
 ### 4.2 Stack Tecnológica
-- **Frontend:** React 19, Vite, Tailwind CSS, Zustand, React Router DOM, Lucide React, React Icons, Framer Motion, Recharts.
-- **Backend:** Node.js (ES Modules), Express.js 5, Prisma ORM, Cloudinary SDK, Multer, Pino Logger, BcryptJS, JsonWebToken, Helmet, Express Rate Limit.
-- **Banco de Dados:** PostgreSQL (hospedado na nuvem via Neon Database).
-- **Armazenamento de Mídias:** Cloudinary (upload via Cloudinary API com fallback/histórico local no diretório `uploads/`).
+- **Frontend:** React 19, Vite 7, Tailwind CSS 3, Zustand, React Router DOM 7, Lucide React, React Icons, Framer Motion, Recharts.
+- **Backend:** Node.js (ES Modules), Express.js 5, Prisma ORM 6 (`v6.16.2`), ExcelJS (`^4.4.0`), Cloudinary SDK (`^2.10.0`), Multer 2, Pino Logger, BcryptJS, JsonWebToken, Helmet, Express Rate Limit.
+- **Banco de Dados:** PostgreSQL (Neon Database com Pooler PgBouncer).
+- **Armazenamento de Mídias:** Cloudinary CDN em estrutura hierárquica por estabelecimento (`estoque-os/lojas/<slug>/produtos` e `.../usuarios`).
 
 ---
 
 ## 5. Design da API
 
-### 5.1 Endpoints Principais da Aplicação
+### 5.1 Inventário Completo de Rotas da Aplicação (42 Rotas HTTP + Estáticos)
 
-#### Sistema e Diagnóstico
+#### Sistema e Diagnóstico (2 rotas públicas)
 - `GET /` - Healthcheck básico de disponibilidade da API.
-- `GET /test-db` - Diagnóstico de conectividade e latência direta com o banco PostgreSQL Neon.
+- `GET /test-db` - Diagnóstico de conectividade direta com o banco PostgreSQL Neon.
 
-#### Autenticação
-- `POST /auth/login` - Autenticação com credenciais e emissão de token JWT (Rate Limit: 10 req/15min).
-- `POST /auth/register` - Criação de novas contas com perfil inicial OPERADOR (Rate Limit: 10 cadastros/hora/IP).
+#### Autenticação & Onboarding de Lojas (`/auth` - 2 rotas públicas)
+- `POST /auth/login` - Autenticação multi-tenant (Rate Limit: 15 req/15min por IP). Aceita `lojaSlug` opcional; se o par e-mail/senha corresponder a múltiplas lojas ativas, retorna `{ requiresStoreSelection: true, stores }`. Bloqueia conta ou loja inativa com `403`.
+- `POST /auth/register` - Cadastro público de novo estabelecimento (`Empresa`) e criação automática do fundador como `ADMIN` (Rate Limit: 10 req/h por IP).
 
-#### Usuários & Governança
-- `GET /users/me` - Consulta aos dados do perfil do usuário autenticado.
-- `PUT /users/me` - Atualização de nome, e-mail e avatar do usuário logado.
-- `GET /users/names` - Rota leve otimizada com cache em memória (TTL 30s) para abastecer dropdowns e filtros (Acessível por todos os perfis).
-- `GET /users` - Listagem paginada e filtrada de usuários (Requer `ADMIN`).
-- `POST /users` - Criação administrativa de novo usuário com foto (Requer `ADMIN`).
-- `GET /users/:id` - Consulta aos detalhes de um usuário específico (Requer `ADMIN`).
-- `PUT /users/:id` - Atualização cadastral e alteração de função com proteção contra lockout do último admin (Requer `ADMIN`).
-- `DELETE /users/:id` - Exclusão de usuário com proteção de integridade referencial histórica (Requer `ADMIN`).
+#### Usuários & Governança (`/users` - 9 rotas protegidas)
+- `GET /users/me` - Consulta aos dados e estabelecimento do perfil autenticado (`Todos`).
+- `PUT /users/me` - Atualização de nome, e-mail e avatar na pasta do tenant (`Todos`; alteração de `role` bloqueada para não-ADMIN).
+- `GET /users/names` - Lista em cache por loja (TTL 30s) de colaboradores ativos para filtros (`ADMIN`, `GERENTE` — bloqueado para `OPERADOR`).
+- `GET /users` - Listagem paginada por loja com filtros `search`, `role` e `status` (`ativos`/`inativos`/`todos`) (`ADMIN`).
+- `POST /users` - Criação administrativa de colaborador vinculado à loja com foto no Cloudinary (`ADMIN`).
+- `GET /users/:id` - Consulta aos detalhes de colaborador da mesma loja (`ADMIN`).
+- `PUT /users/:id` - Atualização cadastral/cargo com proteção contra rebaixamento do último `ADMIN` ativo (`ADMIN`).
+- `PATCH /users/:id/status` - Inativação lógica (`ativo: false`) ou reativação (`ADMIN`; invalida cache imediatamente e bloqueia auto-inativação ou último `ADMIN`).
+- `DELETE /users/:id` - Exclusão definitiva se não houver histórico ou fallback automático para Soft Delete se houver movimentações (`ADMIN`).
 
-#### Produtos & Estoque
-- `GET /products` - Listagem paginada de produtos com filtros de busca e ordenação.
-- `GET /products/count` - Contagem total de produtos cadastrados.
-- `GET /products/stats` - KPIs agregados de estoque (contagem total, itens em baixa e patrimônio total em `Decimal`).
-- `GET /products/:id` - Detalhes de um produto específico.
-- `POST /products` - Cadastro de produto com imagem e categoria (Requer `ADMIN` ou `GERENTE`).
-- `PUT /products/:id` - Atualização de dados cadastrais e foto de produto (Requer `ADMIN` ou `GERENTE`).
-- `DELETE /products/:id` - Exclusão de produto (Requer `ADMIN`).
-- `POST /products/:id/adjust` - **Ajuste de estoque e auditoria:** Transação atômica com lock pessimista (`FOR UPDATE`) no PostgreSQL, suporte a `Idempotency-Key` e debounce anti-duplo clique (`ADMIN`, `GERENTE`, `OPERADOR`).
+#### Produtos, Estoque & Planilhas (`/products` - 12 rotas protegidas)
+- `GET /products` - Listagem paginada por loja com filtros `search`, `sortPrice`, `categoriaId` e `status` (`ativos`, `inativos`, `todos`) (`Todos`).
+- `GET /products/count` - Contagem total de produtos ativos da loja (`Todos`).
+- `GET /products/stats` - KPIs agregados de estoque ativo (contagem, baixo estoque `< 10` e patrimônio `SUM(preco * quantidade)` em `Decimal`) (`Todos`).
+- `GET /products/export` - Exportação do catálogo da loja em `.xlsx` ou `.csv` com UTF-8 BOM (`ADMIN`, `GERENTE`).
+- `GET /products/import/template` - Download da planilha modelo oficial `.xlsx` ou `.csv` (`ADMIN`, `GERENTE`).
+- `POST /products/import` - Upload via Multer em memória (até 2MB, até 5.000 linhas) para importação em lote nos modos `?mode=preview` ou `?mode=commit` atômico (`ADMIN`, `GERENTE`).
+- `GET /products/:id` - Detalhes de um produto da loja (`Todos`).
+- `POST /products` - Cadastro de produto na loja com upload em `estoque-os/lojas/<slug>/produtos` (`ADMIN`, `GERENTE`).
+- `PUT /products/:id` - Atualização cadastral e substituição/remoção de foto na loja (`ADMIN`, `GERENTE`).
+- `PATCH /products/:id/status` - Inativação lógica ou reativação (`ADMIN`, `GERENTE`).
+- `DELETE /products/:id` - Exclusão física se sem histórico ou Soft Delete automático se houver movimentações (`ADMIN`).
+- `POST /products/:id/adjust` - Movimentação transacional (`REPOSICAO`/`VENDA`, aliases `ENTRADA`/`SAIDA`) com `SELECT ... FOR UPDATE`, bloqueio de produto inativo, `Idempotency-Key` e debounce (`Todos` na loja).
 
-#### Categorias
-- `GET /categories` - Listagem de todas as categorias.
-- `GET /categories/:id` - Detalhes de uma categoria específica.
-- `POST /categories` - Cadastro de nova categoria com nome único (Requer `ADMIN` ou `GERENTE`).
-- `PUT /categories/:id` - Atualização de categoria (Requer `ADMIN` ou `GERENTE`).
-- `DELETE /categories/:id` - Exclusão de categoria com validação de produtos vinculados (Requer `ADMIN` ou `GERENTE`).
+#### Categorias (`/categories` - 6 rotas protegidas)
+- `GET /categories/count` - Contagem de categorias ativas da loja (`Todos`).
+- `GET /categories` - Listagem de categorias da loja com filtro `status` (`ativos`/`inativos`/`todos`) (`Todos`).
+- `POST /categories` - Criação de categoria única por estabelecimento (`ADMIN`, `GERENTE`).
+- `PUT /categories/:id` - Atualização de nome validando unicidade dentro da loja (`ADMIN`, `GERENTE`).
+- `PATCH /categories/:id/status` - Inativação/reativação lógica (`ADMIN`, `GERENTE`).
+- `DELETE /categories/:id` - Exclusão física ou Soft Delete automático se possuir produtos vinculados (`ADMIN`).
 
-#### Fornecedores
-- `GET /suppliers` - Listagem de parceiros comerciais cadastrados.
-- `GET /suppliers/count` - Contagem numérica total de fornecedores.
-- `GET /suppliers/stats` - Métricas agregadas por fornecedor calculadas via SQL nativo direto no PostgreSQL.
-- `GET /suppliers/:id` - Detalhes cadastrais de um fornecedor específico.
-- `POST /suppliers` - Cadastro de novo fornecedor (Requer `ADMIN` ou `GERENTE`).
-- `PUT /suppliers/:id` - Atualização de fornecedor (Requer `ADMIN` ou `GERENTE`).
-- `DELETE /suppliers/:id` - Exclusão de fornecedor com validação prévia de produtos associados (Requer `ADMIN` ou `GERENTE`).
+#### Fornecedores (`/suppliers` - 8 rotas protegidas)
+- `GET /suppliers/stats` - Métricas agregadas de reposições e vendas por fornecedor ativo da loja via SQL `LEFT JOIN` (`Todos`).
+- `GET /suppliers` - Listagem por loja com filtro `status` (`Todos`).
+- `GET /suppliers/count` - Contagem de fornecedores ativos da loja (`Todos`).
+- `GET /suppliers/:id` - Detalhes de um fornecedor da loja (`Todos`).
+- `POST /suppliers` - Cadastro de fornecedor na loja (`ADMIN`, `GERENTE`).
+- `PUT /suppliers/:id` - Atualização de fornecedor da loja (`ADMIN`, `GERENTE`).
+- `PATCH /suppliers/:id/status` - Inativação/reativação lógica (`ADMIN`, `GERENTE`).
+- `DELETE /suppliers/:id` - Exclusão física ou Soft Delete automático se possuir produtos vinculados (`ADMIN`).
 
-#### Movimentações & Auditoria
-- `GET /movements` - Livro-razão histórico paginado com filtros por período, produto, tipo e operador.
-- `GET /movements/user-stats` - Estatísticas agregadas de produtividade por usuário (contagem, volume e valor total de vendas) calculadas em query única com `JOIN`.
-- `GET /movements/sales-report` - Relatório executivo consolidado de vendas com agregação temporal nos horizontes de 1 mês (`1m`), 6 meses (`6m`) e 1 ano (`1y`), retornando totais faturados, volume de peças, ticket médio, produtos líderes e timeline para gráficos vetoriais e exportação direta em PDF.
+#### Movimentações & Relatórios (`/movements` - 3 rotas protegidas)
+- `GET /movements/sales-report` - Relatório consolidado de vendas nos períodos `1m`, `6m` e `1y` para exportação PDF A4 (`ADMIN`/`GERENTE` = escopo `store`; `OPERADOR` = escopo `user` restrito às próprias vendas).
+- `GET /movements/user-stats` - Estatísticas de faturamento e volume por vendedor via query SQL única (`ADMIN`, `GERENTE` — bloqueado para `OPERADOR`).
+- `GET /movements` - Livro-razão paginado da loja (`OPERADOR` recebe estritamente seus próprios registros, ignorando `?usuarioId` forjado).
+
+#### Arquivos Estáticos
+- `USE /uploads` - Exposição de fallbacks locais caso o envio para o Cloudinary não esteja configurado.
 
 ### 5.2 Padrões Utilizados
-- Comunicação via JSON.
-- Status HTTP padronizados (`200 OK`, `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `500 Internal Server Error`).
+- Comunicação via JSON (e `multipart/form-data` / binários `application/vnd.openxmlformats...` / `text/csv`).
+- Status HTTP padronizados (`200`, `201`, `400`, `401`, `403`, `404`, `409`, `429`, `500`).
 - Autenticação via cabeçalho `Authorization: Bearer <token>`.
 
 ---
 
 ## 6. Estrutura do Projeto
 
-### 6.1 Organização de Pastas (Backend)
+### 6.1 Organização de Pastas (Backend & Testes)
 ```
 backend/
 ├── prisma/
+│   ├── migrations/
+│   │   ├── 20250918051748_init/
+│   │   ├── 20251012223132_add_field_imagem_usuario/
+│   │   ├── 20260601063115_upd_tabela_fornecedores/
+│   │   ├── 20261022_alter_enum_reposicao_venda/
+│   │   └── 20261110_multitenant_softdelete/
+│   ├── reset.js
 │   ├── schema.prisma
 │   ├── seed.js
 │   └── seedMovements.js
@@ -168,21 +186,24 @@ backend/
 │   │   ├── categoryService.js
 │   │   ├── movementService.js
 │   │   ├── productService.js
+│   │   ├── productSpreadsheetService.js
 │   │   ├── supplierService.js
 │   │   └── userService.js
 │   ├── utils/
 │   │   ├── errorHandler.js
 │   │   └── sanitizers.js
 │   └── index.js
+├── tests/
+│   └── multitenant_audit.test.mjs
 └── uploads/
     ├── produtos/
     └── usuarios/
 ```
 
 ### 6.2 Padrões Adotados
-- **Separação de Responsabilidades:** Camadas isoladas de rotas, middlewares de autorização, controladores e serviços com regras de negócio.
-- **Tratamento Centralizado de Erros:** Erros tratados por middleware global com mensagens amigáveis e logging via Pino.
-- **Mídias Flexíveis:** Utilitário no frontend e backend garantindo interoperabilidade entre URLs do Cloudinary e uploads locais.
+- **Separação de Responsabilidades:** Rotas -> Middlewares (`auth`, `permit`, `validateRequest`, `multer`) -> Controllers -> Services -> Prisma ORM.
+- **Tratamento Centralizado de Erros:** Classe `AppError` e `errorHandler` com logging estruturado em JSON via Pino e `X-Request-Id`.
+- **Mídias Flexíveis:** Utilitário `getTenantFolder` garantindo subpastas por loja no Cloudinary e helper `formatImageUrl` no frontend.
 
 ---
 
@@ -193,68 +214,58 @@ Siga os passos abaixo para clonar, instalar e rodar o projeto na sua máquina.
 1. Clone o repositório:
    ```bash
    git clone https://github.com/mateus-x17/adm-estoque/
-   ```
-
-2. Acesse a pasta do projeto:
-   ```bash
    cd Estoque.OS
    ```
 
-3. Configure as variáveis de ambiente do Backend:
-   Acesse a pasta `backend` e crie o arquivo `.env`:
-   ```bash
-   cd backend
-   ```
-   Preencha o arquivo `.env` com as configurações necessárias:
+2. Configure as variáveis de ambiente do Backend (`backend/.env`):
    ```env
    PORT=5000
    DATABASE_URL="postgresql://usuario:senha@host:5432/banco?sslmode=require"
-   JWT_SECRET="seu_jwt_secret_super_seguro"
+   JWT_SECRET="seu_jwt_secret_com_pelo_menos_16_caracteres"
    FRONTEND_URL="http://localhost:5173"
 
-   # Cloudinary configuration
+   # Cloudinary configuration (opcional em dev; se configurado, envia para estoque-os/lojas/<slug>/...)
    CLOUDINARY_CLOUD_NAME=seu_cloud_name
    CLOUDINARY_API_KEY=sua_api_key
    CLOUDINARY_API_SECRET=seu_api_secret
    ```
 
-4. Instale as dependências do Backend:
+3. Instale dependências, aplique as migrações e popule as 2 lojas de demonstração:
    ```bash
+   cd backend
    npm install
+   npx prisma generate
+   npx prisma migrate deploy
+   npm run reset:seed
    ```
 
-5. Execute as migrações e popule o banco de dados (se aplicável):
+   **Credenciais geradas pelo Seed Multi-Tenant (Senha padrão: `Password123!`):**
+   - **Loja 1 (`techstock-matriz` — TechStock Matriz):**
+     - Admin: `lucas.admin@techstock.com`
+     - Gerente: `gestao@estoqueos.com` *(compartilhado com a Loja 2 para testar seleção de loja)*
+     - Operadores: `joao.op@techstock.com`, `ana.op@techstock.com`
+     - Inativo (Soft Delete demo): `pedro.ex@techstock.com` *(bloqueado com 403)*
+   - **Loja 2 (`megamoda-express` — MegaModa Express):**
+     - Admin: `camila.admin@megamoda.com`
+     - Gerente: `gestao@estoqueos.com`
+     - Operadores: `rafael.op@megamoda.com`, `juliana.op@megamoda.com`
+
+4. Inicie o servidor Backend e/ou execute a suíte de auditoria:
    ```bash
-   npx prisma db push
-   npm run seed
+   npm run dev
+   # Em outro terminal (para validar a API contra o banco configurado):
+   npm test
    ```
 
-6. Inicie o servidor Backend:
+5. Em outro terminal, configure e inicie o Frontend:
    ```bash
+   cd frontend
+   npm install
+   # Certifique-se de que frontend/.env contenha: VITE_API_BASE_URL=http://localhost:5000
    npm run dev
    ```
 
-7. Em outro terminal, configure e inicie o Frontend:
-   Acesse a pasta `frontend`:
-   ```bash
-   cd ../frontend
-   ```
-
-   Crie o arquivo `.env` na raiz da pasta `frontend` e defina a URL base da API (obrigatória para o cliente HTTP `apiClient` se conectar ao backend):
-   ```env
-   VITE_API_BASE_URL=http://localhost:5000
-   ```
-
-   Instale as dependências e inicie o servidor de desenvolvimento:
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-8. Acesse a aplicação no navegador:
-   ```
-   http://localhost:5173
-   ```
+6. Acesse no navegador: `http://localhost:5173`.
 
 ---
 
@@ -380,7 +391,7 @@ Neste quarto ciclo de engenharia, a prioridade foi a eliminação da latência r
 
 ### 8.6 Ciclo de Amadurecimento: Fase F — Confiabilidade, Observabilidade e Rastreabilidade Integral
 
-Neste ciclo final de engenharia, a aplicação recebeu camadas de observabilidade estruturada corporativa, finalização de encerramento resiliente e alinhamento documental estrito:
+Neste sexto ciclo de engenharia, a aplicação recebeu camadas de observabilidade estruturada corporativa, encerramento resiliente e alinhamento documental:
 
 #### 1. Injeção de Correlation ID (`X-Request-Id`) de Ponta a Ponta
 - **Problema Anterior:** Em cenários de concorrência com múltiplos operadores, os logs eram emitidos sem identificador de correlação único. Quando ocorria um erro ou lentidão, era impossível rastrear nos logs quais etapas pertenciam a uma requisição específica.
@@ -391,12 +402,44 @@ Neste ciclo final de engenharia, a aplicação recebeu camadas de observabilidad
 - **Problema Anterior:** Sinais de encerramento do sistema operacional (`SIGTERM` e `SIGINT` disparados por restarts ou deploys) derrubavam o processo Node.js abruptamente, interrompendo transações em andamento e deixando conexões órfãs no pool do PostgreSQL Neon.
 - **Implementação:** Acoplamento de rotina de encerramento gracioso no `index.js`. O servidor para de receber novas requisições HTTP, aguarda a finalização das operações pendentes e fecha ordenadamente as conexões com o Prisma (`prisma.$disconnect()`), com timeout de contingência de 10s.
 
-#### 3. Sincronização Integral do Catálogo de APIs e Correção Documental
-- **Problema Anterior:** O README documentava apenas 8 rotas, continha rotas inexistentes (`POST /movements` e `GET /movements/:id`) e registrava enums defasados (`ENTRADA`/`SAIDA`).
+#### 3. Sincronização Integral do Catálogo de APIs e Correção Documental (Fase F)
+- Na entrega da Fase F, o catálogo de endpoints foi sincronizado com os 35 endpoints existentes à época, corrigindo o enum canônico para `REPOSICAO`/`VENDA` e oficializando `POST /products/:id/adjust`. *(Expandido posteriormente na Fase G para 42 rotas HTTP reais).*
+
+---
+
+### 8.7 Ciclo de Amadurecimento: Fase G — SaaS Multi-Tenant, Soft Delete, Planilhas (.xlsx/.csv) & Isolamento RBAC
+
+Neste sétimo ciclo estrutural, o **Estoque.OS** evoluiu de uma aplicação single-tenant para uma plataforma SaaS Multi-Tenant completa com preservação histórica, onboarding em lote e sigilo operacional:
+
+#### 1. Arquitetura Multi-Tenant Nativa (`Empresa` + `empresaId`)
+- **Problema Anterior:** Todas as lojas compartilhavam o mesmo namespace de banco e mídia sem chave de estabelecimento, impossibilitando operação SaaS segura.
 - **Implementação:**
-  - O catálogo oficial de endpoints foi atualizado para cobrir todos os **35 endpoints HTTP reais registrados** no backend (incluindo o novo endpoint de agregação executiva e exportação em PDF `GET /movements/sales-report`).
-  - O enum canônico do banco foi documentado como `REPOSICAO` e `VENDA`, registrando que o backend mantém compatibilidade retroativa aceitando `ENTRADA` e `SAIDA` nas requisições.
-  - A rota central de movimentação e livro-razão foi devidamente referenciada como `POST /products/:id/adjust`.
+  - Adicionado model `Empresa` (`nome`, `slug` único, `cnpj`, `telefone`, `ativo`) e chave estrangeira obrigatória `empresaId` com índices compostos em `Usuario`, `Produto`, `Categoria`, `Fornecedor` e `Movimento` (migração `20261110_multitenant_softdelete`).
+  - Unicidade de e-mail e nome de categoria escopada por loja (`@@unique([empresaId, email])` e `@@unique([empresaId, nome])`).
+  - Login inteligente (`POST /auth/login`): aceita `lojaSlug` opcional ou detecta múltiplas lojas ativas devolvendo `requiresStoreSelection: true` para escolha na UI.
+  - Cadastro público (`POST /auth/register`): cria estabelecimento (`Empresa`) e usuário fundador `ADMIN` em transação atômica.
+  - Subpastas isoladas no Cloudinary via `getTenantFolder`: `estoque-os/lojas/<slug>/produtos` e `.../usuarios`.
+
+#### 2. Inativação Lógica / Soft Delete (`ativo: Boolean`)
+- **Problema Anterior:** Colaboradores desligados ou itens descontinuados com histórico de movimentações não podiam ser removidos, travando o fluxo operacional.
+- **Implementação:** Campo `ativo` adicionado a `Usuario`, `Produto`, `Categoria` e `Fornecedor`, com rotas `PATCH /:id/status` e fallback automático para `ativo = false` nas rotas `DELETE /:id` quando houver vínculo histórico. Contas ou lojas inativadas têm o cache invalidado imediatamente e recebem `403`, e produtos inativos são bloqueados em `POST /products/:id/adjust`.
+
+#### 3. Importação e Exportação Nativa de Planilhas (`.xlsx` / `.csv`)
+- **Implementação:** Serviço nativo [`productSpreadsheetService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productSpreadsheetService.js) baseado em `ExcelJS`, evitando worker externo e mantendo custo zero de hospedagem adicional:
+  - Planilha modelo (`.xlsx` e `.csv` UTF-8 BOM) com cabeçalhos e linhas de exemplo (`GET /products/import/template`).
+  - Exportação do catálogo por estabelecimento e status (`GET /products/export`).
+  - Importação em duas etapas via Multer em memória (`<= 2MB`, limite 5.000 linhas): `mode=preview` (valida linhas, detecta novas categorias/fornecedores sem gravar) e `mode=commit` (aborta com HTTP `400` se houver qualquer erro ou grava atomicamente via `prisma.$transaction`).
+
+#### 4. Sigilo de `OPERADOR`, `GERENTE` vs `ADMIN` & Polimento Mobile
+- **Implementação:**
+  - `OPERADOR`: recebe apenas suas próprias movimentações em `GET /movements` (mesmo se tentar forjar `?usuarioId=...`), vê escopo `scope: 'user'` no PDF de vendas e é bloqueado (`403`) em `/users/names`, `/movements/user-stats` e `/users`.
+  - `GERENTE`: visão da loja inteira e gestão de catálogo/fornecedores/planilhas sem acesso a `/users` nem rotas `DELETE`.
+  - `ADMIN`: governança total da loja, exclusões e equipe.
+  - Landing Page atualizada com seção `#multitenant`, modais migrados para `createPortal` e responsividade/espaçamento aprimorados em telas móveis.
+
+#### 5. Validação Automatizada Integral (Backend + Build/Lint Frontend)
+- **Backend Integration Audit Suite:** `npm --prefix backend test` ([`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs)) executado contra API real + PostgreSQL Neon — **6/6 baterias aprovadas** (registro multi-loja, seleção de loja no login e bloqueio de inativo 403, isolamento cross-tenant 404, isolamento de `OPERADOR` e bloqueios de `GERENTE`, Soft Delete + invalidação de cache, importação `.xlsx`/`.csv` com rollback em erro e exportação).
+- **Frontend Build & Lint:** `npm --prefix frontend run build` (`vite build`) e `npm --prefix frontend run lint` (`eslint .`) aprovados com **0 erros e 0 warnings**.
 
 
 
