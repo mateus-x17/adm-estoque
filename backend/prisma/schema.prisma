@@ -52,25 +52,31 @@ model Loja {
 }
 
 model Usuario {
-  id            Int         @id @default(autoincrement())
+  id            Int                 @id @default(autoincrement())
   nome          String
   email         String
   senha         String
-  role          Role        @default(OPERADOR)
+  matricula     String?             @unique
+  telefone      String?
+  situacao      SituacaoFuncionario @default(ATIVO)
+  dataAdmissao  DateTime            @default(now())
+  role          Role                @default(OPERADOR)
   imagem        String?
-  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacao   Organizacao         @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
   organizacaoId Int
-  loja          Loja?       @relation(fields: [lojaId], references: [id], onDelete: SetNull)
+  loja          Loja?               @relation(fields: [lojaId], references: [id], onDelete: SetNull)
   lojaId        Int?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   pedidos       Pedido[]
   movimentos    Movimento[]
 
   @@unique([organizacaoId, email])
   @@index([organizacaoId, email])
   @@index([organizacaoId, role])
+  @@index([organizacaoId, situacao])
   @@index([lojaId])
+  @@index([matricula])
 }
 
 model Categoria {
@@ -151,11 +157,14 @@ model Pedido {
   organizacaoId         Int
   loja                  Loja          @relation(fields: [lojaId], references: [id], onDelete: Cascade)
   lojaId                Int
-  usuario               Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-  usuarioId             Int?
-  vendedorRefId         Int
-  vendedorNomeSnapshot  String
-  vendedorEmailSnapshot String
+  usuario                       Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioId                     Int?
+  vendedorRefId                 Int
+  vendedorNomeSnapshot          String
+  vendedorEmailSnapshot         String
+  vendedorMatriculaSnapshot     String?
+  vendedorDataAdmissaoSnapshot  DateTime?
+  vendedorDataDesligamentoSnapshot DateTime?
   canceladoPorRefId     Int?
   canceladoPorNome      String?
   canceladoEm           DateTime?
@@ -197,11 +206,14 @@ model Movimento {
   estorno               Boolean       @default(false)
   pedido                Pedido?       @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
   pedidoId              Int?
-  usuario               Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-  usuarioId             Int?
-  vendedorRefId         Int
-  vendedorNomeSnapshot  String
-  vendedorEmailSnapshot String
+  usuario                       Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioId                     Int?
+  vendedorRefId                 Int
+  vendedorNomeSnapshot          String
+  vendedorEmailSnapshot         String
+  vendedorMatriculaSnapshot     String?
+  vendedorDataAdmissaoSnapshot  DateTime?
+  vendedorDataDesligamentoSnapshot DateTime?
   organizacao           Organizacao   @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
   organizacaoId         Int
   loja                  Loja          @relation(fields: [lojaId], references: [id], onDelete: Cascade)
@@ -229,4 +241,10 @@ enum MovimentoTipo {
 enum PedidoStatus {
   CONCLUIDO
   CANCELADO
+}
+
+enum SituacaoFuncionario {
+  ATIVO
+  SUSPENSO
+  FERIAS
 }

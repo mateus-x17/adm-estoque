@@ -1,5 +1,6 @@
 import { prisma, Prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
+import { formatMatricula, parseMatriculaSearch } from "../utils/matriculaHelper.js";
 
 // arquivo responsável pelas regras de negócio, lock pessimista multi-item e estorno atômico de Multipedidos
 
@@ -193,6 +194,11 @@ export async function createOrder(payload, requestingUser, storeScope, idempoten
           vendedorRefId: Number(requestingUser.id),
           vendedorNomeSnapshot: requestingUser.nome,
           vendedorEmailSnapshot: requestingUser.email,
+          vendedorMatriculaSnapshot:
+            requestingUser.matricula || formatMatricula(requestingUser.id),
+          vendedorDataAdmissaoSnapshot: requestingUser.dataAdmissao
+            ? new Date(requestingUser.dataAdmissao)
+            : null,
           itens: {
             create: itemsToPersist,
           },
@@ -225,6 +231,11 @@ export async function createOrder(payload, requestingUser, storeScope, idempoten
             vendedorRefId: Number(requestingUser.id),
             vendedorNomeSnapshot: requestingUser.nome,
             vendedorEmailSnapshot: requestingUser.email,
+            vendedorMatriculaSnapshot:
+              requestingUser.matricula || formatMatricula(requestingUser.id),
+            vendedorDataAdmissaoSnapshot: requestingUser.dataAdmissao
+              ? new Date(requestingUser.dataAdmissao)
+              : null,
             organizacaoId: orgId,
             lojaId,
             observacao: `Pedido ${pedido.codigo}${pedido.observacao ? ` — ${pedido.observacao}` : ""}`,
@@ -293,8 +304,9 @@ export async function listOrdersPaginated(filters = {}, scope, requestingUser) {
       ? Number(requestedSellerId)
       : undefined;
 
-  const trimmedSearch = String(search || "").trim();
-  const isNumericSearch = trimmedSearch !== "" && !isNaN(Number(trimmedSearch));
+  const parsedMat = parseMatriculaSearch(search);
+  const trimmedSearch = parsedMat.raw;
+  const isNumericSearch = parsedMat.numericId !== null;
 
   const where = {
     AND: [
@@ -322,6 +334,7 @@ export async function listOrdersPaginated(filters = {}, scope, requestingUser) {
             { recebidoPor: { contains: trimmedSearch, mode: "insensitive" } },
             { vendedorNomeSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
             { vendedorEmailSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
+            { vendedorMatriculaSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
             {
               itens: {
                 some: {
@@ -330,7 +343,7 @@ export async function listOrdersPaginated(filters = {}, scope, requestingUser) {
               },
             },
             ...(isNumericSearch
-              ? [{ id: Number(trimmedSearch) }, { vendedorRefId: Number(trimmedSearch) }]
+              ? [{ id: parsedMat.numericId }, { vendedorRefId: parsedMat.numericId }]
               : []),
           ],
         }

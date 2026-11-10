@@ -4,15 +4,18 @@ import { prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
 import { generateSlug } from "../utils/tenantScope.js";
 import { sanitizeUser } from "../utils/sanitizers.js";
+import { formatMatricula } from "../utils/matriculaHelper.js";
 
 // arquivo responsável pelas regras de autenticação (portais Admin e Loja), abertura de Organizações e emissão de JWT
 
 // função auxiliar para construir payload seguro do token JWT e objeto resumido do usuário
 // 1 - Assina token de 8h carregando id, role, organizacaoId e lojaId (null para ADMIN global da rede)
 function buildSessionPayload(user) {
+  const resolvedMatricula = user.matricula || formatMatricula(user.id);
   const token = jwt.sign(
     {
       id: user.id,
+      matricula: resolvedMatricula,
       role: user.role,
       organizacaoId: user.organizacaoId,
       organizacaoSlug: user.organizacao.slug,
@@ -25,7 +28,7 @@ function buildSessionPayload(user) {
     { expiresIn: "8h" }
   );
 
-  return { token, user: sanitizeUser(user) };
+  return { token, user: sanitizeUser({ ...user, matricula: resolvedMatricula }) };
 }
 
 // serviço para autenticar colaborador ou administrador respeitando portais e múltiplas organizações
@@ -130,6 +133,14 @@ export async function authenticateUser(email, senha, organizacaoSlug = null, por
     matchedUser = candidates[0];
   }
 
+  if (matchedUser.situacao === "SUSPENSO") {
+    throw new AppError("Sua matrícula está suspensa temporariamente. Contate o administrador.", 403);
+  }
+
+  if (matchedUser.situacao === "FERIAS") {
+    throw new AppError("Acesso pausado: colaborador em período de férias.", 403);
+  }
+
   if (!matchedUser.organizacao || !matchedUser.organizacao.ativo) {
     throw new AppError("A organização vinculada a esta conta está desativada", 403);
   }
@@ -219,15 +230,21 @@ export async function registerOrganizationAndAdmin({
       },
     });
 
-    const adminUser = await tx.usuario.create({
+    const createdAdmin = await tx.usuario.create({
       data: {
         nome: nome.trim(),
         email: normalizedEmail,
         senha: hashed,
         role: "ADMIN",
+        situacao: "ATIVO",
         organizacaoId: organizacao.id,
         lojaId: null, // Admin gerencia todas as lojas da Organização
       },
+    });
+
+    const adminUser = await tx.usuario.update({
+      where: { id: createdAdmin.id },
+      data: { matricula: formatMatricula(createdAdmin.id) },
       include: { organizacao: true, loja: true },
     });
 

@@ -113,6 +113,7 @@ export async function listUsers(req, res, next) {
       limit: Number(req.query.limit) || 10,
       search: req.query.search || "",
       role: req.query.role || "",
+      situacao: req.query.situacao || "",
     });
     res.json(users);
   } catch (err) {
@@ -190,7 +191,38 @@ export async function transferUserStore(req, res, next) {
   }
 }
 
-// função para excluir definitivamente um colaborador preservando vendas/movimentações e antigo ID
+// função para alterar situação trabalhista do colaborador (ATIVO, SUSPENSO ou FERIAS)
+// 1 - Bloqueia acesso imediatamente em caso de suspensão/férias limpando cache de nomes e sessão
+export async function changeUserSituation(req, res, next) {
+  try {
+    const organizacaoId = req.user.organizacaoId;
+    const { situacao } = req.body;
+    const user = await userService.updateUserSituation(
+      req.params.id,
+      situacao,
+      req.user?.id,
+      organizacaoId
+    );
+    invalidateUserNamesCache(organizacaoId);
+
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId,
+        action: "CHANGE_USER_SITUATION",
+        targetId: user.id,
+        situacao: user.situacao,
+      },
+      "Situação trabalhista da matrícula alterada"
+    );
+    res.json(user);
+  } catch (err) {
+    log.warn({ err }, "Erro ao alterar situação do usuário");
+    next(err);
+  }
+}
+
+// função para excluir definitivamente um colaborador (demitir / cancelar matrícula) preservando histórico e gerando relatório de vendas
 export async function deleteUser(req, res, next) {
   try {
     const organizacaoId = req.user.organizacaoId;
@@ -237,13 +269,13 @@ export async function updateMe(req, res, next) {
     }
 
     const removeImage = req.body.removerImagem === "true";
-    const { nome, email, role } = req.body || {};
+    const { nome, email, telefone, role } = req.body || {};
 
     if (!isAdmin && role !== undefined) {
       throw new AppError("Acesso negado para alteração de privilégios", 403);
     }
 
-    const updateData = { nome, email };
+    const updateData = { nome, email, ...(telefone !== undefined ? { telefone } : {}) };
     if (isAdmin && role !== undefined && role !== "") {
       const allowedRoles = ["ADMIN", "GERENTE", "OPERADOR"];
       const normalizedRole = String(role).toUpperCase();

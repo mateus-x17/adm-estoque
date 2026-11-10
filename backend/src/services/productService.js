@@ -3,6 +3,7 @@ import { prisma, Prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
 import { deleteFromCloudinary } from "../config/cloudinaryConfig.js";
 import { parseBooleanFlag } from "../utils/sanitizers.js";
+import { formatMatricula } from "../utils/matriculaHelper.js";
 
 // arquivo responsável pelas regras de negócio, isolamento Organização/Loja, Soft Delete e ajuste transacional de produtos
 
@@ -430,6 +431,11 @@ export async function adjustProductQuantity(
           vendedorRefId: Number(requestingUser.id),
           vendedorNomeSnapshot: requestingUser.nome,
           vendedorEmailSnapshot: requestingUser.email,
+          vendedorMatriculaSnapshot:
+            requestingUser.matricula || formatMatricula(requestingUser.id),
+          vendedorDataAdmissaoSnapshot: requestingUser.dataAdmissao
+            ? new Date(requestingUser.dataAdmissao)
+            : null,
           organizacaoId: orgId,
           lojaId: Number(product.lojaId),
           observacao,

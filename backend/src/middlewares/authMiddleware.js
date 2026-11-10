@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
+import { formatMatricula } from "../utils/matriculaHelper.js";
 
 // arquivo responsável por validar JWT, carregar o contexto de Organização/Loja com cache em memória e bloquear acessos inválidos
 
@@ -53,6 +54,10 @@ export async function authMiddleware(req, res, next) {
         id: true,
         nome: true,
         email: true,
+        matricula: true,
+        telefone: true,
+        situacao: true,
+        dataAdmissao: true,
         role: true,
         imagem: true,
         organizacaoId: true,
@@ -80,6 +85,18 @@ export async function authMiddleware(req, res, next) {
       return next(new AppError("Usuário não encontrado ou conta removida", 401));
     }
 
+    if (user.situacao === "SUSPENSO") {
+      return next(
+        new AppError("Matrícula suspensa temporariamente. Procure o administrador.", 403)
+      );
+    }
+
+    if (user.situacao === "FERIAS") {
+      return next(
+        new AppError("Acesso pausado: colaborador em período de férias.", 403)
+      );
+    }
+
     if (!user.organizacao || !user.organizacao.ativo) {
       return next(new AppError("A organização vinculada a esta conta está desativada", 403));
     }
@@ -94,6 +111,10 @@ export async function authMiddleware(req, res, next) {
       id: user.id,
       nome: user.nome,
       email: user.email,
+      matricula: user.matricula || formatMatricula(user.id),
+      telefone: user.telefone,
+      situacao: user.situacao,
+      dataAdmissao: user.dataAdmissao,
       role: user.role,
       imagem: user.imagem,
       organizacaoId: user.organizacaoId,

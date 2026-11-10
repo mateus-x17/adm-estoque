@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { prisma } from "../src/config/prismaClient.js";
 import cloudinary, { getTenantFolder } from "../src/config/cloudinaryConfig.js";
+import { formatMatricula } from "../src/utils/matriculaHelper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.resolve(__dirname, "../uploads");
@@ -131,6 +132,8 @@ async function createSeedOrder({
       vendedorRefId: vendedor.id,
       vendedorNomeSnapshot: vendedor.nome,
       vendedorEmailSnapshot: vendedor.email,
+      vendedorMatriculaSnapshot: vendedor.matricula || formatMatricula(vendedor.id),
+      vendedorDataAdmissaoSnapshot: vendedor.dataAdmissao || null,
       canceladoPorRefId: status === "CANCELADO" ? canceladoPor?.id || vendedor.id : null,
       canceladoPorNome: status === "CANCELADO" ? canceladoPor?.nome || vendedor.nome : null,
       canceladoEm: status === "CANCELADO" ? new Date(createdAt.getTime() + 3600 * 1000) : null,
@@ -157,6 +160,8 @@ async function createSeedOrder({
     vendedorRefId: vendedor.id,
     vendedorNomeSnapshot: vendedor.nome,
     vendedorEmailSnapshot: vendedor.email,
+    vendedorMatriculaSnapshot: vendedor.matricula || formatMatricula(vendedor.id),
+    vendedorDataAdmissaoSnapshot: vendedor.dataAdmissao || null,
     organizacaoId,
     lojaId,
     data: createdAt,
@@ -179,6 +184,9 @@ async function createSeedOrder({
         vendedorRefId: canceladoPor?.id || vendedor.id,
         vendedorNomeSnapshot: canceladoPor?.nome || vendedor.nome,
         vendedorEmailSnapshot: canceladoPor?.email || vendedor.email,
+        vendedorMatriculaSnapshot:
+          canceladoPor?.matricula || vendedor.matricula || formatMatricula(canceladoPor?.id || vendedor.id),
+        vendedorDataAdmissaoSnapshot: canceladoPor?.dataAdmissao || vendedor.dataAdmissao || null,
         organizacaoId,
         lojaId,
         data: new Date(createdAt.getTime() + 3600 * 1000),
@@ -213,18 +221,27 @@ async function seedOrganization(orgConfig, passwordHash) {
     "corporativo",
     `avatar-${orgConfig.admin.slugId}`
   );
-  const adminUser = await prisma.usuario.create({
+  const createdAdmin = await prisma.usuario.create({
     data: {
       nome: orgConfig.admin.nome,
       email: orgConfig.admin.email.toLowerCase(),
       senha: passwordHash,
+      telefone: orgConfig.admin.telefone || "(11) 99000-0001",
+      situacao: "ATIVO",
+      dataAdmissao: buildRelativeDate(12, 1, 9),
       role: "ADMIN",
       imagem: adminAvatar,
       organizacaoId: organizacao.id,
       lojaId: null,
     },
   });
-  console.log(`   👑 [ADMIN] ${adminUser.nome} (${adminUser.email}) — acesso a todas as lojas`);
+  const adminUser = await prisma.usuario.update({
+    where: { id: createdAdmin.id },
+    data: { matricula: formatMatricula(createdAdmin.id) },
+  });
+  console.log(
+    `   👑 [ADMIN | ${adminUser.matricula}] ${adminUser.nome} (${adminUser.email}) — acesso a todas as lojas`
+  );
 
   let orderSequence = organizacao.id * 1000;
 
@@ -256,16 +273,24 @@ async function seedOrganization(orgConfig, passwordHash) {
         lojaCfg.slug,
         `avatar-${u.slugId}`
       );
-      const createdUser = await prisma.usuario.create({
+      const createdRaw = await prisma.usuario.create({
         data: {
           nome: u.nome,
           email: u.email.toLowerCase(),
           senha: passwordHash,
+          telefone: u.telefone || "(11) 98800-0000",
+          situacao: u.situacao || "ATIVO",
+          dataAdmissao: u.dataAdmissao || buildRelativeDate(10, 5, 9),
           role: u.role,
           imagem: avatar,
           organizacaoId: organizacao.id,
           lojaId: loja.id,
         },
+      });
+
+      const createdUser = await prisma.usuario.update({
+        where: { id: createdRaw.id },
+        data: { matricula: formatMatricula(createdRaw.id) },
       });
 
       if (u.role === "GERENTE") storeManager = createdUser;
@@ -278,7 +303,9 @@ async function seedOrganization(orgConfig, passwordHash) {
       if (u.deleteAfterSeed) {
         temporaryUsersToDelete.push(createdUser);
       } else {
-        console.log(`      👤 [${createdUser.role}] ${createdUser.nome} (${createdUser.email})`);
+        console.log(
+          `      👤 [${createdUser.role} | ${createdUser.matricula} | ${createdUser.situacao}] ${createdUser.nome} (${createdUser.email})`
+        );
       }
     }
 
@@ -461,10 +488,28 @@ async function seedOrganization(orgConfig, passwordHash) {
         });
       }
 
+      const dismissalDate = new Date();
+      await prisma.pedido.updateMany({
+        where: { vendedorRefId: deletedCandidate.id, organizacaoId: organizacao.id },
+        data: {
+          vendedorMatriculaSnapshot: deletedCandidate.matricula,
+          vendedorDataAdmissaoSnapshot: deletedCandidate.dataAdmissao,
+          vendedorDataDesligamentoSnapshot: dismissalDate,
+        },
+      });
+      await prisma.movimento.updateMany({
+        where: { vendedorRefId: deletedCandidate.id, organizacaoId: organizacao.id },
+        data: {
+          vendedorMatriculaSnapshot: deletedCandidate.matricula,
+          vendedorDataAdmissaoSnapshot: deletedCandidate.dataAdmissao,
+          vendedorDataDesligamentoSnapshot: dismissalDate,
+        },
+      });
+
       // Exclusão física real na tabela Usuario (FK SetNull desvincula mantendo vendedorRefId e snapshots!)
       await prisma.usuario.delete({ where: { id: deletedCandidate.id } });
       console.log(
-        `      🧾 [AUDITORIA] Ex-funcionário "${deletedCandidate.nome}" (ID antigo #${deletedCandidate.id}) teve conta excluída fisicamente preservando vendas.`
+        `      🧾 [AUDITORIA] Ex-funcionário "${deletedCandidate.nome}" (${deletedCandidate.matricula} CANCELADA, ID #${deletedCandidate.id}) teve conta excluída fisicamente preservando vendas.`
       );
     }
   }
@@ -484,6 +529,7 @@ async function main() {
       admin: {
         nome: "Lucas Silva",
         email: "admin@techstock.com",
+        telefone: "(11) 99001-1000",
         avatarPrefix: "1780345070847",
         slugId: "lucas-admin",
       },
@@ -495,10 +541,11 @@ async function main() {
           telefone: "(11) 3000-1001",
           endereco: "Av. Paulista, 1450 - Centro, São Paulo/SP",
           usuarios: [
-            { nome: "Fernanda Lima", email: "gerente1@techstock.com", role: "GERENTE", avatarPrefix: "1760766985751", slugId: "fernanda-ger1", salesWeight: 1 },
-            { nome: "Rafael Mendes", email: "op1@techstock.com", role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "rafael-op1", salesWeight: 5 },
-            { nome: "Beatriz Duarte", email: "op2@techstock.com", role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "beatriz-op2", salesWeight: 2 },
-            { nome: "Marcos Antunes", email: "marcos.ex@techstock.com", role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "marcos-ex", deleteAfterSeed: true },
+            { nome: "Fernanda Lima", email: "gerente1@techstock.com", telefone: "(11) 98101-1101", situacao: "ATIVO", dataAdmissao: buildRelativeDate(11, 2, 9), role: "GERENTE", avatarPrefix: "1760766985751", slugId: "fernanda-ger1", salesWeight: 1 },
+            { nome: "Rafael Mendes", email: "op1@techstock.com", telefone: "(11) 98102-2202", situacao: "ATIVO", dataAdmissao: buildRelativeDate(10, 8, 9), role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "rafael-op1", salesWeight: 5 },
+            { nome: "Beatriz Duarte", email: "op2@techstock.com", telefone: "(11) 98103-3303", situacao: "ATIVO", dataAdmissao: buildRelativeDate(8, 15, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "beatriz-op2", salesWeight: 2 },
+            { nome: "Carlos Henrique", email: "carlos.susp@techstock.com", telefone: "(11) 98104-4404", situacao: "SUSPENSO", dataAdmissao: buildRelativeDate(6, 4, 9), role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "carlos-susp", salesWeight: 2 },
+            { nome: "Marcos Antunes", email: "marcos.ex@techstock.com", telefone: "(11) 98105-5505", situacao: "ATIVO", dataAdmissao: buildRelativeDate(7, 10, 9), role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "marcos-ex", deleteAfterSeed: true },
           ],
           categorias: ["Periféricos", "Monitores", "Mobiliário Gamer", "Áudio"],
           fornecedores: [
@@ -524,9 +571,10 @@ async function main() {
           telefone: "(11) 3000-1002",
           endereco: "Shopping Eldorado, Piso 2 - Pinheiros, São Paulo/SP",
           usuarios: [
-            { nome: "Thiago Azevedo", email: "gerente2@techstock.com", role: "GERENTE", avatarPrefix: "1782851574852", slugId: "thiago-ger2", salesWeight: 1 },
-            { nome: "Camila Rocha", email: "op3@techstock.com", role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "camila-op3", salesWeight: 4 },
-            { nome: "Diego Martins", email: "op4@techstock.com", role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "diego-op4", salesWeight: 2 },
+            { nome: "Thiago Azevedo", email: "gerente2@techstock.com", telefone: "(11) 98201-1101", situacao: "ATIVO", dataAdmissao: buildRelativeDate(11, 5, 9), role: "GERENTE", avatarPrefix: "1782851574852", slugId: "thiago-ger2", salesWeight: 1 },
+            { nome: "Camila Rocha", email: "op3@techstock.com", telefone: "(11) 98202-2202", situacao: "ATIVO", dataAdmissao: buildRelativeDate(9, 12, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "camila-op3", salesWeight: 4 },
+            { nome: "Diego Martins", email: "op4@techstock.com", telefone: "(11) 98203-3303", situacao: "ATIVO", dataAdmissao: buildRelativeDate(7, 20, 9), role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "diego-op4", salesWeight: 2 },
+            { nome: "Juliana Costa", email: "op5@techstock.com", telefone: "(11) 98204-4404", situacao: "FERIAS", dataAdmissao: buildRelativeDate(8, 3, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "juliana-op5", salesWeight: 2 },
           ],
           categorias: ["Monitores & Displays", "Periféricos Wireless", "Acessórios Pro"],
           fornecedores: [
@@ -553,6 +601,7 @@ async function main() {
       admin: {
         nome: "Lucas Stark",
         email: "admin@cyberforge.com",
+        telefone: "(21) 99002-4242",
         avatarPrefix: "1780345070847",
         slugId: "stark-admin",
       },
@@ -564,9 +613,10 @@ async function main() {
           telefone: "(21) 4000-4243",
           endereco: "Av. Rio Branco, 310 - Centro, Rio de Janeiro/RJ",
           usuarios: [
-            { nome: "Marina Sato", email: "gerente1@cyberforge.com", role: "GERENTE", avatarPrefix: "1760766985751", slugId: "marina-ger1", salesWeight: 1 },
-            { nome: "Bruno Wayne", email: "op1@cyberforge.com", role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "bruno-op1", salesWeight: 4 },
-            { nome: "Sofia Banner", email: "op2@cyberforge.com", role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "sofia-op2", salesWeight: 2 },
+            { nome: "Marina Sato", email: "gerente1@cyberforge.com", telefone: "(21) 98301-1101", situacao: "ATIVO", dataAdmissao: buildRelativeDate(10, 6, 9), role: "GERENTE", avatarPrefix: "1760766985751", slugId: "marina-ger1", salesWeight: 1 },
+            { nome: "Bruno Wayne", email: "op1@cyberforge.com", telefone: "(21) 98302-2202", situacao: "ATIVO", dataAdmissao: buildRelativeDate(9, 14, 9), role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "bruno-op1", salesWeight: 4 },
+            { nome: "Sofia Banner", email: "op2@cyberforge.com", telefone: "(21) 98303-3303", situacao: "ATIVO", dataAdmissao: buildRelativeDate(7, 19, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "sofia-op2", salesWeight: 2 },
+            { nome: "Peter Quill", email: "peter.susp@cyberforge.com", telefone: "(21) 98304-4404", situacao: "SUSPENSO", dataAdmissao: buildRelativeDate(5, 9, 9), role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "peter-susp", salesWeight: 2 },
           ],
           categorias: ["Setup Geek", "Colecionáveis", "Iluminação & Decoração", "Vestuário Nerd"],
           fornecedores: [

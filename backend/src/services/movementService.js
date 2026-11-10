@@ -1,5 +1,11 @@
 import { prisma, Prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
+import {
+  formatMatricula,
+  formatMatriculaDisplay,
+  parseMatriculaSearch,
+  buildWorkedMonthsTimeline,
+} from "../utils/matriculaHelper.js";
 
 // arquivo responsável pelas consultas de auditoria de estoque, relatórios executivos e desempenho individual de vendedores
 
@@ -68,14 +74,12 @@ export async function listMovementsPaginated(filters = {}, scope, requestingUser
   const effectiveSellerRefId = isOperador
     ? Number(requestingUser.id)
     : requestedSeller &&
-      !["undefined", "null", "todos", ""].includes(String(requestedSeller)) &&
-      !isNaN(Number(requestedSeller))
-      ? Number(requestedSeller)
+      !["undefined", "null", "todos", ""].includes(String(requestedSeller))
+      ? parseMatriculaSearch(requestedSeller).numericId ?? undefined
       : undefined;
 
   const trimmedSearch = String(search || "").trim();
-  const numericSearch =
-    trimmedSearch !== "" && !isNaN(Number(trimmedSearch)) ? Number(trimmedSearch) : null;
+  const parsedSearch = parseMatriculaSearch(trimmedSearch);
 
   const where = {
     AND: [
@@ -103,8 +107,10 @@ export async function listMovementsPaginated(filters = {}, scope, requestingUser
             { produto: { nome: { contains: trimmedSearch, mode: "insensitive" } } },
             { vendedorNomeSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
             { vendedorEmailSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
+            { vendedorMatriculaSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
+            { usuario: { matricula: { contains: trimmedSearch, mode: "insensitive" } } },
             { pedido: { codigo: { contains: trimmedSearch, mode: "insensitive" } } },
-            ...(numericSearch ? [{ id: numericSearch }, { vendedorRefId: numericSearch }] : []),
+            ...(parsedSearch.numericId ? [{ id: parsedSearch.numericId }, { vendedorRefId: parsedSearch.numericId }] : []),
           ],
         }
         : {},
@@ -123,7 +129,7 @@ export async function listMovementsPaginated(filters = {}, scope, requestingUser
         produto: true,
         loja: { select: { id: true, nome: true, slug: true } },
         pedido: { select: { id: true, codigo: true, status: true } },
-        usuario: { select: { id: true, nome: true, email: true, role: true } },
+        usuario: { select: { id: true, nome: true, email: true, matricula: true, situacao: true, role: true } },
       },
       orderBy: { data: order === "asc" ? "asc" : "desc" },
       skip,
@@ -235,8 +241,12 @@ export async function getSellerPerformanceRanking(
       m."vendedorRefId"::int AS "vendedorRefId",
       COALESCE(MAX(u.nome), MAX(m."vendedorNomeSnapshot")) AS "nome",
       COALESCE(MAX(u.email), MAX(m."vendedorEmailSnapshot")) AS "email",
+      COALESCE(MAX(u.matricula), MAX(m."vendedorMatriculaSnapshot")) AS "matricula",
       BOOL_AND(u.id IS NULL) AS "excluido",
+      MAX(u.situacao::text) AS "situacao",
       MAX(u.role::text) AS "cargoAtual",
+      COALESCE(MAX(u."dataAdmissao"), MAX(m."vendedorDataAdmissaoSnapshot"), MIN(m.data)) AS "dataInicio",
+      MAX(m."vendedorDataDesligamentoSnapshot") AS "dataTermino",
       COALESCE(MAX(ul.nome), STRING_AGG(DISTINCT ml.nome, ', ')) AS "lojaNome",
       COUNT(DISTINCT COALESCE(m."pedidoId", -m.id))::int AS "totalPedidos",
       COALESCE(SUM(m.quantidade), 0)::int AS "totalPecas",
@@ -266,6 +276,9 @@ export async function getSellerPerformanceRanking(
       id: true,
       nome: true,
       email: true,
+      matricula: true,
+      situacao: true,
+      dataAdmissao: true,
       role: true,
       imagem: true,
       lojaId: true,
@@ -280,10 +293,21 @@ export async function getSellerPerformanceRanking(
     const refId = Number(row.vendedorRefId);
     const activeUser = activeById.get(refId);
     const excluido = Boolean(row.excluido) && !activeUser;
+    const rawMatricula = activeUser?.matricula || row.matricula || formatMatricula(refId);
     mergedMap.set(refId, {
       vendedorRefId: refId,
       nome: activeUser?.nome || row.nome || "Desconhecido",
       email: activeUser?.email || row.email || "",
+      matricula: rawMatricula,
+      matriculaCancelada: excluido,
+      matriculaDisplay: formatMatriculaDisplay(refId, rawMatricula, excluido),
+      situacao: excluido ? "DESLIGADO" : activeUser?.situacao || row.situacao || "ATIVO",
+      dataInicio: activeUser?.dataAdmissao
+        ? new Date(activeUser.dataAdmissao).toISOString()
+        : row.dataInicio
+          ? new Date(row.dataInicio).toISOString()
+          : null,
+      dataTermino: excluido && row.dataTermino ? new Date(row.dataTermino).toISOString() : null,
       imagem: activeUser?.imagem || null,
       excluido,
       cargoAtual: activeUser?.role || null,
@@ -296,10 +320,17 @@ export async function getSellerPerformanceRanking(
 
   for (const staff of activeStaff) {
     if (!mergedMap.has(staff.id)) {
+      const rawMatricula = staff.matricula || formatMatricula(staff.id);
       mergedMap.set(staff.id, {
         vendedorRefId: staff.id,
         nome: staff.nome,
         email: staff.email,
+        matricula: rawMatricula,
+        matriculaCancelada: false,
+        matriculaDisplay: formatMatriculaDisplay(staff.id, rawMatricula, false),
+        situacao: staff.situacao || "ATIVO",
+        dataInicio: staff.dataAdmissao ? new Date(staff.dataAdmissao).toISOString() : null,
+        dataTermino: null,
         imagem: staff.imagem || null,
         excluido: false,
         cargoAtual: staff.role,
@@ -313,7 +344,7 @@ export async function getSellerPerformanceRanking(
 
   let list = Array.from(mergedMap.values());
 
-  // 1 - Ordena o conjunto completo ANTES de filtrar, preservando a posição real (#1, #2, #3...) mesmo ao pesquisar um único ID/nome
+  // 1 - Ordena o conjunto completo ANTES de filtrar, preservando a posição real (#1, #2, #3...) mesmo ao pesquisar um único ID/nome/matrícula
   list.sort(
     (a, b) =>
       b.totalFaturado - a.totalFaturado ||
@@ -334,17 +365,21 @@ export async function getSellerPerformanceRanking(
 
   // 2 - Aplica filtro opcional de inclusão de ex-funcionários mantendo as posições reais originais
   const showDeleted = includeDeleted !== false && includeDeleted !== "false";
+  const parsedSearch = parseMatriculaSearch(search);
+
   if (!showDeleted) {
     fullRanking = fullRanking.filter((s) => !s.excluido);
-  } else if (search && String(search).trim() !== "") {
+  } else if (parsedSearch.raw !== "") {
     // Caso ex-colaborador não tenha vendido nesta janela (ex: 1m), traz do histórico sem sobrescrever quem já ranqueou
-    const trimmed = String(search).trim();
-    const numericId = !isNaN(Number(trimmed)) ? Number(trimmed) : null;
+    const trimmed = parsedSearch.raw;
     const missingDeleted = await prisma.$queryRaw`
       SELECT
         m."vendedorRefId"::int AS "vendedorRefId",
         MAX(m."vendedorNomeSnapshot") AS "nome",
         MAX(m."vendedorEmailSnapshot") AS "email",
+        MAX(m."vendedorMatriculaSnapshot") AS "matricula",
+        COALESCE(MAX(m."vendedorDataAdmissaoSnapshot"), MIN(m.data)) AS "dataInicio",
+        MAX(m."vendedorDataDesligamentoSnapshot") AS "dataTermino",
         STRING_AGG(DISTINCT ml.nome, ', ') AS "lojaNome"
       FROM "Movimento" m
       JOIN "Loja" ml ON ml.id = m."lojaId"
@@ -355,7 +390,8 @@ export async function getSellerPerformanceRanking(
         AND (
           m."vendedorNomeSnapshot" ILIKE ${"%" + trimmed + "%"}
           OR m."vendedorEmailSnapshot" ILIKE ${"%" + trimmed + "%"}
-          ${numericId ? Prisma.sql`OR m."vendedorRefId" = ${numericId}` : Prisma.empty}
+          OR m."vendedorMatriculaSnapshot" ILIKE ${"%" + trimmed + "%"}
+          ${parsedSearch.numericId ? Prisma.sql`OR m."vendedorRefId" = ${parsedSearch.numericId}` : Prisma.empty}
         )
       GROUP BY m."vendedorRefId"
     `;
@@ -364,11 +400,18 @@ export async function getSellerPerformanceRanking(
       const refId = Number(del.vendedorRefId);
       if (!mergedMap.has(refId)) {
         tailIdx += 1;
+        const rawMatricula = del.matricula || formatMatricula(refId);
         fullRanking.push({
           posicao: tailIdx,
           vendedorRefId: refId,
           nome: del.nome,
           email: del.email,
+          matricula: rawMatricula,
+          matriculaCancelada: true,
+          matriculaDisplay: formatMatriculaDisplay(refId, rawMatricula, true),
+          situacao: "DESLIGADO",
+          dataInicio: del.dataInicio ? new Date(del.dataInicio).toISOString() : null,
+          dataTermino: del.dataTermino ? new Date(del.dataTermino).toISOString() : null,
           imagem: null,
           excluido: true,
           cargoAtual: null,
@@ -383,12 +426,13 @@ export async function getSellerPerformanceRanking(
     }
   }
 
-  // 3 - Filtra pela busca mantendo exatamente a posicao real e participação originais no ranking da loja/rede
-  const trimmedSearch = String(search || "").trim().toLowerCase();
+  // 3 - Filtra pela busca (Matrícula, ID, Nome ou Email) mantendo exatamente a posicao real no ranking
+  const trimmedSearch = parsedSearch.raw.toLowerCase();
   const ranking = trimmedSearch
     ? fullRanking.filter(
         (item) =>
-          String(item.vendedorRefId) === trimmedSearch ||
+          (parsedSearch.numericId && Number(item.vendedorRefId) === parsedSearch.numericId) ||
+          (item.matricula && item.matricula.toLowerCase().includes(trimmedSearch)) ||
           item.nome.toLowerCase().includes(trimmedSearch) ||
           item.email.toLowerCase().includes(trimmedSearch)
       )
@@ -404,15 +448,16 @@ export async function getSellerPerformanceRanking(
   };
 }
 
-// função para raio-X completo de um vendedor específico (ativo ou já excluído fisicamente pelo antigo ID)
-// 1 - Consulta identificação viva ou fallback no snapshot histórico (Pedido/Movimento)
-// 2 - Calcula simultaneamente faturamento, pedidos e peças em 1m (mês), 6m (semestre), 1y (ano) e total histórico
-// 3 - Gera evolução mês a mês dos últimos 12 meses, top produtos e pedidos recentes (incluindo cancelados)
+// função para raio-X completo de um vendedor específico (ativo, suspenso ou desligado por matrícula/ID antigo)
+// 1 - Interpreta Matrícula (ex: MAT-00063) ou ID numérico e consulta conta viva ou snapshots históricos (Pedido/Movimento)
+// 2 - Calcula faturamento, pedidos e peças em 1m, 6m, 1y, total e todos os meses trabalhados entre dataInicio e dataTermino
+// 3 - Gera evolução mensal, top produtos e pedidos recentes mantendo identificação enxuta (Nome, E-mail e Matrícula)
 export async function getSellerPerformanceDetail(refId, scope) {
   if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
-  const sellerRefId = Number(refId);
-  if (isNaN(sellerRefId) || sellerRefId <= 0) {
-    throw new AppError("ID do colaborador inválido", 400);
+  const parsedRef = parseMatriculaSearch(refId);
+  const sellerRefId = parsedRef.numericId;
+  if (!sellerRefId || isNaN(sellerRefId) || sellerRefId <= 0) {
+    throw new AppError("Matrícula ou ID do colaborador inválido", 400);
   }
 
   const orgId = Number(scope.organizacaoId);
@@ -425,6 +470,9 @@ export async function getSellerPerformanceDetail(refId, scope) {
         id: true,
         nome: true,
         email: true,
+        matricula: true,
+        situacao: true,
+        dataAdmissao: true,
         role: true,
         imagem: true,
         lojaId: true,
@@ -473,11 +521,42 @@ export async function getSellerPerformanceDetail(refId, scope) {
   }
 
   if (!aliveUser && validSalesMovements.length === 0 && sellerOrders.length === 0) {
-    throw new AppError(`Nenhum registro encontrado para o colaborador #${sellerRefId}`, 404);
+    throw new AppError(
+      `Nenhum registro encontrado para a matrícula ${formatMatricula(sellerRefId)} (#${sellerRefId})`,
+      404
+    );
   }
 
   const lastSnapshotMov = validSalesMovements[0] || null;
+  const oldestSnapshotMov = validSalesMovements[validSalesMovements.length - 1] || null;
   const lastSnapshotOrder = sellerOrders[0] || null;
+  const now = new Date();
+
+  const rawMatricula =
+    aliveUser?.matricula ||
+    lastSnapshotMov?.vendedorMatriculaSnapshot ||
+    lastSnapshotOrder?.vendedorMatriculaSnapshot ||
+    formatMatricula(sellerRefId);
+
+  const isExcluido = !aliveUser;
+  const dataInicioRaw =
+    aliveUser?.dataAdmissao ||
+    lastSnapshotMov?.vendedorDataAdmissaoSnapshot ||
+    lastSnapshotOrder?.vendedorDataAdmissaoSnapshot ||
+    oldestSnapshotMov?.data ||
+    now;
+
+  const dataTerminoRaw = isExcluido
+    ? lastSnapshotMov?.vendedorDataDesligamentoSnapshot ||
+      lastSnapshotOrder?.vendedorDataDesligamentoSnapshot ||
+      lastSnapshotMov?.data ||
+      lastSnapshotOrder?.createdAt ||
+      now
+    : null;
+
+  const effectiveStart = new Date(dataInicioRaw);
+  const effectiveEnd = dataTerminoRaw ? new Date(dataTerminoRaw) : now;
+  const safeStart = effectiveStart <= effectiveEnd ? effectiveStart : effectiveEnd;
 
   const vendedorInfo = {
     vendedorRefId: sellerRefId,
@@ -491,7 +570,13 @@ export async function getSellerPerformanceDetail(refId, scope) {
       lastSnapshotMov?.vendedorEmailSnapshot ||
       lastSnapshotOrder?.vendedorEmailSnapshot ||
       "",
-    excluido: !aliveUser,
+    matricula: rawMatricula,
+    matriculaCancelada: isExcluido,
+    matriculaDisplay: formatMatriculaDisplay(sellerRefId, rawMatricula, isExcluido),
+    situacao: isExcluido ? "DESLIGADO" : aliveUser?.situacao || "ATIVO",
+    dataInicio: safeStart.toISOString(),
+    dataTermino: dataTerminoRaw ? effectiveEnd.toISOString() : null,
+    excluido: isExcluido,
     cargoAtual: aliveUser?.role || null,
     imagem: aliveUser?.imagem || null,
     lojaAtualNome:
@@ -500,8 +585,6 @@ export async function getSellerPerformanceDetail(refId, scope) {
       lastSnapshotOrder?.loja?.nome ||
       "Rede",
   };
-
-  const now = new Date();
   const limit1m = new Date(now);
   limit1m.setDate(now.getDate() - 30);
   const limit6m = new Date(now);
@@ -525,6 +608,8 @@ export async function getSellerPerformanceDetail(refId, scope) {
 
   const productTotals1y = new Map();
   const monthlyMap = new Map();
+  const workedTimeline = buildWorkedMonthsTimeline(safeStart, effectiveEnd);
+  const workedMonthMap = new Map(workedTimeline.map((m) => [m.key, m]));
 
   // Inicializa os últimos 12 meses para gráfico contínuo mesmo nos meses sem vendas
   for (let i = 11; i >= 0; i--) {
@@ -544,10 +629,18 @@ export async function getSellerPerformanceDetail(refId, scope) {
     const qty = Number(mov.quantidade || 0);
     const refOrderKey = mov.pedidoId ? `P_${mov.pedidoId}` : `M_${mov.id}`;
     const d = new Date(mov.data);
+    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
     buckets.total.faturamento += val;
     buckets.total.pecas += qty;
     buckets.total.orderIds.add(refOrderKey);
+
+    if (d >= safeStart && d <= effectiveEnd && workedMonthMap.has(mKey)) {
+      const wb = workedMonthMap.get(mKey);
+      wb.faturamento += val;
+      wb.pecas += qty;
+      wb._orderIds.add(refOrderKey);
+    }
 
     if (d >= limit1y) {
       buckets.ano.faturamento += val;
@@ -565,7 +658,6 @@ export async function getSellerPerformanceDetail(refId, scope) {
       currentProd.faturamento += val;
       productTotals1y.set(mov.produtoId, currentProd);
 
-      const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       if (monthlyMap.has(mKey)) {
         const mb = monthlyMap.get(mKey);
         mb.faturamento += val;
@@ -617,6 +709,14 @@ export async function getSellerPerformanceDetail(refId, scope) {
     faturamento: Number(m.faturamento.toFixed(2)),
   }));
 
+  const mesesTrabalhados = workedTimeline.map((m) => ({
+    mes: m.key,
+    label: m.label,
+    pedidosConcluidos: m._orderIds.size,
+    pecas: m.pecas,
+    faturamento: Number(m.faturamento.toFixed(2)),
+  }));
+
   return {
     vendedor: vendedorInfo,
     periodos: {
@@ -626,6 +726,7 @@ export async function getSellerPerformanceDetail(refId, scope) {
       total: finalizeBucket(buckets.total),
     },
     evolucaoMensal,
+    mesesTrabalhados,
     topProdutos,
     pedidosRecentes: sellerOrders,
   };

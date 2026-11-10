@@ -8,6 +8,7 @@ import {
   getUser,
   updateUser,
   transferUserStore,
+  changeUserSituation,
   deleteUser,
   getMe,
   updateMe,
@@ -55,7 +56,10 @@ router.put(
 // Transferência rápida de Gerente ou Operador para outra filial da rede
 router.patch("/:id/store", validateRequest({ required: ["lojaId"] }), transferUserStore);
 
-// Exclusão definitiva do usuário mantendo vendedorRefId e snapshots históricos em Pedidos/Movimentos
+// Alteração de situação trabalhista do funcionário (ATIVO, SUSPENSO, FERIAS)
+router.patch("/:id/situation", validateRequest({ required: ["situacao"] }), changeUserSituation);
+
+// Exclusão definitiva (demissão / cancelamento de matrícula) gerando relatório final e mantendo snapshots
 router.delete("/:id", deleteUser);
 
 export default router;

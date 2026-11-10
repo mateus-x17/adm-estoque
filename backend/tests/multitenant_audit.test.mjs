@@ -196,12 +196,17 @@ async function runAuditSuite() {
     assert.equal(op1Res.status, 201);
     const op1Id = op1Res.data.id;
 
+    const op2Admission = new Date();
+    op2Admission.setMonth(op2Admission.getMonth() - 2);
     const op2Res = await apiFetch("/users", {
       method: "POST",
       token: tokenAdminA,
       body: {
         nome: "Vendedor Excluir",
         email: `op2.${uid}@alpha.com`,
+        telefone: "(11) 97777-8888",
+        situacao: "ATIVO",
+        dataAdmissao: op2Admission.toISOString(),
         senha,
         role: "OPERADOR",
         lojaId: lojaA1.id,
@@ -209,6 +214,10 @@ async function runAuditSuite() {
     });
     assert.equal(op2Res.status, 201);
     const op2Id = op2Res.data.id;
+    const op2Matricula = op2Res.data.matricula;
+    assert.match(op2Matricula, /^MAT-\d{5}$/, "Matrícula gerada a partir do ID único");
+    assert.equal(op2Res.data.telefone, "(11) 97777-8888");
+    assert.equal(op2Res.data.situacao, "ATIVO");
 
     // Login no portal admin com GERENTE bloqueado com 403
     const gerInAdminPortal = await apiFetch("/auth/login", {
@@ -352,8 +361,8 @@ async function runAuditSuite() {
     });
     console.log("   ✅ Multipedidos, lock de saldo, estorno pelo Gerente e congelamento de preço validados.");
 
-    // 4. Sigilo OPERADOR + Exclusão Física Real de Usuário preservando antigo ID (vendedorRefId)
-    console.log("\n🧪 [4/7] Sigilo OPERADOR + Exclusão física de usuário mantendo antigo ID...");
+    // 4. Sigilo OPERADOR, Suspensão/Reativação, Busca por Matrícula e Demissão c/ Cancelamento & Relatório Mensal
+    console.log("\n🧪 [4/7] Sigilo OPERADOR, Suspensão/Reativação, Busca por Matrícula e Demissão...");
     // Op1 tenta forjar consulta para ver vendas do Op2 -> recebe apenas suas próprias
     const forgedOrders = await apiFetch(`/orders?vendedorRefId=${op2Id}`, { token: tokenOp1 });
     assert.equal(forgedOrders.status, 200);
@@ -362,24 +371,78 @@ async function runAuditSuite() {
     const opBlockedPerf = await apiFetch("/movements/performance", { token: tokenOp1 });
     assert.equal(opBlockedPerf.status, 403);
 
-    // Admin EXCLUI FISICAMENTE o Operador 2 (que já tem 1 venda concluída de 100 e 1 cancelada!)
+    // Admin SUSPENDE o Operador 2: bloqueia /users/me e login com 403
+    const suspendRes = await apiFetch(`/users/${op2Id}/situation`, {
+      method: "PATCH",
+      token: tokenAdminA,
+      body: { situacao: "SUSPENSO" },
+    });
+    assert.equal(suspendRes.status, 200);
+    assert.equal(suspendRes.data.situacao, "SUSPENSO");
+
+    const suspendedMe = await apiFetch("/users/me", { token: tokenOp2 });
+    assert.equal(suspendedMe.status, 403);
+
+    const suspendedLogin = await apiFetch("/auth/login", {
+      method: "POST",
+      body: { email: `op2.${uid}@alpha.com`, senha, portal: "loja" },
+    });
+    assert.equal(suspendedLogin.status, 403);
+
+    // Admin REATIVA Operador 2 -> volta a ATIVO e acessa normalmente
+    const reactivateRes = await apiFetch(`/users/${op2Id}/situation`, {
+      method: "PATCH",
+      token: tokenAdminA,
+      body: { situacao: "ATIVO" },
+    });
+    assert.equal(reactivateRes.status, 200);
+    assert.equal(reactivateRes.data.situacao, "ATIVO");
+
+    const reactivatedMe = await apiFetch("/users/me", { token: tokenOp2 });
+    assert.equal(reactivatedMe.status, 200);
+
+    // Busca por Matrícula em usuários, pedidos e movimentações
+    const searchUserByMat = await apiFetch(`/users?search=${encodeURIComponent(op2Matricula)}`, { token: tokenAdminA });
+    assert.equal(searchUserByMat.status, 200);
+    assert.ok(searchUserByMat.data.data.some((u) => u.id === op2Id));
+
+    const searchOrdersByMat = await apiFetch(`/orders?search=${encodeURIComponent(op2Matricula)}`, { token: tokenAdminA, lojaId: lojaA1.id });
+    assert.equal(searchOrdersByMat.status, 200);
+    assert.ok(searchOrdersByMat.data.data.some((o) => o.vendedorRefId === op2Id));
+
+    const searchMovsByMat = await apiFetch(`/movements?search=${encodeURIComponent(op2Matricula)}`, { token: tokenAdminA, lojaId: lojaA1.id });
+    assert.equal(searchMovsByMat.status, 200);
+    assert.ok(searchMovsByMat.data.data.some((m) => m.vendedorRefId === op2Id));
+
+    // Admin DEMITE (cancela matrícula e exclui fisicamente) o Operador 2 (que já tem R$ 100 concluído + 1 cancelado!)
     const delOp2 = await apiFetch(`/users/${op2Id}`, { method: "DELETE", token: tokenAdminA });
     assert.equal(delOp2.status, 200);
     assert.equal(delOp2.data.deletedId, op2Id);
+    assert.equal(delOp2.data.matricula, op2Matricula);
+    assert.equal(delOp2.data.matriculaCancelada, true);
+    assert.ok(delOp2.data.matriculaDisplay.includes("(CANCELADA)"));
+    assert.ok(delOp2.data.relatorioDesligamento?.vendedor?.dataInicio);
+    assert.ok(delOp2.data.relatorioDesligamento?.vendedor?.dataTermino);
+    assert.equal(delOp2.data.relatorioDesligamento?.resumo?.faturamentoTotal, 100);
+    assert.ok(Array.isArray(delOp2.data.relatorioDesligamento?.vendasPorMes));
+    assert.ok(delOp2.data.relatorioDesligamento.vendasPorMes.length >= 2);
 
-    // Usuário excluído é barrado na hora (cache invalidado -> 401)
+    // Usuário demitido é barrado na hora (cache invalidado -> 401)
     const deletedOpCheck = await apiFetch("/users/me", { token: tokenOp2 });
     assert.equal(deletedOpCheck.status, 401);
 
-    // Busca na página de Desempenho pelo ANTIGO ID (op2Id) retorna total exato (R$ 100 concluído + 1 cancelado, 1m/6m/1y)!
-    const deletedPerf = await apiFetch(`/movements/performance/${op2Id}`, { token: tokenGer });
+    // Busca na página de Desempenho pela MATRÍCULA ou ANTIGO ID retorna matrícula CANCELADA + meses trabalhados!
+    const deletedPerf = await apiFetch(`/movements/performance/${encodeURIComponent(op2Matricula)}`, { token: tokenGer });
     assert.equal(deletedPerf.status, 200);
     assert.equal(deletedPerf.data.vendedor.excluido, true);
+    assert.equal(deletedPerf.data.vendedor.matriculaCancelada, true);
+    assert.ok(deletedPerf.data.vendedor.matriculaDisplay.includes("(CANCELADA)"));
     assert.equal(deletedPerf.data.vendedor.vendedorRefId, op2Id);
     assert.equal(deletedPerf.data.periodos.mes.faturamento, 100);
     assert.equal(deletedPerf.data.periodos.semestre.faturamento, 100);
     assert.equal(deletedPerf.data.periodos.ano.faturamento, 100);
     assert.equal(deletedPerf.data.periodos.ano.pedidosCancelados, 1);
+    assert.ok(Array.isArray(deletedPerf.data.mesesTrabalhados) && deletedPerf.data.mesesTrabalhados.length >= 2);
 
     // Ranking do melhor ao pior vendedor: Op1 (R$ 500) deve estar em 1º lugar antes de Op2 excluído (R$ 100)
     const rankingRes = await apiFetch(`/movements/performance?period=1m`, { token: tokenAdminA, lojaId: lojaA1.id });
@@ -391,10 +454,11 @@ async function runAuditSuite() {
     assert.equal(activeRanks[1].vendedorRefId, op2Id);
     assert.equal(activeRanks[1].posicao, 2);
     assert.equal(activeRanks[1].excluido, true);
+    assert.equal(activeRanks[1].matriculaCancelada, true);
     assert.equal(activeRanks[1].totalFaturado, 100);
 
-    // Ao buscar diretamente pelo antigo ID do 2º colocado, ele DEVE preservar sua posição real (2º, e nunca 1º)
-    const filteredRankRes = await apiFetch(`/movements/performance?period=1m&search=${op2Id}`, {
+    // Ao buscar diretamente pela MATRÍCULA do 2º colocado, ele DEVE preservar sua posição real (2º, e nunca 1º)
+    const filteredRankRes = await apiFetch(`/movements/performance?period=1m&search=${encodeURIComponent(op2Matricula)}`, {
       token: tokenAdminA,
       lojaId: lojaA1.id,
     });
@@ -402,7 +466,7 @@ async function runAuditSuite() {
     assert.equal(filteredRankRes.data.ranking.length, 1);
     assert.equal(filteredRankRes.data.ranking[0].vendedorRefId, op2Id);
     assert.equal(filteredRankRes.data.ranking[0].posicao, 2);
-    console.log("   ✅ Exclusão física do usuário preservando vendedorRefId e ranking melhor->pior comprovados.");
+    console.log("   ✅ Suspensão/Reativação, busca por Matrícula, demissão c/ relatório e ranking validados.");
 
     // 5. Transferência de Gerente da Loja 1 para Loja 2 e Relatórios Admin Multi-Loja vs Gerente
     console.log("\n🧪 [5/7] Transferência de Gerente entre filiais e escopo de relatórios...");
