@@ -1,7 +1,7 @@
 # 📑 RELATÓRIO TÉCNICO 04 — MODELS, ESTRUTURAS DE DADOS E BANCO DE DADOS
 ## Projeto: Estoque.OS — Modelagem Multi-Organização, Multipedidos & Preservação Histórica (Fase H)
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
 

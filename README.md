@@ -29,10 +29,10 @@ O sistema elimina planilhas soltas, erros de saldo sob concorrência e quebras h
 ### 2.1 Requisitos Funcionais
 1. O sistema deve oferecer portais distintos (`/admin/login` e `/login`) com criação pública de nova `Organizacao` + 1ª `Loja` + `ADMIN` e suporte a seletor multi-organização caso credenciais válidas coexistam em múltiplas redes.
 2. O sistema deve isolar 100% das consultas, gravações, planilhas e pastas Cloudinary (`estoque-os/organizacoes/<orgSlug>/lojas/<lojaSlug>/...`) por `organizacaoId` e `lojaId` (respeitando header `X-Loja-Id` apenas para `ADMIN`).
-3. O sistema deve permitir ao `ADMIN` criar/editar/inativar lojas (`/dashboard/lojas`), gerir colaboradores (`/dashboard/usuarios`), transferir gerentes/operadores de filial e executar exclusão física de colaboradores mantendo `vendedorRefId` e snapshots históricos intactos.
-4. O sistema deve oferecer Soft Delete (`ativo: Boolean`) em Lojas, Produtos, Categorias e Fornecedores com fallback automático em `DELETE` caso haja histórico, bloqueando novos pedidos/movimentações em itens inativos (`400`).
-5. O sistema deve registrar **Multipedidos** (`Pedido` + `ItemPedido`) com lock ordenado `FOR UPDATE`, congelamento de preço unitário no ato e cancelamento com estorno (`CANCELADO` + movimentos `estorno = true`) exclusivo para `ADMIN` e `GERENTE`.
-6. O sistema deve fornecer página dedicada (`/dashboard/desempenho`) e endpoints `/movements/performance*` para ranquear vendedores do melhor ao pior e pesquisar vendas de ativos ou ex-funcionários pelo antigo ID em `1m`, `6m` e `1y`.
+3. O sistema deve permitir ao `ADMIN` criar/editar/inativar lojas (`/dashboard/lojas`), gerir colaboradores (`/dashboard/usuarios`) com geração automática de Matrícula (`MAT-00001`), telefone, data de admissão e situação funcional (`ATIVO` | `SUSPENSO` | `FERIAS`), transferir gerentes/operadores de filial e executar demissão com exclusão física mantendo `vendedorRefId`, snapshots (`MAT-XXXXX (CANCELADA)`) e Relatório Final mensal do período trabalhado.
+4. O sistema deve oferecer Soft Delete (`ativo: Boolean`) em Lojas, Produtos, Categorias e Fornecedores com fallback automático em `DELETE` caso haja histórico, bloqueando novos pedidos/movimentações em itens inativos (`400`) e confirmando ações via popup estilizado.
+5. O sistema deve registrar **Multipedidos** (`Pedido` + `ItemPedido`) com lock ordenado `FOR UPDATE`, congelamento de preço unitário no ato, comprovação formal (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`) e cancelamento com estorno (`CANCELADO` + movimentos `estorno = true`) exclusivo para `ADMIN` e `GERENTE`.
+6. O sistema deve fornecer página dedicada (`/dashboard/desempenho`) e endpoints `/movements/performance*` para ranquear vendedores do melhor ao pior (preservando a posição real em buscas) e pesquisar vendas de ativos, suspensos ou ex-funcionários pela **Matrícula** ou antigo ID em `1m`, `6m`, `1y` e por meses trabalhados.
 7. O sistema deve permitir importação/exportação em lote via `.xlsx`/`.csv` por filial (`preview` e `commit`) e exportação executiva de relatórios PDF A4 livre de estornos/cancelados.
 8. O sistema deve garantir sigilo absoluto do perfil `OPERADOR` em pedidos, movimentações e relatórios (`scope: 'user'`).
 
@@ -50,9 +50,9 @@ O sistema elimina planilhas soltas, erros de saldo sob concorrência e quebras h
   - Apenas `ADMIN` gerencia `/stores` (escrita), `/users*` (criação, transferência e exclusão real) e rotas destrutivas `DELETE /products|categories|suppliers/:id`.
   - `ADMIN` e `GERENTE` gerenciam catálogo da filial, planilhas `.xlsx`/`.csv`, cancelamento/estorno de pedidos (`/orders/:id/cancel`), ranking `/dashboard/desempenho` e métricas `/movements/user-stats`.
   - `OPERADOR` lança pedidos/ajustes e consulta exclusivamente seus próprios registros.
-- **Exclusão Real de Usuários vs Soft Delete de Catálogo:** `Usuario` não possui coluna `ativo`; sua exclusão limpa login/avatar e mantém `vendedorRefId` via `ON DELETE SET NULL`. `Loja`, `Produto`, `Categoria` e `Fornecedor` usam Soft Delete quando há histórico vinculado.
+- **Exclusão Real de Usuários & Situação Funcional vs Soft Delete de Catálogo:** `Usuario` não possui softban permanente `ativo: false`; possui situação temporária `ATIVO` | `SUSPENSO` | `FERIAS` (contas suspensas ou em férias têm login e rotas bloqueados com `403`). Na demissão (`DELETE /users/:id`), a conta é excluída fisicamente enquanto `vendedorRefId`, snapshots (`MAT-XXXXX (CANCELADA)`, admissão e término) e vendas ficam preservados via `ON DELETE SET NULL`. `Loja`, `Produto`, `Categoria` e `Fornecedor` usam Soft Delete quando há histórico vinculado.
 - **Estornos Fora do Faturamento:** Movimentações geradas por cancelamento recebem `estorno = true` e pedidos ficam `CANCELADO`; relatórios e rankings ignoram ambos automaticamente.
-- **Governança:** Autoexclusão e remoção/rebaixamento do último `ADMIN` ou inativação da última `Loja` ativa da Organização são bloqueadas (`400`); não-administradores não alteram próprio cargo em `/users/me` (`403`).
+- **Governança:** Autoexclusão, auto-suspensão, remoção/rebaixamento/suspensão do último `ADMIN ATIVO` ou inativação da última `Loja` ativa da Organização são bloqueadas (`400`); não-administradores não alteram próprio cargo em `/users/me` (`403`).
 
 ---
 

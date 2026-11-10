@@ -1,14 +1,14 @@
 # RELATÓRIO 01 — VISÃO GERAL E INVENTÁRIO DO PROJETO
 **Projeto:** Estoque.OS  
 **Data da Auditoria:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
-**Nível de Classificação Detectado:** **MEDIUM / PRODUCTION-READY CORE** *(Plataforma SaaS Multi-Organização / Multi-Filial com Multipedidos Atômicos, Estornos, Exclusão Real Preservando Histórico e Auditoria de Vendedores)*  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
+**Nível de Classificação Detectado:** **MEDIUM / PRODUCTION-READY CORE** *(Plataforma SaaS Multi-Organização / Multi-Filial com Multipedidos Atômicos & Comprovantes, Estornos, Matrícula/Situação Funcional e Demissão com Relatório Mensal)*
 
 ---
 
 ## 1. Visão Geral Executiva do Projeto `[IMPLEMENTADO (verificado)]`
 
-O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varejistas e estabelecimentos comerciais multi-filiais**, estruturada sob o modelo **Organização (Rede/Empresa) → múltiplas Lojas (Unidades/Filiais)**. O sistema organiza autenticação em dois portais dedicados (**Portal do Administrador** em `/admin/login` e **Portal da Loja** em `/login`), controle de acesso baseado em papéis (**RBAC**: `ADMIN`, `GERENTE` e `OPERADOR`), gestão de catálogo e fornecedores por filial, importação/exportação nativa de planilhas (`.xlsx` e `.csv`), **Multipedidos atômicos** (`Pedido` + `ItemPedido`) com **preço unitário congelado** e estorno transacional, **exclusão física real de colaboradores preservando o antigo ID (`vendedorRefId`) e snapshots históricos**, além de relatórios executivos PDF A4 e painel dedicado de desempenho por vendedor (`1m`, `6m`, `1y`).
+O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varejistas e estabelecimentos comerciais multi-filiais**, estruturada sob o modelo **Organização (Rede/Empresa) → múltiplas Lojas (Unidades/Filiais)**. O sistema organiza autenticação em dois portais dedicados (**Portal do Administrador** em `/admin/login` e **Portal da Loja** em `/login`), controle de acesso baseado em papéis (**RBAC**: `ADMIN`, `GERENTE` e `OPERADOR`), gestão de catálogo e fornecedores por filial (com suporte explícito a ativos e inativos), importação/exportação nativa de planilhas (`.xlsx` e `.csv`), **Multipedidos atômicos** (`Pedido` + `ItemPedido`) com **preço congelado**, **comprovação de pagamento/recebimento** (`PIX`, `NSU`, anexo no Cloudinary) e estorno transacional, **matrícula determinística (`MAT-00001`), gestão de situação trabalhista (`ATIVO` / `SUSPENSO` / `FERIAS`) e desligamento com exclusão física real preservando snapshots (`MAT-XXXXX (CANCELADA)`) e gerando relatório mensal do período trabalhado**, além de relatórios PDF A4 e painel de desempenho (`1m`, `6m`, `1y`, consulta por Matrícula/ID).
 
 ---
 
@@ -37,17 +37,17 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 
 ---
 
-## 3. Métricas de Inventário do Repositório `(MEDIDO Pós-Fase H)`
+## 3. Métricas de Inventário do Repositório `(MEDIDO em 10/11/2026)`
 
 > Medições coletadas diretamente via filesystem PowerShell excluindo `node_modules`, `.git`, `dist`, `build`, `uploads` e `.vscode`.
 
 | Escopo / Diretório | Quantidade de Arquivos | Contagem Real de Linhas | Finalidade |
 |---|---:|---:|---|
-| `backend/src` | 37 arquivos | 5.992 linhas | Servidor Express, rotas, controllers, services, middlewares, configs e `tenantScope` |
-| `backend/prisma` | 11 arquivos | 1.470 linhas | `schema.prisma`, 6 arquivos SQL de migração, `seed.js`, `seedMovements.js`, `reset.js` |
-| `backend/tests` | 1 arquivo | 497 linhas | Suíte E2E real [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) |
-| `frontend/src` | 78 arquivos | 11.113 linhas | Páginas, portais, componentes, tabelas, formulários, stores Zustand, `apiClient` e hooks |
-| **Subtotal Código + Dados + Testes** | **127 arquivos** | **19.072 linhas** | Núcleo executável completo da plataforma |
+| `backend/src` | 38 arquivos | 5.952 linhas | Servidor Express, rotas, controllers, services, middlewares, configs, `tenantScope` e `matriculaHelper` |
+| `backend/prisma` | 13 arquivos | 1.446 linhas | `schema.prisma`, `8` diretórios SQL de migração (`migration.sql`), `seed.js`, `seedMovements.js`, `reset.js` |
+| `backend/tests` | 1 arquivo | 517 linhas | Suíte E2E real [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) |
+| `frontend/src` | 80 arquivos | 12.095 linhas | Páginas, portais, componentes, modais (`ModalInfoUsuario`, `ModalRelatorioDesligamento`, `ModalMovimentacao`, `ModalConfirmacao`), stores e hooks |
+| **Subtotal Código + Dados + Testes** | **132 arquivos** | **20.010 linhas** | Núcleo executável completo da plataforma |
 | `relatorios` + `README` + config raiz | 41 arquivos | — | Relatórios 01–14, `00_REGISTRO_DE_PROGRESSO.md`, `README.md`, manifests e prompts |
 | **Total do Repositório (excluindo artefatos)** | **168 arquivos** | — | Árvore completa versionável |
 
@@ -81,11 +81,12 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 
 ### 4.2 Frontend (`frontend/src/`)
 - **Portais & Páginas (`pages/`):** [`Home.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Home.jsx), [`AdminLogin.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/AdminLogin.jsx), [`Auth.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Auth.jsx), [`Dashboard.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Dashboard.jsx), [`Lojas.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Lojas.jsx), [`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx), [`Pedidos.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Pedidos.jsx), [`Movimentacoes.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Movimentacoes.jsx), [`Produtos.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Produtos.jsx), [`Categorias.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Categorias.jsx), [`Fornecedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Fornecedores.jsx), [`Usuarios.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Usuarios.jsx), [`Configuracoes.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Configuracoes.jsx).
+- **Modais & Formulários (`components/`):** [`ModalInfoUsuario.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/users/ModalInfoUsuario.jsx), [`ModalRelatorioDesligamento.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/users/ModalRelatorioDesligamento.jsx), [`ModalPedidoMultiItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/ModalPedidoMultiItem.jsx), [`ModalMovimentacao.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/ModalMovimentacao.jsx), [`EditarItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/EditarItem.jsx), [`ModalConfirmacao.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/common/ModalConfirmacao.jsx), [`ModalExportarRelatorio.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/ModalExportarRelatorio.jsx).
 - **Clientes HTTP & Estado (`services/api/`, `store/`, `hooks/`):** [`apiClient.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/apiClient.js) (com injeção automática de `X-Loja-Id`), [`stores.api.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/stores.api.js), [`orders.api.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/orders.api.js), [`movements.api.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/movements.api.js), [`products.api.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/products.api.js), [`users.api.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/users.api.js), [`useTenantStore.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/store/useTenantStore.js), [`userStore.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/store/userStore.js), [`useAuthStore.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/store/useAuthStore.js), [`useDashboardData.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/hooks/useDashboardData.js).
 
 ---
 
 ## 5. Avaliação de Complexidade & Arquitetura `[IMPLEMENTADO (verificado)]`
 
-- **Classificação:** `MEDIUM` com arquitetura SaaS Multi-Organização / Multi-Filial coerente, lock pessimista ordenado no PostgreSQL (`ORDER BY id ASC FOR UPDATE`) em multipedidos, isolamento estrito por `organizacaoId` / `lojaId` e trilha contábil imutável (`vendedorRefId` + snapshots).
-- **Atenção Pós-Build Frontend:** O bundle `vite build` compilou **2.416 módulos** sem erros, porém emitiu aviso de chunk único (`dist/assets/index-L0QMFc5-.js` = **978,01 kB**, gzip `275,33 kB`), recomendando *code-splitting* por rotas (`React.lazy`).
+- **Classificação:** `MEDIUM` com arquitetura SaaS Multi-Organização / Multi-Filial coerente, lock pessimista ordenado no PostgreSQL (`ORDER BY id ASC FOR UPDATE`) em multipedidos, isolamento estrito por `organizacaoId` / `lojaId`, RH completo (Matrícula + Situação + Relatório Mensal de Desligamento) e trilha contábil imutável (`vendedorRefId` + snapshots).
+- **Atenção Pós-Build Frontend:** O bundle `vite build` compilou **2.418 módulos** sem erros, porém emitiu aviso de chunk único (`dist/assets/index-BMzMu_fe.js` = **1.007,67 kB**, gzip `281,01 kB`), recomendando *code-splitting* por rotas (`React.lazy`).

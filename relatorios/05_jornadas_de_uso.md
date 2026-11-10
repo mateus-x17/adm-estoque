@@ -1,7 +1,7 @@
 # 📑 RELATÓRIO TÉCNICO 05 — JORNADAS DE USO E FLUXOS REAIS
 **Projeto:** Estoque.OS  
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
 
@@ -22,11 +22,11 @@ O **Estoque.OS** separa a experiência de acesso em dois portais dedicados conec
 4. Em `/dashboard/lojas` ([`Lojas.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Lojas.jsx)), cria filiais adicionais (`POST /stores`).
 5. Em `/dashboard/usuarios` ([`Usuarios.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Usuarios.jsx)), cria `GERENTE` e `OPERADOR` com upload de avatar no Cloudinary (`estoque-os/organizacoes/<org>/lojas/<loja>/usuarios`) e pode **transferir um gerente de uma filial para outra** via `PATCH /users/:id/store` com efeito imediato nos relatórios daquele gerente (`invalidateUserCache`).
 
-### Jornada 2 — Multipedidos Atômicos com Congelamento de Preço & Estorno (`OPERADOR` / `GERENTE` / `ADMIN`)
+### Jornada 2 — Multipedidos Atômicos com Comprovação, Congelamento & Estorno (`OPERADOR` / `GERENTE` / `ADMIN`)
 1. Colaborador acessa `/dashboard/pedidos` ([`Pedidos.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Pedidos.jsx)) e abre [`ModalPedidoMultiItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/ModalPedidoMultiItem.jsx).
-2. Seleciona `VENDA` ou `REPOSICAO` (vinculável a fornecedor), adiciona 2+ produtos diferentes ao carrinho e confirma envio com `Idempotency-Key`.
-3. Backend ordena os itens por `produtoId ASC`, bloqueia linhas com `SELECT ... FOR UPDATE`, verifica saldo, congela `precoUnitario` em `ItemPedido`, cria o `Pedido` (`PED-...`) e registra espelhos em `Movimento`.
-4. Caso cliente desista ou haja erro operacional, `GERENTE` ou `ADMIN` aciona **Estornar / Cancelar** (`POST /orders/:id/cancel`) — `OPERADOR` recebe `403`. Estoque é revertido atomicamente, pedido muda para `CANCELADO` e movimentos inversos (`estorno = true`) ficam registrados sem inflar faturamento futuro.
+2. Seleciona `VENDA` ou `REPOSICAO` (vinculável a fornecedor), adiciona 2+ produtos diferentes ao carrinho, informa comprovação (`formaPagamento`, `statusPagamento`, `comprovanteCodigo` PIX/NSU/recibo, `recebidoPor` e anexo opcional no Cloudinary) e confirma envio com `Idempotency-Key`.
+3. Backend ordena os itens por `produtoId ASC`, bloqueia linhas com `SELECT ... FOR UPDATE`, verifica saldo, congela `precoUnitario` em `ItemPedido`, cria o `Pedido` (`PED-...`) e registra espelhos em `Movimento`. É possível anexar/atualizar comprovantes depois (`PATCH /orders/:id/proof`) e imprimir recibo formal.
+4. Caso cliente desista ou haja erro operacional, `GERENTE` ou `ADMIN` aciona **Estornar / Cancelar** (`POST /orders/:id/cancel`) via diálogo estilizado — `OPERADOR` recebe `403`. Estoque é revertido atomicamente, pedido muda para `CANCELADO`/`ESTORNADO` e movimentos inversos (`estorno = true`) ficam registrados sem inflar faturamento futuro.
 
 ### Jornada 3 — Matrícula Única, Suspensão/Férias, Reativação & Demissão c/ Relatório Mensal (`/dashboard/usuarios` & `/dashboard/desempenho`)
 1. Cada colaborador criado recebe automaticamente uma **Matrícula única** derivada do seu ID (`MAT-00001`), além de **Telefone**, **Situação Funcional** (`Atuando`, `Suspenso` ou `Em Férias`) e **Data de Admissão**.

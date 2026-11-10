@@ -1,8 +1,8 @@
 # 📑 RELATÓRIO TÉCNICO 11 — MATRIZ CONSOLIDADA DE FALHAS (PÓS-FASE H)
 **Projeto:** Estoque.OS  
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
-**Base de Verificação:** Inspeção direta no código atual + suíte E2E [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) (`7/7`) + `eslint .` + `vite build`.
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
+**Base de Verificação:** Inspeção direta no código atual + suíte E2E [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) (`7/7` cenários aprovados na última conexão válida ao Neon; expandida offline para RH/Matrícula) + `npx prisma generate` + `node --check` + `eslint .` + `vite build`.
 
 ---
 
@@ -12,11 +12,11 @@
 |---|---|---|---|---|
 | **B1** | Segredos em logs, código ou respostas | `CONTROLADO` | `backend/.env` ignorado pelo Git; `errorHandler.js` retorna `{ error: message }`. *(Recomendação contínua: rotacionar credencial Neon se exposta externamente).* | Baixa |
 | **B2** | Escalada por *mass assignment* | `RESOLVIDO / TESTADO` | `POST /auth/register` cria Organização nova intencionalmente; `PUT /users/me` bloqueia `role` com `403`; `createUser`/`updateUser` validam `Role`. | Nenhuma |
-| **B3** | IDOR / Autorização apenas no frontend | `RESOLVIDO / TESTADO` | `tenantScope.js` isola `organizacaoId` (`404` cross-org) e trava `GERENTE`/`OPERADOR` em `req.user.lojaId`; `OPERADOR` recebe `403` em `/performance*`, `/users*`, `/orders/:id/cancel`; portal errado retorna `403`. | Nenhuma |
+| **B3** | IDOR / Autorização apenas no frontend | `RESOLVIDO / TESTADO` | `tenantScope.js` isola `organizacaoId` (`404` cross-org) e trava `GERENTE`/`OPERADOR` em `req.user.lojaId`; `OPERADOR` recebe `403` em `/performance*`, `/users*`, `/orders/:id/cancel`; suspensos/férias bloqueados (`403`). | Nenhuma |
 | **B4** | Validação de entrada e teto de texto | `PARCIAL / ABERTO` | `validationMiddleware.js` checa obrigatórios, e-mail, `preco >= 0`, `quantidade >= 0`; Multer limita `5MB`/`2MB`. Faltam limites `VarChar` no `schema.prisma` e regra mínima de senha. | Média |
 | **B5** | Tratamento centralizado de erros | `RESOLVIDO / VERIFICADO` | `errorHandler.js` intercepta exceções sem retornar stack trace na resposta HTTP (`res.status(status).json({ error: message })`). | Baixa |
-| **B6** | Deleção com violação de FK / 500 | `RESOLVIDO / TESTADO` | `Loja`, `Produto`, `Categoria`, `Fornecedor` usam Soft Delete automático; `Usuario` usa exclusão física real c/ `ON DELETE SET NULL` preservando `vendedorRefId`. | Nenhuma |
-| **B7** | Autoexclusão / lockout do último `ADMIN` | `RESOLVIDO / TESTADO` | `userService.js` bloqueia autoexclusão e proteção contra remoção/rebaixamento do último `ADMIN`; `storeService.js` protege última loja ativa. | Nenhuma |
+| **B6** | Deleção com violação de FK / 500 | `RESOLVIDO / TESTADO` | `Loja`, `Produto`, `Categoria`, `Fornecedor` usam Soft Delete automático; `Usuario` usa exclusão física real c/ `ON DELETE SET NULL` marcando `MAT-XXXXX (CANCELADA)` e gerando `relatorioDesligamento`. | Nenhuma |
+| **B7** | Autoexclusão / lockout do último `ADMIN` | `RESOLVIDO / TESTADO` | `userService.js` bloqueia autoexclusão/auto-suspensão e proteção contra remoção/rebaixamento/suspensão do último `ADMIN ATIVO`; `storeService.js` protege última loja ativa. | Nenhuma |
 | **B8** | Frontend quebrando em estado nulo / rotas abertas | `RESOLVIDO / VERIFICADO` | `ProtectedRoute.jsx` aceita array `requiredRole={["ADMIN", "GERENTE"]}`; estados de loading e fallback seguros em páginas. | Nenhuma |
 | **B9** | Chamadas HTTP fora do cliente único | `PARCIAL / MELHORADO` | `LoginForm.jsx` foi migrado; apenas [`EditarItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/EditarItem.jsx) (`L308`, `L360`) ainda contém `fetch()` direto fora de `apiClient.js`. | Baixa |
 | **B10** | Listagens sem paginação / `limit=all` | `PARCIAL / ABERTO` | `/orders`, `/movements`, `/products`, `/users` paginam até 100 itens; `GET /movements?limit=all` ainda é usado por gráficos no frontend; `/categories` e `/suppliers` não paginam. | Média |
@@ -53,4 +53,4 @@
 | **A5** | Estado em RAM / código morto | `PARCIAL / ABERTO` | `userCache`, `namesCacheByScope`, `idempotencyStore`, `orderIdempotencyStore` e `rate-limit` vivem em memória local (exigem Redis p/ 2+ instâncias); `index.js#L62` tem `loginLimiter` não usado. | Média |
 | **A6** | Observabilidade / Correlation ID | `RESOLVIDO / VERIFICADO` | `Pino` JSON logger + header UUID `X-Request-Id` em `requestLogger.js`. | Baixa |
 | **A7** | Health checks & Graceful Shutdown | `RESOLVIDO / VERIFICADO` | `/`, `/test-db` e rotina `SIGTERM`/`SIGINT` em `index.js` fechando HTTP e `prisma.$disconnect()` com timeout 10s. | Nenhuma |
-| **A8** | Proxy reverso, Docker e Bundle Split | `PARCIAL / PAAS` | Hospedagem Vercel/Render gerencia TLS; sem `Dockerfile`; bundle Vite único (`978,01 kB`) precisa de *code-splitting*. | Baixa/Média |
+| **A8** | Proxy reverso, Docker e Bundle Split | `PARCIAL / PAAS` | Hospedagem Vercel/Render gerencia TLS; sem `Dockerfile`; bundle Vite único (`1.007,67 kB`, `2.418` módulos) precisa de *code-splitting*. | Baixa/Média |

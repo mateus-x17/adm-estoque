@@ -1,12 +1,12 @@
 # 📑 RELATÓRIO TÉCNICO 09 — ARQUITETURA E SYSTEM DESIGN
 **Projeto:** Estoque.OS  
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 **Nível:** MEDIUM (Monólito Modular Multi-Organização / Multi-Filial vs Alvo Escalável)  
 
 ---
 
-## 1. Diagrama da Arquitetura Atual Implementada (Pós-Fase H) `[IMPLEMENTADO (verificado)]`
+## 1. Diagrama da Arquitetura Atual Implementada `[IMPLEMENTADO (verificado)]`
 
 ```mermaid
 flowchart TD
@@ -18,17 +18,17 @@ flowchart TD
     subgraph FrontendSPA["Frontend SPA (Vercel / React 19 + Vite 7)"]
         Zustand["Zustand Stores\nuseAuthStore · userStore · useTenantStore"]
         APIClient["apiClient.js\nInjeca Bearer JWT + X-Loja-Id"]
-        UI["Páginas & Modais Portal\nPedidos · Desempenho · Lojas · PDF A4"]
+        UI["Páginas & Modais Portal\nPedidos · Desempenho · Usuarios RH · Lojas · PDF A4"]
     end
 
     subgraph BackendAPI["Backend Modular (Render / Express 5 ESM)"]
-        Security["Helmet + CORS + Pino X-Request-Id\nauthMiddleware (userCache 60s) + permit()"]
-        Scope["tenantScope.js\nresolveReadScope / resolveWriteStore"]
-        CoreServices["Services Transacionais\norderService (ORDER BY id FOR UPDATE)\nmovementService · storeService\nuserService · productSpreadsheetService"]
+        Security["Helmet + CORS + Pino X-Request-Id\nauthMiddleware (userCache 60s + situacao) + permit()"]
+        Scope["tenantScope.js & matriculaHelper.js\nresolveReadScope / resolveWriteStore / MAT-XXXXX"]
+        CoreServices["Services Transacionais\norderService (ORDER BY id FOR UPDATE + comprovantes)\nmovementService · storeService\nuserService · productSpreadsheetService"]
     end
 
     subgraph CloudInfra["Persistência & CDN"]
-        NeonDB[("PostgreSQL Neon\nOrganizacao -> Lojas -> Pedidos\nDecimal(10,2) + vendedorRefId")]
+        NeonDB[("PostgreSQL Neon\nOrganizacao -> Lojas -> Pedidos\nDecimal(10,2) + Matricula/Snapshots")]
         Cloudinary["Cloudinary CDN (Timeout 10s)\nestoque-os/organizacoes/<org>/lojas/<loja>/"]
     end
 

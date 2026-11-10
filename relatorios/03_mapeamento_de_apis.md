@@ -1,7 +1,7 @@
 # 📑 RELATÓRIO TÉCNICO 03 — MAPEAMENTO DE APIS, CONTRATOS E CADEIAS DE EXECUÇÃO
 ## Projeto: Estoque.OS — Catálogo Completo de Endpoints (Sincronizado Fase H)
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
 

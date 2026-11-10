@@ -1,7 +1,7 @@
 # 📑 RELATÓRIO TÉCNICO 13 — RESUMO EXECUTIVO CONSOLIDADO DE MUDANÇAS E MELHORIAS (FASES A → H)
 **Projeto:** Estoque.OS  
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 **Conformidade Metodológica:** Consolidado final nos moldes da Seção `2.14` do catálogo unificado.
 
 ---

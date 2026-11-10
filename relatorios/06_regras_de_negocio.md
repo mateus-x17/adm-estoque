@@ -1,7 +1,7 @@
 # 📑 RELATÓRIO TÉCNICO 06 — CATÁLOGO DE REGRAS DE NEGÓCIO
 ## Projeto: Estoque.OS — Regras Verificadas e Cobertura E2E (`RN-001` a `RN-031`)
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
 

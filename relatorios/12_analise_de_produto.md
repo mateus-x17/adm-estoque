@@ -1,17 +1,17 @@
 # 📑 RELATÓRIO TÉCNICO 12 — ANÁLISE DE PRODUTO, POSICIONAMENTO E MERCADO
 **Projeto:** Estoque.OS  
 **Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `feature/multitenant`  
+**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
 
 ## 1. Análise de Produto e Proposta de Valor `[IMPLEMENTADO (verificado)]`
 
-Com a entrega da **Fase H**, o **Estoque.OS** superou o patamar de controle simples de loja única e consolidou-se como um **ERP / PDV leve Multi-Organização e Multi-Filial (SaaS B2B)** focado em redes varejistas e estabelecimentos em expansão:
+Com a entrega da **Fase H + UX/Comprovantes + Gestão RH**, o **Estoque.OS** consolidou-se como um **ERP / PDV leve Multi-Organização e Multi-Filial (SaaS B2B)** focado em redes varejistas e estabelecimentos em expansão:
 
-1. **Governança Corporativa Real (`Organizacao → Lojas`):** O proprietário (`ADMIN`) abre sua Organização em segundos (`/admin/login?mode=register`), cadastra novas filiais (`/dashboard/lojas`), alterna instantaneamente entre visão consolidada da rede (`"Todas as Lojas"`) ou filial isolada na barra lateral e move gerentes/vendedores entre lojas conforme necessidade operacional.
-2. **Operação Comercial sem Atraso de Caixa (Multipedidos + Preço Congelado):** Pedidos multi-item com múltiplos SKUs na mesma venda/reposição previnem *deadlocks* e *lost updates* no PostgreSQL, congelam o valor histórico pago pelo cliente e permitem estorno supervisionado (`ADMIN`/`GERENTE`) com devolução automática de estoque.
-3. **Resolução Real de Turn-Over de Equipe & Auditoria:** Ao demitir um vendedor, a exclusão física limpa o acesso e o avatar sem perder 1 centavo do histórico nem quebrar buscas retrospectivas — bastando digitar o antigo ID numérico ou nome em `/dashboard/desempenho` para auditar mês (`1m`), semestre (`6m`), ano (`1y`) e pedidos cancelados daquele profissional.
+1. **Governança Corporativa Real (`Organizacao → Lojas`):** O proprietário (`ADMIN`) abre sua Organização em segundos (`/admin/login?mode=register`), cadastra filiais (`/dashboard/lojas`), alterna instantaneamente entre visão consolidada da rede (`"Todas as Lojas"`) ou filial isolada na barra lateral e move gerentes/vendedores entre lojas conforme necessidade operacional.
+2. **Operação Comercial sem Atraso & Rastreabilidade Antifraude (`/orders`):** Multipedidos previnem *deadlocks* e *lost updates* no PostgreSQL, congelam o valor histórico pago, registram **comprovação formal** (`PIX`/NSU/Recibo + recebedor + anexo Cloudinary em `PATCH /orders/:id/proof`) e permitem estorno supervisionado (`ADMIN`/`GERENTE`).
+3. **Gestão Completa de Ciclo de Equipe (Matrícula, Suspensão & Relatório Mensal de Desligamento):** Cada colaborador possui matrícula única (`MAT-00001`), telefone, admissão e status funcional (`Atuando`, `Suspenso` ou `Em Férias`). A partir de um botão singelo `Info`, gestores reativam ou demitem com cancelamento visual da matrícula (`MAT-XXXXX (CANCELADA)`), gerando na hora o **Relatório Final em PDF** com todas as vendas mês a mês entre `Data de Início` e `Data de Término` — mantendo pesquisas por Matrícula em `/dashboard/desempenho`.
 4. **Zero Barreira de Migração:** Lojistas trazem até `5.000` produtos de sistemas antigos via planilha `.xlsx`/`.csv` validada em tela antes de gravar no banco.
 
 ---
