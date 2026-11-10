@@ -68,6 +68,7 @@ function buildRelativeDate(monthsAgo, dayOfMonth, hour = 10) {
   return target;
 }
 
+/////////////////////////////////// SEED CLIENTES //////////////////////////////////////
 const CLIENT_NAMES = [
   "Cliente Balcão",
   "Mariana Costa",
@@ -199,10 +200,12 @@ async function createSeedOrder({
   return pedido;
 }
 
+/////////////////////////////////// MOTOR EXECUTOR DO SEED (RECEBE OS DADOS DE "organizations" EM main() ABAIXO) //////////////////////////////////////
 // função para popular uma Organização completa com suas Lojas, Equipes, Catálogo e 12 meses de Pedidos
 async function seedOrganization(orgConfig, passwordHash) {
   console.log(`\n🏢 Criando Organização: ${orgConfig.nome} (${orgConfig.slug})...`);
 
+  /////////////////////////////////// GRAVAÇÃO DA ORGANIZAÇÃO NO BANCO //////////////////////////////////////
   const organizacao = await prisma.organizacao.create({
     data: {
       nome: orgConfig.nome,
@@ -213,6 +216,7 @@ async function seedOrganization(orgConfig, passwordHash) {
     },
   });
 
+  /////////////////////////////////// GRAVAÇÃO DO ADMIN NO BANCO //////////////////////////////////////
   // 1) Administrador global da Organização
   const adminAvatar = await resolveSeedImage(
     "usuarios",
@@ -393,6 +397,7 @@ async function seedOrganization(orgConfig, passwordHash) {
     const activeNonDeletedSellers = weightedSellers.filter((w) => !w.isEx);
     let sellerCursor = 0;
 
+    /////////////////////////////////// GERAÇÃO DOS PEDIDOS E MOVIMENTAÇÕES (12 MESES) //////////////////////////////////////
     for (let monthsAgo = 11; monthsAgo >= 0; monthsAgo--) {
       // 1 compra de reposição multi-item com fornecedor no mês
       orderSequence += 1;
@@ -520,12 +525,18 @@ async function main() {
 
   const passwordHash = await bcrypt.hash("Password123!", SALT_ROUNDS);
 
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                              DADOS REAIS USADOS PARA POPULAR TODO O BANCO DE DADOS                                //
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   const organizations = [
+    /////////////////////////////////// SEED ORGANIZAÇÃO 1 //////////////////////////////////////
     {
       nome: "Grupo TechStock Varejo",
       slug: "grupo-techstock",
       cnpj: "12.345.678/0001-90",
       telefone: "(11) 3000-1000",
+
+      /////////////////////////////////// SEED ADMIN (ORG 1) //////////////////////////////////////
       admin: {
         nome: "Lucas Silva",
         email: "admin@techstock.com",
@@ -533,7 +544,9 @@ async function main() {
         avatarPrefix: "1780345070847",
         slugId: "lucas-admin",
       },
+
       lojas: [
+        /////////////////////////////////// SEED LOJA 1 (TECHSTOCK CENTRO) //////////////////////////////////////
         {
           nome: "TechStock Centro",
           slug: "techstock-centro",
@@ -541,19 +554,29 @@ async function main() {
           telefone: "(11) 3000-1001",
           endereco: "Av. Paulista, 1450 - Centro, São Paulo/SP",
           usuarios: [
+            /////////////////////////////////// SEED GERENTES (LOJA 1) //////////////////////////////////////
             { nome: "Fernanda Lima", email: "gerente1@techstock.com", telefone: "(11) 98101-1101", situacao: "ATIVO", dataAdmissao: buildRelativeDate(11, 2, 9), role: "GERENTE", avatarPrefix: "1760766985751", slugId: "fernanda-ger1", salesWeight: 1 },
+
+            /////////////////////////////////// SEED OPERADORES (LOJA 1) //////////////////////////////////////
             { nome: "Rafael Mendes", email: "op1@techstock.com", telefone: "(11) 98102-2202", situacao: "ATIVO", dataAdmissao: buildRelativeDate(10, 8, 9), role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "rafael-op1", salesWeight: 5 },
             { nome: "Beatriz Duarte", email: "op2@techstock.com", telefone: "(11) 98103-3303", situacao: "ATIVO", dataAdmissao: buildRelativeDate(8, 15, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "beatriz-op2", salesWeight: 2 },
+
+            /////////////////////////////////// SEED SUSPENSO E EX-FUNCIONÁRIO (LOJA 1) //////////////////////////////////////
             { nome: "Carlos Henrique", email: "carlos.susp@techstock.com", telefone: "(11) 98104-4404", situacao: "SUSPENSO", dataAdmissao: buildRelativeDate(6, 4, 9), role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "carlos-susp", salesWeight: 2 },
             { nome: "Marcos Antunes", email: "marcos.ex@techstock.com", telefone: "(11) 98105-5505", situacao: "ATIVO", dataAdmissao: buildRelativeDate(7, 10, 9), role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "marcos-ex", deleteAfterSeed: true },
           ],
+          /////////////////////////////////// SEED CATEGORIAS (LOJA 1) //////////////////////////////////////
           categorias: ["Periféricos", "Monitores", "Mobiliário Gamer", "Áudio"],
+
+          /////////////////////////////////// SEED FORNECEDORES (LOJA 1) //////////////////////////////////////
           fornecedores: [
             { nome: "LogiSupply Distribuidora", email: "pedidos@logisupply.com", telefone: "(11) 3333-1111", endereco: "Av. Industrial, 800" },
             { nome: "MegaHardware Atacado", email: "comercial@megahw.com", telefone: "(11) 3333-2222", endereco: "Rua Santa Ifigênia, 420" },
             { nome: "ErgoTech Brasil", email: "suporte@ergotech.com", telefone: "(11) 3333-3333", endereco: "Av. Conforto, 55" },
             { nome: "Alpha Importações Legado", email: "contato@alphalegado.com", telefone: "(11) 3111-9090", endereco: "Galpão Antigo 04 - Brás", ativo: false },
           ],
+
+          /////////////////////////////////// SEED PRODUTOS (LOJA 1) //////////////////////////////////////
           produtos: [
             { nome: "Mouse Gamer Logitech G502", descricao: "Sensor Hero 25K DPI com pesos ajustáveis", preco: 289.9, categoria: "Periféricos", fornecedor: "LogiSupply Distribuidora", imagePrefix: "1760764515263", slugId: "mouse-g502", stockFinal: 64 },
             { nome: "Teclado Mecânico Redragon K552", descricao: "Switch Outemu Blue layout ABNT2 LED RGB", preco: 219.9, categoria: "Periféricos", fornecedor: "MegaHardware Atacado", imagePrefix: "1760764570683", slugId: "teclado-k552", stockFinal: 48 },
@@ -564,6 +587,8 @@ async function main() {
             { nome: "Cabo VGA Analógico Legado", descricao: "Item descontinuado mantido para auditoria fiscal", preco: 24.9, categoria: "Periféricos", fornecedor: "MegaHardware Atacado", imagePrefix: "1768960856511", slugId: "cabo-vga-inativo", ativo: false, stockFinal: 2 },
           ],
         },
+
+        /////////////////////////////////// SEED LOJA 2 (TECHSTOCK SHOPPING) //////////////////////////////////////
         {
           nome: "TechStock Shopping",
           slug: "techstock-shopping",
@@ -571,17 +596,25 @@ async function main() {
           telefone: "(11) 3000-1002",
           endereco: "Shopping Eldorado, Piso 2 - Pinheiros, São Paulo/SP",
           usuarios: [
+            /////////////////////////////////// SEED GERENTES (LOJA 2) //////////////////////////////////////
             { nome: "Thiago Azevedo", email: "gerente2@techstock.com", telefone: "(11) 98201-1101", situacao: "ATIVO", dataAdmissao: buildRelativeDate(11, 5, 9), role: "GERENTE", avatarPrefix: "1782851574852", slugId: "thiago-ger2", salesWeight: 1 },
+
+            /////////////////////////////////// SEED OPERADORES & FÉRIAS (LOJA 2) //////////////////////////////////////
             { nome: "Camila Rocha", email: "op3@techstock.com", telefone: "(11) 98202-2202", situacao: "ATIVO", dataAdmissao: buildRelativeDate(9, 12, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "camila-op3", salesWeight: 4 },
             { nome: "Diego Martins", email: "op4@techstock.com", telefone: "(11) 98203-3303", situacao: "ATIVO", dataAdmissao: buildRelativeDate(7, 20, 9), role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "diego-op4", salesWeight: 2 },
             { nome: "Juliana Costa", email: "op5@techstock.com", telefone: "(11) 98204-4404", situacao: "FERIAS", dataAdmissao: buildRelativeDate(8, 3, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "juliana-op5", salesWeight: 2 },
           ],
+          /////////////////////////////////// SEED CATEGORIAS (LOJA 2) //////////////////////////////////////
           categorias: ["Monitores & Displays", "Periféricos Wireless", "Acessórios Pro"],
+
+          /////////////////////////////////// SEED FORNECEDORES (LOJA 2) //////////////////////////////////////
           fornecedores: [
             { nome: "InfoSul Importadora", email: "vendas@infosul.com", telefone: "(41) 3200-4400", endereco: "Curitiba/PR" },
             { nome: "PowerCharge Tech", email: "atendimento@powercharge.com", telefone: "(11) 3500-8800", endereco: "Barueri/SP" },
             { nome: "Nexus Cabo & Cia (Desativada)", email: "arquivo@nexuscabo.com", telefone: "(11) 3200-0099", endereco: "Santo Amaro, SP", ativo: false },
           ],
+
+          /////////////////////////////////// SEED PRODUTOS (LOJA 2) //////////////////////////////////////
           produtos: [
             { nome: "Monitor 27\" QHD Dell UltraSharp", descricao: "Resolução 2K IPS 99% sRGB USB-C Hub", preco: 1849.0, categoria: "Monitores & Displays", fornecedor: "InfoSul Importadora", imagePrefix: "1769021129540", slugId: "monitor-27-qhd", stockFinal: 16 },
             { nome: "Teclado Wireless Slim Keychron", descricao: "Conexão Bluetooth multi-dispositivo alumínio", preco: 459.9, categoria: "Periféricos Wireless", fornecedor: "InfoSul Importadora", imagePrefix: "1760764570683", slugId: "teclado-slim", stockFinal: 34 },
@@ -593,11 +626,15 @@ async function main() {
         },
       ],
     },
+
+    /////////////////////////////////// SEED ORGANIZAÇÃO 2 //////////////////////////////////////
     {
       nome: "CyberForge Geek Store",
       slug: "cyberforge-geek",
       cnpj: "98.765.432/0001-10",
       telefone: "(21) 4000-4242",
+
+      /////////////////////////////////// SEED ADMIN (ORG 2) //////////////////////////////////////
       admin: {
         nome: "Lucas Stark",
         email: "admin@cyberforge.com",
@@ -605,7 +642,9 @@ async function main() {
         avatarPrefix: "1780345070847",
         slugId: "stark-admin",
       },
+
       lojas: [
+        /////////////////////////////////// SEED LOJA ÚNICA (CYBERFORGE MATRIZ) //////////////////////////////////////
         {
           nome: "CyberForge Matriz",
           slug: "cyberforge-matriz",
@@ -613,17 +652,25 @@ async function main() {
           telefone: "(21) 4000-4243",
           endereco: "Av. Rio Branco, 310 - Centro, Rio de Janeiro/RJ",
           usuarios: [
+            /////////////////////////////////// SEED GERENTES (CYBERFORGE) //////////////////////////////////////
             { nome: "Marina Sato", email: "gerente1@cyberforge.com", telefone: "(21) 98301-1101", situacao: "ATIVO", dataAdmissao: buildRelativeDate(10, 6, 9), role: "GERENTE", avatarPrefix: "1760766985751", slugId: "marina-ger1", salesWeight: 1 },
+
+            /////////////////////////////////// SEED OPERADORES & SUSPENSO (CYBERFORGE) //////////////////////////////////////
             { nome: "Bruno Wayne", email: "op1@cyberforge.com", telefone: "(21) 98302-2202", situacao: "ATIVO", dataAdmissao: buildRelativeDate(9, 14, 9), role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "bruno-op1", salesWeight: 4 },
             { nome: "Sofia Banner", email: "op2@cyberforge.com", telefone: "(21) 98303-3303", situacao: "ATIVO", dataAdmissao: buildRelativeDate(7, 19, 9), role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "sofia-op2", salesWeight: 2 },
             { nome: "Peter Quill", email: "peter.susp@cyberforge.com", telefone: "(21) 98304-4404", situacao: "SUSPENSO", dataAdmissao: buildRelativeDate(5, 9, 9), role: "OPERADOR", avatarPrefix: "1780345070847", slugId: "peter-susp", salesWeight: 2 },
           ],
+          /////////////////////////////////// SEED CATEGORIAS (CYBERFORGE) //////////////////////////////////////
           categorias: ["Setup Geek", "Colecionáveis", "Iluminação & Decoração", "Vestuário Nerd"],
+
+          /////////////////////////////////// SEED FORNECEDORES (CYBERFORGE) //////////////////////////////////////
           fornecedores: [
             { nome: "Akihabara Imports", email: "contato@akihabara.com", telefone: "(11) 3900-1122", endereco: "Liberdade, São Paulo/SP" },
             { nome: "Multiverso Colecionáveis", email: "atacado@multiverso.com", telefone: "(21) 3100-7788", endereco: "Botafogo, Rio de Janeiro/RJ" },
             { nome: "PixelBox Encerrada", email: "legado@pixelbox.com", telefone: "(21) 3999-0011", endereco: "São Cristóvão, RJ", ativo: false },
           ],
+
+          /////////////////////////////////// SEED PRODUTOS (CYBERFORGE) //////////////////////////////////////
           produtos: [
             { nome: "Teclado Custom Mech 75% Neon", descricao: "Hot-swappable com keycaps PBT tema Cyberpunk", preco: 429.9, categoria: "Setup Geek", fornecedor: "Akihabara Imports", imagePrefix: "1760764570683", slugId: "teclado-cyber", stockFinal: 31 },
             { nome: "Mouse Wireless Samurai Edition", descricao: "Ultra-leve 54g sensor PAW3395 edição especial", preco: 349.9, categoria: "Setup Geek", fornecedor: "Akihabara Imports", imagePrefix: "1760764515263", slugId: "mouse-samurai", stockFinal: 27 },
