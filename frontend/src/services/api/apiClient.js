@@ -1,201 +1,197 @@
-/**
- * Base API Client
- * Handles all HTTP requests with automatic token management
- */
+// arquivo responsável por centralizar as requisições HTTP do frontend com injeção automática de JWT e suporte a uploads e blobs
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
-/**
- * Get authentication token from user store
- */
+// função para recuperar o token JWT salvo pelo Zustand no localStorage
+// 1 - Lê a chave 'auth-token' persistida no armazenamento local do navegador
+// 2 - Faz o parse do JSON e extrai state.token com fallback seguro para null
 const getToken = () => {
-    const storeData = localStorage.getItem("auth-token");  // ✅ Nome correto do store Zustand
-    if (!storeData) {
-        console.log("[API Client] No auth-token found in localStorage");
-        return null;
+  const storeData = localStorage.getItem("auth-token");
+  if (!storeData) return null;
+
+  try {
+    const parsed = JSON.parse(storeData);
+    return parsed?.state?.token || null;
+  } catch {
+    return null;
+  }
+};
+
+// função para montar os cabeçalhos HTTP com Bearer Token quando a rota exigir autenticação
+// 1 - Inicializa Content-Type application/json e cabeçalhos customizados
+// 2 - Se skipAuth for falso, injeta Authorization: Bearer <token> caso disponível
+const buildHeaders = (customHeaders = {}, skipAuth = false) => {
+  const headers = {
+    "Content-Type": "application/json",
+    ...customHeaders,
+  };
+
+  if (!skipAuth) {
+    const token = getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
+  }
+
+  return headers;
+};
+
+// função para padronizar o tratamento de respostas e erros HTTP vindos do backend
+// 1 - Verifica se response.ok é falso e extrai mensagem e detalhes do corpo JSON de erro
+// 2 - Se receber status 401 fora das rotas de login, limpa a sessão e redireciona para /auth
+// 3 - Anexa status e payload completo de erro (error.data) para feedback detalhado na interface (ex: erros em planilhas)
+// 4 - Em caso de sucesso, devolve o JSON decodificado
+const handleResponse = async (response) => {
+  if (!response.ok) {
+    let errorMessage = "Erro ao processar requisição";
+    let errorData = null;
 
     try {
-        const parsed = JSON.parse(storeData);
-        const token = parsed?.state?.token || null;
-        console.log("[API Client] Token from storage:", token ? "✅ Found" : "❌ Missing in state");
-        return token;
-    } catch (error) {
-        console.error("[API Client] Error parsing auth-token:", error);
-        return null;
+      errorData = await response.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      } else if (response.status === 401) {
+        errorMessage = "Não autorizado. Por favor, faça login novamente.";
+      } else if (response.status === 403) {
+        errorMessage = "Acesso negado. Você não tem permissão para esta ação.";
+      } else if (response.status === 404) {
+        errorMessage = "Recurso não encontrado.";
+      } else if (response.status === 500) {
+        errorMessage = "Erro no servidor. Tente novamente mais tarde.";
+      }
+    } catch {
+      if (response.status === 401) {
+        errorMessage = "Credenciais inválidas. Verifique seus dados e tente novamente.";
+      } else if (response.status >= 500) {
+        errorMessage = "Erro no servidor. Tente novamente mais tarde.";
+      }
     }
-};
 
-// -------------------------------------------------------------------------
-// CORE LOGIC: buildHeaders
-// Responsável por acoplar automaticamente o Token JWT nas requisições seguras.
-// 1 - Puxa o token hidratado pelo Zustand que está persistido no localStorage.
-// 2 - Injeta no padrão Bearer.
-// 3 - Ignora a injeção caso a flag skipAuth seja true (ex: Tela de Login).
-// -------------------------------------------------------------------------
-const buildHeaders = (customHeaders = {}, skipAuth = false) => {
-    const headers = {
-        "Content-Type": "application/json",
-        ...customHeaders,
-    };
-
-    if (!skipAuth) {
-        const token = getToken();
-        console.log("[API Client] Token retrieved:", token ? "✅ Found" : "❌ Not found");
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
-            console.log("[API Client] Authorization header added");
+    if (response.status === 401 && typeof window !== "undefined") {
+      try {
+        const currentPath = window.location.pathname;
+        if (currentPath !== "/auth" && currentPath !== "/login") {
+          localStorage.removeItem("auth-token");
+          setTimeout(() => {
+            window.location.href = "/auth";
+          }, 100);
         }
-    } else {
-        console.log("[API Client] Skipping auth (public endpoint)");
+      } catch {
+        // ignore
+      }
     }
 
-    return headers;
+    const error = new Error(errorMessage);
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
+  }
+
+  return response.json();
 };
 
-/**
- * Handle API response
- */
-const handleResponse = async (response) => {
-    console.log(`[API Client] Response status: ${response.status} ${response.statusText}`);
+// função genérica para executar chamadas JSON via fetch API
+// 1 - Concatena API_BASE_URL com o endpoint informado
+// 2 - Aplica headers de autenticação (exceto quando skipAuth = true)
+// 3 - Processa a resposta através de handleResponse
+const request = async (endpoint, options = {}) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+  const { skipAuth = false, ...fetchOptions } = options;
+
+  const config = {
+    ...fetchOptions,
+    headers: buildHeaders(fetchOptions.headers, skipAuth),
+  };
+
+  const response = await fetch(url, config);
+  return handleResponse(response);
+};
+
+// Cliente HTTP unificado exportado para todos os módulos de serviço
+export const apiClient = {
+  get: (endpoint, options = {}) =>
+    request(endpoint, { ...options, method: "GET" }),
+
+  post: (endpoint, data, options = {}) =>
+    request(endpoint, {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  put: (endpoint, data, options = {}) =>
+    request(endpoint, {
+      ...options,
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  patch: (endpoint, data, options = {}) =>
+    request(endpoint, {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (endpoint, options = {}) =>
+    request(endpoint, { ...options, method: "DELETE" }),
+
+  // função para envio de formulários multipart/form-data (imagens e planilhas) via POST
+  // 1 - Injeta token JWT sem fixar Content-Type para o navegador definir o boundary automaticamente
+  // 2 - Devolve o JSON tratado pelo handleResponse
+  postFormData: async (endpoint, formData) => {
+    const token = getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const url = `${API_BASE_URL}${endpoint}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    return handleResponse(response);
+  },
+
+  // função para atualização de registros com arquivos via PUT multipart/form-data
+  putFormData: async (endpoint, formData) => {
+    const token = getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const url = `${API_BASE_URL}${endpoint}`;
+    const response = await fetch(url, {
+      method: "PUT",
+      headers,
+      body: formData,
+    });
+
+    return handleResponse(response);
+  },
+
+  // função para realizar download autenticado de arquivos binários (.xlsx, .csv)
+  // 1 - Executa GET enviando o Bearer Token no cabeçalho
+  // 2 - Se houver erro HTTP, encaminha para o mesmo fluxo de erro de handleResponse
+  // 3 - Extrai o nome sugerido do cabeçalho Content-Disposition e retorna { blob, filename }
+  downloadBlob: async (endpoint) => {
+    const token = getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const url = `${API_BASE_URL}${endpoint}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+    });
 
     if (!response.ok) {
-        let errorMessage = "Erro ao processar requisição";
-
-        try {
-            const errorData = await response.json();
-            console.error("[API Client] Error response:", errorData);
-
-            // Extract user-friendly message
-            if (errorData.message) {
-                errorMessage = errorData.message;
-            } else if (errorData.error) {
-                errorMessage = errorData.error;
-            } else if (response.status === 401) {
-                errorMessage = "Não autorizado. Por favor, faça login novamente.";
-            } else if (response.status === 403) {
-                errorMessage = "Acesso negado. Você não tem permissão para esta ação.";
-            } else if (response.status === 404) {
-                errorMessage = "Recurso não encontrado.";
-            } else if (response.status === 500) {
-                errorMessage = "Erro no servidor. Tente novamente mais tarde.";
-            }
-        } catch (parseError) {
-            // If response is not JSON, use status-based messages
-            console.error("[API Client] Could not parse error response");
-            if (response.status === 401) {
-                errorMessage = "Credenciais inválidas. Verifique seu email e senha.";
-            } else if (response.status >= 500) {
-                errorMessage = "Erro no servidor. Tente novamente mais tarde.";
-            }
-        }
-
-        // Redirecionamento automático em caso de sessão expirada (401)
-        if (response.status === 401 && typeof window !== "undefined") {
-            try {
-                const currentPath = window.location.pathname;
-                if (currentPath !== "/auth" && currentPath !== "/login") {
-                    console.warn("[API Client] Sessão expirada (401). Redirecionando para login...");
-                    localStorage.removeItem("auth-token");
-                    setTimeout(() => {
-                        window.location.href = "/auth";
-                    }, 100);
-                }
-            } catch (e) {
-                console.error("[API Client] Erro ao redirecionar após 401:", e);
-            }
-        }
-
-        const error = new Error(errorMessage);
-        error.status = response.status;
-        throw error;
+      return handleResponse(response);
     }
 
-    // Success response
-    const data = await response.json();
-    console.log("[API Client] Success response:", data);
-    return data;
-};
-
-/**
- * Base request function
- * @param {String} endpoint - API endpoint
- * @param {Object} options - Fetch options (method, body, headers, skipAuth)
- */
-const request = async (endpoint, options = {}) => {
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    console.log("API_BASE_URL:", API_BASE_URL);
-    console.log("Endpoint:", endpoint);
-    console.log("URL final:", url);
-
-    const { skipAuth = false, ...fetchOptions } = options;
-
-    const config = {
-        ...fetchOptions,
-        headers: buildHeaders(fetchOptions.headers, skipAuth),
-    };
-
-    try {
-        const response = await fetch(url, config);
-        return await handleResponse(response);
-    } catch (error) {
-        console.error(error);
-        throw error;
-    }
-};
-
-/**
- * HTTP Methods
- */
-export const apiClient = {
-    get: (endpoint, options = {}) =>
-        request(endpoint, { ...options, method: "GET" }),
-
-    post: (endpoint, data, options = {}) =>
-        request(endpoint, {
-            ...options,
-            method: "POST",
-            body: JSON.stringify(data),
-        }),
-
-    put: (endpoint, data, options = {}) =>
-        request(endpoint, {
-            ...options,
-            method: "PUT",
-            body: JSON.stringify(data),
-        }),
-
-    delete: (endpoint, options = {}) =>
-        request(endpoint, { ...options, method: "DELETE" }),
-
-    // For FormData uploads (images, files) - POST
-    postFormData: async (endpoint, formData, options = {}) => {
-        const token = getToken();
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-        const url = `${API_BASE_URL}${endpoint}`;
-        const response = await fetch(url, {
-            method: "POST",
-            headers,
-            body: formData,
-        });
-
-        return handleResponse(response);
-    },
-
-    // For FormData uploads (images, files) - PUT
-    putFormData: async (endpoint, formData, options = {}) => {
-        const token = getToken();
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-        const url = `${API_BASE_URL}${endpoint}`;
-        const response = await fetch(url, {
-            method: "PUT",
-            headers,
-            body: formData,
-        });
-
-        return handleResponse(response);
-    },
+    const disposition = response.headers.get("content-disposition") || "";
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const filename = match ? match[1] : "download";
+    const blob = await response.blob();
+    return { blob, filename };
+  },
 };

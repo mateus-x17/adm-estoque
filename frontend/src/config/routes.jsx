@@ -13,6 +13,8 @@ import Fornecedores from '../pages/Fornecedores.jsx';
 import NotFound from '../components/common/NotFound.jsx';
 import ProtectedRoute from '../components/ProtectedRoute.jsx';
 
+// arquivo responsável pelo roteamento principal da aplicação com proteção RBAC por rota
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -36,7 +38,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'usuarios',
-        element: <Usuarios />,
+        element: <ProtectedRoute element={<Usuarios />} requiredRole="ADMIN" />,
       },
       {
         path: 'configuracoes',

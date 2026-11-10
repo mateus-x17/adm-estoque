@@ -17,6 +17,8 @@ import {
 import { movementsApi, usersApi } from "../services/api/index.js";
 import { useUserStore } from "../store/userStore.js";
 
+// arquivo responsável pela página de histórico de movimentações e gráficos operacionais isolados por loja e cargo RBAC
+
 const PIE_COLORS = ["var(--color-chart-3)", "var(--color-chart-4)"];
 
 const ChartTooltip = ({ active, payload, label, isPie }) => {
@@ -85,7 +87,13 @@ const Movimentacoes = () => {
     setPaginaAtual(1);
   };
 
+  // efeito para buscar lista de nomes de vendedores apenas quando o perfil possui permissão RBAC (ADMIN ou GERENTE)
   useEffect(() => {
+    if (!canFilterByUser) {
+      setUsuarios([]);
+      return;
+    }
+
     const carregarUsuarios = async () => {
       try {
         const data = await usersApi.getUserNames();
@@ -95,7 +103,7 @@ const Movimentacoes = () => {
       }
     };
     carregarUsuarios();
-  }, []);
+  }, [canFilterByUser]);
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -216,17 +224,19 @@ const Movimentacoes = () => {
   }, [search, tipoFiltro, fromDate, toDate, userFilter]);
 
   return (
-    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
+    <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-3 sm:py-4 border-b border-[var(--color-border)] mb-6 sm:mb-8">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Estoque
           </span>
-          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
             Movimentações
           </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Controle de reposições e vendas de produtos.
+          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+            {canFilterByUser
+              ? "Controle de reposições e vendas da equipe no estabelecimento."
+              : "Histórico das suas movimentações de reposição e vendas registradas."}
           </p>
         </div>
       </header>
@@ -366,12 +376,12 @@ const Movimentacoes = () => {
             </div>
           )}
 
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6">
-            <div className="lg:col-span-2 glass-card p-6">
-              <h3 className="font-display text-lg font-semibold text-text-primary mb-6">
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 pt-4 sm:pt-6">
+            <div className="lg:col-span-2 glass-card p-4 sm:p-6">
+              <h3 className="font-display text-base sm:text-lg font-semibold text-text-primary mb-4 sm:mb-6">
                 Reposições x vendas
               </h3>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={lineChartData}>
                   <XAxis
                     dataKey="label"
@@ -404,8 +414,8 @@ const Movimentacoes = () => {
               </ResponsiveContainer>
             </div>
 
-            <div className="glass-card p-6">
-              <h3 className="font-display text-lg font-semibold text-text-primary mb-1">
+            <div className="glass-card p-4 sm:p-6">
+              <h3 className="font-display text-base sm:text-lg font-semibold text-text-primary mb-1">
                 Resumo geral
               </h3>
               <p className="font-mono text-xs text-text-secondary mb-6">

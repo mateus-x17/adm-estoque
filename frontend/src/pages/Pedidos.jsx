@@ -4,8 +4,16 @@ import PedidosFilters from "../components/tables/PedidosFilters.jsx";
 import PedidosTableContainer from "../components/tables/PedidosTableContainer.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
 import { movementsApi, usersApi } from "../services/api/index.js";
+import { useUserStore } from "../store/userStore.js";
+
+// arquivo responsável pela página de lançamento e acompanhamento de pedidos e movimentações de estoque
+// 1 - Protege o filtro por vendedor com RBAC (OPERADOR visualiza apenas suas próprias vendas/reposições)
+// 2 - Permite lançar vendas ou reposições de produtos ativos da loja com feedback imediato
 
 const Pedidos = () => {
+  const currentUser = useUserStore((state) => state.user);
+  const canFilterByUser = currentUser?.role === "ADMIN" || currentUser?.role === "GERENTE";
+
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -16,30 +24,36 @@ const Pedidos = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [userFilter, setUserFilter] = useState("");
   const [usuarios, setUsuarios] = useState([]);
-  const [order, setOrder] = useState("desc"); // "desc" = mais recentes primeiro
+  const [order, setOrder] = useState("desc");
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // efeito para carregar nomes de vendedores apenas quando ADMIN ou GERENTE estão autenticados
   useEffect(() => {
+    if (!canFilterByUser) {
+      setUsuarios([]);
+      return;
+    }
+
     const carregarUsuarios = async () => {
       try {
         const response = await usersApi.getUserNames();
-        const lista = Array.isArray(response) ? response : (response?.data || []);
+        const lista = Array.isArray(response) ? response : response?.data || [];
         setUsuarios(lista);
       } catch (error) {
-        console.error(
-          "Erro ao carregar usuários para filtro de pedidos:",
-          error,
-        );
+        console.error("Erro ao carregar usuários para filtro de pedidos:", error);
       }
     };
 
     carregarUsuarios();
-  }, []);
+  }, [canFilterByUser]);
 
+  // função para buscar movimentações paginadas do estabelecimento (ou apenas do operador)
+  // 1 - Serializa filtros ativos e consulta GET /movements
+  // 2 - Atualiza tabela e metadados de paginação
   const fetchPedidos = async () => {
     setLoading(true);
     try {
@@ -48,7 +62,7 @@ const Pedidos = () => {
         limit: itemsPerPage,
         order,
         tipo: filterType !== "todos" ? filterType : undefined,
-        usuarioId: userFilter || undefined,
+        usuarioId: canFilterByUser && userFilter ? userFilter : undefined,
         id: filterId || undefined,
         date: filterDate || undefined,
       };
@@ -95,17 +109,19 @@ const Pedidos = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-4 pb-12 space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 border-b border-[var(--color-border)] mb-8">
+    <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-3 sm:py-4 border-b border-[var(--color-border)] mb-6 sm:mb-8">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Movimentação
           </span>
-          <h1 className="font-display text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
             Pedidos
           </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Gerencie pedidos e registre movimentações de estoque.
+          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+            {canFilterByUser
+              ? "Gerencie pedidos e registre movimentações de estoque da loja."
+              : "Registre vendas/reposições e acompanhe os seus próprios lançamentos."}
           </p>
         </div>
       </header>
@@ -120,6 +136,7 @@ const Pedidos = () => {
         userFilter={userFilter}
         setUserFilter={setUserFilter}
         usuarios={usuarios}
+        canFilterByUser={canFilterByUser}
         showFilters={showFilters}
         setShowFilters={setShowFilters}
         onCreateClick={() => setModalOpen(true)}

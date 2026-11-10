@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Printer, Calendar, TrendingUp, Package, DollarSign, BarChart3, LineChart, FileText } from "lucide-react";
 import { movementsApi } from "../../services/api/index.js";
 import { useUserStore } from "../../store/userStore.js";
 
 // arquivo responsável por renderizar o modal de exportação de relatórios de vendas em PDF
 // 1 - Controla a seleção de períodos históricos (1 mês, 6 meses, 1 ano) e o tipo de visualização gráfica
-// 2 - Carrega os dados agregados da API de movimentações (/movements/sales-report)
+// 2 - Carrega os dados agregados da API de movimentações (/movements/sales-report) respeitando tenant e escopo RBAC
 // 3 - Renderiza o painel executivo com cards de KPIs, gráficos vetoriais em SVG e tabela de produtos líderes
 // 4 - Executa a exportação nativa para PDF utilizando a janela de impressão do navegador com layout A4 otimizado
 
@@ -17,6 +18,11 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
   const [error, setError] = useState(null);
 
   const currentUser = useUserStore((state) => state.user);
+  const storeName = currentUser?.empresa?.nome || currentUser?.empresaNome || "Estabelecimento";
+  const scopeLabel =
+    reportData?.scope === "user"
+      ? "Minhas Vendas (Operador)"
+      : "Visão Geral da Loja";
 
   // função para carregar os dados consolidados da API de acordo com o período selecionado
   // 1 - Define estado de carregamento e limpa erros prévios
@@ -417,12 +423,13 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
         <div class="header">
           <div>
             <div class="logo">ESTOQUE<span>.OS</span></div>
-            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Sistema de Gestão de Inventário e Movimentações</div>
+            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${storeName} &bull; Gestão de Inventário Multi-Tenant</div>
           </div>
           <div class="meta-info">
+            <div><strong>Estabelecimento:</strong> ${storeName}</div>
             <div><strong>Emissão:</strong> ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
-            <div><strong>Operador Emissor:</strong> ${currentUser?.nome || "Administrador"}</div>
-            <div><strong>Status:</strong> Documento Oficial do Sistema</div>
+            <div><strong>Emissor:</strong> ${currentUser?.nome || "Administrador"} (${currentUser?.role || "ADMIN"})</div>
+            <div><strong>Escopo:</strong> ${scopeLabel}</div>
           </div>
         </div>
 
@@ -430,6 +437,7 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
           <h1>Relatório Consolidado de Desempenho de Vendas</h1>
           <div>
             <span class="badge">Período: ${reportData.periodLabel}</span>
+            <span class="badge" style="background: #f1f5f9; color: #334155; margin-left: 6px;">${scopeLabel}</span>
             <span style="font-size: 10px; color: #64748b; margin-left: 8px;">
               (${new Date(reportData.startDate).toLocaleDateString("pt-BR")} até ${new Date(reportData.endDate).toLocaleDateString("pt-BR")})
             </span>
@@ -529,40 +537,44 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
     printWindow.document.close();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-3xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-scale-in">
         {/* Cabeçalho do Modal */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-accent-purple/10 text-accent-purple">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[var(--color-border)] gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-accent-purple/10 text-accent-purple shrink-0">
               <FileText className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="font-display text-lg font-bold text-text-primary">Exportar Relatório de Vendas</h2>
-              <p className="text-xs text-text-secondary">Visão consolidada do histórico de vendas com exportação direta para PDF</p>
+            <div className="min-w-0">
+              <h2 className="font-display text-base sm:text-lg font-bold text-text-primary truncate">
+                Exportar Relatório de Vendas
+              </h2>
+              <p className="text-xs text-text-secondary truncate">
+                {storeName} • {scopeLabel}
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-[var(--color-border-light)] transition-colors"
+            className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-[var(--color-border-light)] transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Corpo do Modal */}
-        <div className="p-6 overflow-y-auto space-y-5">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 custom-scrollbar">
           {/* Barra de Controles: Período e Tipo de Gráfico */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]">
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4 text-text-secondary mr-1" />
-              <span className="text-xs font-semibold text-text-secondary mr-2">Período:</span>
-              <div className="flex gap-1 bg-[var(--color-surface)] p-1 rounded-lg border border-[var(--color-border)]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-text-secondary mr-0.5 shrink-0" />
+              <span className="text-xs font-semibold text-text-secondary mr-1">Período:</span>
+              <div className="flex flex-wrap gap-1 bg-[var(--color-surface)] p-1 rounded-lg border border-[var(--color-border)]">
                 {[
-                  { id: "1m", label: "Último Mês (30d)" },
-                  { id: "6m", label: "Últimos 6 Meses" },
-                  { id: "1y", label: "Último 1 Ano" },
+                  { id: "1m", label: "1 Mês (30d)" },
+                  { id: "6m", label: "6 Meses" },
+                  { id: "1y", label: "1 Ano" },
                 ].map((item) => (
                   <button
                     key={item.id}
@@ -718,21 +730,21 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
         </div>
 
         {/* Rodapé do Modal */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-          <span className="text-[11px] text-text-secondary">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+          <span className="text-[11px] text-text-secondary text-center sm:text-left">
             Documento pronto para exportação vetorial em folha A4
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-[var(--color-border-light)] transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-[var(--color-border-light)] transition-colors"
             >
               Cancelar
             </button>
             <button
               onClick={handleExportPdf}
               disabled={loading || !!error || !reportData}
-              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 shadow-lg shadow-accent-purple/20 disabled:opacity-50"
+              className="flex-1 sm:flex-none btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-accent-purple/20 disabled:opacity-50"
             >
               <Printer className="w-3.5 h-3.5" />
               Imprimir / Salvar em PDF
@@ -740,8 +752,10 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
 export default ModalExportarRelatorio;
+

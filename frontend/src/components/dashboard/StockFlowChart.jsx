@@ -10,6 +10,8 @@ import {
 } from "recharts";
 import { movementsApi } from "../../services/api/index.js";
 
+// arquivo responsável pelo gráfico comparativo de entradas (reposições) e saídas (vendas) por produto no Dashboard
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -39,6 +41,9 @@ const CustomLegend = ({ payload }) => (
   </div>
 );
 
+// função principal para buscar movimentações e plotar barras responsivas filtradas por janela temporal
+// 1 - Carrega as movimentações da loja (ou do próprio operador conforme RBAC) via API
+// 2 - Agrupa volumes de venda e reposição por nome de produto respeitando o filtro selecionado
 export default function StockFlowChart() {
   const [loading, setLoading] = useState(true);
   const [allMovements, setAllMovements] = useState([]);
@@ -102,7 +107,7 @@ export default function StockFlowChart() {
   }, [allMovements, periodo]);
 
   return (
-    <div className="glass-card p-6 h-full flex flex-col">
+    <div className="glass-card p-4 sm:p-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h2 className="font-display text-base font-semibold text-text-primary">
@@ -114,7 +119,7 @@ export default function StockFlowChart() {
         </div>
 
         {/* Seletor de Período dinâmico */}
-        <div className="flex items-center gap-1 bg-surface-dark/40 p-1 rounded-lg border border-[var(--color-border-light)] self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-1 bg-surface-dark/40 p-1 rounded-lg border border-[var(--color-border-light)] self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setPeriodo("all")}
@@ -151,7 +156,7 @@ export default function StockFlowChart() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-[340px]">
+      <div className="flex-1 min-h-[260px] sm:min-h-[340px]">
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />

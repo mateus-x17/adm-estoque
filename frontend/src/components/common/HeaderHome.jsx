@@ -4,11 +4,17 @@ import { FiSun, FiMoon } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import { useThemeStore } from "../../store/useThemeStore.js";
 
+// arquivo responsável pelo cabeçalho público da landing page com navegação por âncoras, alternância de tema e acesso ao sistema
+// função para renderizar a barra superior fixa da página inicial
+// 1 - Configura os links de navegação incluindo a seção Multi-Tenant
+// 2 - Sincroniza o estado do modo escuro/claro no documento HTML
+// 3 - Renderiza botões responsivos de login/cadastro e troca de tema
 function HeaderHome() {
   const { darkMode, toggleDarkMode } = useThemeStore();
 
   const navLinks = [
     { name: "Funcionalidades", href: "#funcionalidades" },
+    { name: "Multi-Tenant", href: "#multitenant" },
     { name: "Módulos", href: "#modulos" },
     { name: "Painel", href: "/dashboard" },
   ];

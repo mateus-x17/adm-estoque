@@ -4,6 +4,8 @@ import { useAuthStore } from "../../store/useAuthStore.js";
 import ModalMensagem from "../common/ModalMensagem.jsx";
 import { formatImageUrl } from "../../utils/imageHelper.js";
 
+// arquivo responsável pelo painel lateral universal de criação e edição de entidades da loja (usuários, produtos, fornecedores, pedidos e perfil)
+
 const formConfigs = {
   usuario: {
     fields: [
@@ -155,18 +157,18 @@ const formConfigs = {
   fornecedor: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "telefone", label: "Telefone", type: "text", required: true },
-      { name: "endereco", label: "Endereço", type: "text", required: true },
+      { name: "email", label: "Email", type: "email", required: false },
+      { name: "telefone", label: "Telefone", type: "text", required: false },
+      { name: "endereco", label: "Endereço", type: "text", required: false },
     ],
     route: (id) => `${import.meta.env.VITE_API_BASE_URL}/suppliers/${id}`,
   },
   CriarFornecedor: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "telefone", label: "Telefone", type: "text", required: true },
-      { name: "endereco", label: "Endereço", type: "text", required: true },
+      { name: "email", label: "Email", type: "email", required: false },
+      { name: "telefone", label: "Telefone", type: "text", required: false },
+      { name: "endereco", label: "Endereço", type: "text", required: false },
     ],
     route: `${import.meta.env.VITE_API_BASE_URL}/suppliers`,
   },
@@ -290,7 +292,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
   const [form, setForm] = useState(
     config.fields.reduce((acc, field) => {
-      acc[field.name] = itemData?.[field.name] || "";
+      acc[field.name] = itemData?.[field.name] ?? "";
       return acc;
     }, {}),
   );
@@ -319,9 +321,6 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         );
         if (!res.ok) return;
         const data = await res.json();
-        /////
-        console.log("PRODUCTS RESPONSE", data);
-        /////
         const list = Array.isArray(data) ? data : data[field.keyName] || [];
         setSelectOptions((prev) => ({ ...prev, [field.name]: list }));
       } else if (field.options) {
@@ -333,7 +332,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         }));
       }
     });
-  }, [token]);
+  }, [token, config.fields]);
 
   useEffect(() => {
     setTimeout(() => setOpen(true), 10);
@@ -344,24 +343,20 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
     setClosing(true);
   };
 
-  // -------------------------------------------------------------------------
-  // CORE LOGIC: handleSubmit
-  // Orquestrador de submissão universal. Funciona tanto para Editar (PUT) quanto Criar (POST) qualquer entidade.
-  // 1 - Agrupa dados textuais com dados binários (Arquivos/Fotos) usando FormData nativo do Javascript.
-  // 2 - Avalia a necessidade de injetar Token JWT nas requests.
-  // 3 - Verifica se o tipo do envio requer multipart/form-data ou application/json.
-  // -------------------------------------------------------------------------
+  // função principal para validar e enviar o formulário (Criação POST ou Atualização PUT) ao backend
+  // 1 - Serializa texto e upload opcional usando FormData quando há campo file, ou JSON para entidades textuais/pedidos
+  // 2 - Injeta Bearer Token da store Zustand no cabeçalho Authorization
+  // 3 - Processa resposta, exibe feedback visual e aciona onItemUpdated após fechamento suave
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("TOKEN", token);
 
     try {
       const formData = new FormData();
       Object.entries(form).forEach(([key, value]) =>
-        formData.append(key, value),
+        formData.append(key, value ?? ""),
       );
-      
-      // Anexa foto caso usuário tenha upado alguma no input type="file"
+
+      // Anexa foto caso usuário tenha selecionado imagem
       if (file) formData.append("imagem", file);
       // Sinaliza exclusão de foto prévia
       if (removeImage && !file) formData.append("removerImagem", "true");
@@ -369,12 +364,10 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
       const method = isCreating ? "POST" : "PUT";
       let url = isCreating ? config.route : config.route(itemData.id);
 
-      // Casos especiais como Pedido/Movimentação que usam rotas customizadas
       if (config.dynamicRoute) {
         url = config.dynamicRoute(form);
       }
 
-      // Descobre se existe algum campo do tipo 'file' na config deste form específico
       const hasFileField = config.fields.some((field) => field.type === "file");
       let body;
       const headers = {};
@@ -383,11 +376,6 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      // ---------------------------------------------------------------------
-      // Validação Cruzada de Headers/Body
-      // Se for CriarPedido (movimentação de estoque), o backend precisa de application/json puro para tratar a transação.
-      // Do contrário, se tiver arquivo/imagem, envia multipart/form-data via FormData.
-      // ---------------------------------------------------------------------
       if (type === "CriarPedido") {
         headers["Content-Type"] = "application/json";
 
@@ -398,15 +386,10 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
         body = JSON.stringify(payload);
       } else if (hasFileField) {
-        body = formData; // Browser injeta Content-Type multipart automaticamente
+        body = formData;
       } else {
         headers["Content-Type"] = "application/json";
         body = JSON.stringify(form);
-      }
-
-      console.log("FORM:", form);
-      for (const pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
       }
 
       const res = await fetch(url, {
@@ -415,14 +398,8 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         body,
       });
 
-      console.log("STATUS:", res.status);
-      const responseText = await res.clone().text();
-      console.log("RESPONSE:", responseText);
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-
-        console.error("BACKEND ERROR:", err);
 
         setModal({
           visible: true,
@@ -433,20 +410,6 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         return;
       }
 
-      // const updatedItem = isCreating
-      //   ? await res.json()
-      //   : await fetch(config.route(itemData.id), {
-      //     headers: token ? { Authorization: `Bearer ${token}` } : {},
-      //   }).then((r) => r.json())
-
-      // const updatedItem = await res.json()
-      ///////////////////////////////////////
-      // const responseData = await res.json()
-      // const updatedItem =
-      //   responseData.fornecedor ||
-      //   responseData.produto ||
-      //   responseData.usuario ||
-      //   responseData
       const responseData = await res.json();
       const updatedItem =
         responseData.id !== undefined
@@ -466,7 +429,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         setModal({ visible: false });
         handleClose();
         onItemUpdated && onItemUpdated(updatedItem);
-      }, 2000);
+      }, 1500);
     } catch {
       setModal({ visible: true, mensagem: "Erro de conexão", tipo: "erro" });
     }
@@ -479,22 +442,27 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         onTransitionEnd={() => closing && onClose()}
       >
         <div
-          className={`absolute right-0 top-0 h-[100dvh] w-[90%] md:w-[65%] max-w-md transform transition-transform duration-300 ${
+          className={`absolute right-0 top-0 h-[100dvh] w-[92%] sm:w-[75%] md:w-[65%] max-w-md transform transition-transform duration-300 ${
             open ? "translate-x-0" : "translate-x-full"
           } bg-[var(--color-bg)] border-l border-[var(--color-border-light)] shadow-[-10px_0_40px_rgba(0,0,0,0.5)] flex flex-col`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6 border-b border-[var(--color-border-light)] shrink-0">
+          <div className="p-4 sm:p-6 border-b border-[var(--color-border-light)] shrink-0">
             <h2 className="font-display text-lg font-semibold text-text-primary">
               {panelTitle}
             </h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+          <form
+            id="editar-item-form"
+            onSubmit={handleSubmit}
+            className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar"
+          >
             {config.fields.map((field) => (
               <div key={field.name}>
                 <label className="block text-sm font-medium mb-1.5 text-text-primary">
                   {field.label}
+                  {field.required ? <span className="text-accent-pink ml-1">*</span> : null}
                 </label>
                 {field.description ? (
                   <p className="text-xs mb-3 text-text-secondary">{field.description}</p>
@@ -511,6 +479,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   <textarea
                     name={field.name}
                     rows={4}
+                    required={Boolean(field.required)}
                     value={form[field.name]}
                     onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
                     className="w-full rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs resize-none text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
@@ -550,6 +519,8 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   <input
                     type={field.type}
                     name={field.name}
+                    step={field.type === "number" && field.name === "preco" ? "0.01" : undefined}
+                    required={Boolean(field.required)}
                     value={form[field.name]}
                     onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
                     className="w-full rounded-full bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
@@ -559,18 +530,18 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
             ))}
           </form>
 
-          <div className="p-6 border-t border-[var(--color-border-light)] bg-[var(--color-bg)] flex justify-end gap-3 shrink-0">
+          <div className="p-4 sm:p-6 border-t border-[var(--color-border-light)] bg-[var(--color-bg)] flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={handleClose}
-              className="btn-secondary px-4 py-2 text-xs font-semibold"
+              className="btn-secondary px-4 py-2 text-xs font-semibold w-full sm:w-auto"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              onClick={handleSubmit}
-              className="btn-primary px-4 py-2 text-xs font-semibold"
+              form="editar-item-form"
+              className="btn-primary px-4 py-2 text-xs font-semibold w-full sm:w-auto"
             >
               Salvar
             </button>
