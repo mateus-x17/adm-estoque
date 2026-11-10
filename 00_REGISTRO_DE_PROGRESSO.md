@@ -1,75 +1,59 @@
-# 📋 00 — REGISTRO DE PROGRESSO E RASTREABILIDADE
-## Auditoria Técnica, Mapeamento Arquitetural e Performance — Estoque.OS
+# 📋 REGISTRO DE PROGRESSO — ESTOQUE.OS (AUDITORIA & EVOLUÇÃO CONTÍNUA)
 
-> **Status Geral do Trabalho:** AUDITORIA + IMPLEMENTAÇÃO MULTI-TENANT, SOFT DELETE E PLANILHAS CONCLUÍDA (BRANCH `feature/multitenant`)  
-> **Modo de Operação:** `CICLOS DE AUDITORIA & ENGENHARIA (FASES A–G)`  
-> **Última Atualização:** 10/11/2026  
-> **Responsável:** Senior Software Architect & Lead Technical Auditor
+**Última Atualização:** 2026-11-10  
+**Branch Ativa:** `feature/multitenant`  
+**Status Geral:** `FASE H CONCLUÍDA — Arquitetura Organização → Lojas, Portais Separados, Multipedidos c/ Estorno e Auditoria de Ex-Vendedores por Antigo ID`
 
 ---
 
-### 1. Histórico e Status das Fases de Entrega
+## Histórico Consolidado de Ciclos Executados
 
-| Fase | Identificação | Arquivo de Entrega | Status | Data de Conclusão |
-| :--- | :--- | :--- | :---: | :---: |
-| **Fase 0** | Reconhecimento, Ferramental, Stack e Limitações | [`00_REGISTRO_DE_PROGRESSO.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/00_REGISTRO_DE_PROGRESSO.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Fase 1** | Visão Geral, Inventário e Topologia | [`relatorios/01_visao_geral_e_inventario.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/01_visao_geral_e_inventario.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Fase 2** | Mapeamento de Módulos, Funções e Chamadas | [`relatorios/02_mapeamento_de_modulos.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/02_mapeamento_de_modulos.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Fase 3** | Mapeamento de APIs, Contratos e Cadeias HTTP *(Atualizado Fase G — 42 rotas)* | [`relatorios/03_mapeamento_de_apis.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/03_mapeamento_de_apis.md) | `CONCLUÍDO` | 10/11/2026 |
-| **Fase 4** | Models, Estruturas de Dados, ERD e Índices *(Atualizado Fase G — Schema Multi-Tenant)* | [`relatorios/04_models_e_banco_de_dados.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/04_models_e_banco_de_dados.md) | `CONCLUÍDO` | 10/11/2026 |
-| **Jornadas** | Jornadas de Uso Passo a Passo por Perfil *(Baseline pré-Fase G)* | [`relatorios/05_jornadas_de_uso.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/05_jornadas_de_uso.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Regras** | Catálogo Consolidado de Regras de Negócio (`RN-001` a `RN-026`) | [`relatorios/06_regras_de_negocio.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/06_regras_de_negocio.md) | `CONCLUÍDO` | 10/11/2026 |
-| **Fase 4 (Diag)** | Diagnóstico, Auditoria de Código e Benchmark Real *(Baseline 08/11)* | [`relatorios/07_diagnostico_auditoria_e_performance.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/07_diagnostico_auditoria_e_performance.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Fase 5** | Melhorias Detalhadas por Componente *(Baseline 08/11)* | [`relatorios/08_melhorias_por_componente.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/08_melhorias_por_componente.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Fase 6** | Arquitetura Atual vs. Recomendada *(Atualizado Fase G)* | [`relatorios/09_arquitetura_e_system_design.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/09_arquitetura_e_system_design.md) | `CONCLUÍDO` | 10/11/2026 |
-| **Fase 7** | Plano Consolidado de Implementação (Fases A–F) *(Baseline)* | [`relatorios/10_plano_consolidado_de_implementacao.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/10_plano_consolidado_de_implementacao.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Fase 8** | Matriz Consolidada de Falhas (`B1`–`B11`, `I1`–`I11`, `A1`–`A8` + Fase G) | [`relatorios/11_matriz_consolidada_de_falhas.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md) | `CONCLUÍDO` | 10/11/2026 |
-| **Anexo A** | Análise de Produto e Mercado *(Baseline 08/11)* | [`relatorios/12_analise_de_produto.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/12_analise_de_produto.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Consolidado** | Relatório Didático Consolidado de Mudanças (Fases A–F) | [`relatorios/13_relatorio_consolidado_de_mudancas_e_melhorias.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/13_relatorio_consolidado_de_mudancas_e_melhorias.md) | `CONCLUÍDO` | 08/11/2026 |
-| **Fase 14 (M&A)** | Análise Minuciosa de Valor de Mercado e Precificação *(Reavaliado pós-Fase G)* | [`relatorios/14_analise_minuciosa_de_valor_de_mercado.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/14_analise_minuciosa_de_valor_de_mercado.md) | `CONCLUÍDO` | 10/11/2026 |
+| Fase / Ciclo | Data | Escopo Principal Executado | Estado Atual |
+|---|---|---|---|
+| **Baseline (Fases 1–9 Auditoria)** | 2026-11-08 | Inventário técnico inicial, mapeamento de 35 rotas/UI e benchmark baseline (latência `5.2 ms` a `3117.9 ms`). Identificação das falhas `B1–B11`, `I1–I11`, `A1–A8`. | `DOCUMENTADO (Baseline Histórica)` |
+| **Fase A — Segurança & Integridade** | 2026-11-08 | Lock pessimista `SELECT ... FOR UPDATE`, `Idempotency-Key` com debounce 1.2s, proteção do último `ADMIN`, `rate-limit` no cadastro e validação rígida em `/users/me`. | `CONCLUÍDO / INCORPORADO` |
+| **Fase B — Queries & N+1** | 2026-11-08 | Eliminação do N+1 em `/movements/user-stats` (SQL nativo), `/suppliers/stats` em SQL e agrupamento de métricas no banco PostgreSQL. | `CONCLUÍDO / INCORPORADO` |
+| **Fase C — Dados & Índices** | 2026-11-08 | Migração de `Produto.preco` para `Decimal(10, 2)` (`numeric(10,2)`) e índices compostos no PostgreSQL. | `CONCLUÍDO / INCORPORADO` |
+| **Fase D — Cache & Cloudinary** | 2026-11-08 | `userCache` (TTL 60s), `namesCache` (TTL 30s) e `uploadToCloudinary` com timeout rígido de 10s + `unlink` garantido. | `CONCLUÍDO / INCORPORADO` |
+| **Fase E — Relatórios PDF A4** | 2026-11-09 | Modal executivo de vendas (`1m`, `6m`, `1y`) em gráficos SVG (barras/linhas) + impressão A4 nativa multiplataforma. | `CONCLUÍDO / INCORPORADO` |
+| **Fase F — Confiabilidade & Docs** | 2026-11-09 | Pino + Correlation ID `X-Request-Id`, `Graceful Shutdown` (`SIGTERM`/`SIGINT`, timeout 10s) e sincronização do catálogo HTTP. | `CONCLUÍDO / INCORPORADO` |
+| **Fase G — Multi-Tenant & Planilhas** | 2026-11-10 | Modelo `Empresa` inicial, Soft Delete em catálogo/usuários, motor nativo `.xlsx`/`.csv` (`ExcelJS`), sigilo de `OPERADOR`, landing `#multitenant` e modais via `createPortal`. | `EVOLUÍDO PARA FASE H` |
+| **Fase H — Organização → Lojas, Multipedidos & Exclusão Real c/ Histórico** | 2026-11-10 | Evolução para **`Organizacao` → múltiplas `Loja`**, **Portais `/admin/login` e `/login`**, **Transferência de `GERENTE`** entre filiais, **Multipedidos atômicos (`Pedido` + `ItemPedido`)** com estorno (`CANCELADO`), **exclusão física real de `Usuario`** preservando `vendedorRefId`/snapshots, tela **`/dashboard/desempenho`** (`1m`/`6m`/`1y` + busca por antigo ID), seed realista (`Grupo TechStock Varejo` + `CyberForge Geek Store`), suíte E2E `7/7` e reconstrução documental completa. | `CONCLUÍDO / VERIFICADO` |
 
 ---
 
-### 2. Resumo das Medições Empíricas Reais (`MEDIDO`)
+## Resumo de Entregas da Fase H (Verificadas no Código)
 
-- **Ambiente Testado:** Backend Express na porta 5000 conectado ao banco PostgreSQL Neon na nuvem (AWS us-east-1).
-- **Massa de Dados Existente:** 7 Usuários, 10 Produtos, 500 Movimentações.
-- **Latência Base de Rede (Ping WAN Virgínia):** `141.2ms` (p50).
-- **Endpoint Mais Rápido:** `GET /` (Healthcheck em memória): `5.2ms` (p50).
-- **Endpoint Mais Lento Sob Carga (Gargalo N+1):** `GET /movements/user-stats`:
-  - Mediana (p50): `718.4ms`
-  - Percentil 95 (p95): `1012.6ms`
-  - Concorrência (10 simultâneos): `2232.9ms`, com pico máximo medido de **`3117.9ms`** (3.12 segundos).
-
----
-
-### 3. Divergências Documentais Históricas (Snapshot Baseline 08/11 — Resolvidas nas Fases B–G)
-1. **Enum `MovimentoTipo`:** Antigo `README.md` documentava apenas `ENTRADA` e `SAIDA`; sincronizado para `REPOSICAO` e `VENDA` com retrocompatibilidade de alias.
-2. **Endpoints Inexistentes no `README.md`:** `POST /movements` e `GET /movements/:id` removidos e substituídos pelo catálogo real de **42 rotas HTTP** (`POST /products/:id/adjust`, planilhas `.xlsx`/`.csv`, status Soft Delete e `/auth/register` Multi-Tenant).
-3. **Exclusão na UI:** Modal simulado de exclusão em `Usuarios.jsx`, `ModalProduto.jsx`, `Categorias.jsx` e `FornecedorRow.jsx` substituído por chamadas reais (`DELETE /:id` e `PATCH /:id/status`) com fallback automático para Soft Delete.
-4. **Armazenamento de Fotos:** Padronizado para pastas isoladas por estabelecimento no Cloudinary (`estoque-os/lojas/<slug>/produtos` e `.../usuarios`), com expurgo local imediato via `uploadToCloudinary`.
+1. **Banco de Dados (`6` Migrações em `backend/prisma/migrations/`):**
+   - `Organizacao` como tenant raiz + `Loja` como unidade operacional com `@@unique([organizacaoId, slug])`.
+   - `Pedido` (`CONCLUIDO` | `CANCELADO`), `ItemPedido` (`precoUnitario` congelado no ato) e `Movimento` enriquecido com `precoUnitario`, `valorTotal`, `estorno`, `pedidoId`, `vendedorRefId`, `vendedorNomeSnapshot` e `vendedorEmailSnapshot`.
+   - Remoção do softban em `Usuario` (sem coluna `ativo`), mantendo Soft Delete apenas onde faz sentido no domínio (`Organizacao`, `Loja`, `Produto`, `Categoria`, `Fornecedor`).
+2. **Backend (54 Rotas HTTP + `USE /uploads`):**
+   - Novos módulos completos: [`storeRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/storeRoutes.js) (`/stores`), [`orderRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/orderRoutes.js) (`/orders`) e resolvedor de escopo [`tenantScope.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/tenantScope.js) com suporte a `X-Loja-Id`.
+   - Transferência de loja (`PATCH /users/:id/store`), ranking e raio-X de vendedores (`GET /movements/performance` e `GET /movements/performance/:refId`) e exclusão real de usuário preservando `vendedorRefId`.
+   - Subpastas hierárquicas isoladas no Cloudinary: `estoque-os/organizacoes/<orgSlug>/lojas/<lojaSlug>/<subpasta>`.
+3. **Frontend (`React 19` + `Vite 7` + `Zustand 5`):**
+   - Portais distintos [`AdminLogin.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/AdminLogin.jsx) (`/admin/login`) e [`Auth.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Auth.jsx) (`/login` e `/auth`).
+   - Seletor global de loja na [`Sidebar.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/common/Sidebar.jsx) (`"Todas as Lojas"` ou filial específica via [`useTenantStore.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/store/useTenantStore.js)).
+   - Novas telas [`Lojas.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Lojas.jsx) (`/dashboard/lojas`), [`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx) (`/dashboard/desempenho`) e [`Pedidos.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Pedidos.jsx) com [`ModalPedidoMultiItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/ModalPedidoMultiItem.jsx).
 
 ---
 
-### 4. Ciclo de Implementações Práticas
+## Mapa dos 14 Relatórios Técnicos Reconstruídos
 
-| Fase | Escopo de Implementação | Arquivos Alterados | Status | Validação Empírica |
-| :--- | :--- | :--- | :---: | :---: |
-| **Fase A** | **Correções Críticas:** Concorrência Atômica (`FOR UPDATE`), Idempotência/Debounce, Trava do Último Admin, Rate Limit Cadastro | `productService.js`, `productController.js`, `userService.js`, `authRoutes.js`, `README.md` | `CONCLUÍDO` | 5/5 Testes Automatizados Aprovados (`scratch/test_fase_a.js`) |
-| **Fase B** | **Refatoração Estrutural:** Resolução de N+1 em Movimentações, Agregação SQL Fornecedores, Exclusão Real na UI, Interceptor 401 | `movementService.js`, `movementController.js`, `supplierService.js`, `supplierController.js`, `Usuarios.jsx`, `users.api.js`, `apiClient.js`, `README.md` | `CONCLUÍDO` | 4/4 Testes Automatizados Aprovados (`scratch/test_fase_b.js`) |
-| **Fase C** | **Banco de Dados & Performance:** Migração `preco Float` -> `Decimal(10,2)`, Índices Compostos | `schema.prisma`, Neon DB, `README.md` | `CONCLUÍDO` | 4/4 Testes Automatizados Aprovados (`scratch/test_fase_c.js`) |
-| **Fase D** | **Cache & Assincronismo:** Cache In-Memory Auth, Dropdown Cache, Timeout Cloudinary | `authMiddleware.js`, `userService.js`, `userController.js`, `cloudinaryConfig.js`, `README.md` | `CONCLUÍDO` | 4/4 Testes Automatizados Aprovados (`scratch/test_fase_d.js`) |
-| **Fase E** | **Infraestrutura & Proxy:** Reverse Proxy Nginx, Compressão Gzip e PM2 Cluster | — | `PULADO` | Postergado por decisão do usuário para ciclo futuro de DevOps |
-| **Fase F** | **Confiabilidade & Observabilidade:** Correlation ID (`X-Request-Id`), Graceful Shutdown e Sync 35 APIs no README | `requestLogger.js`, `index.js`, `README.md` | `CONCLUÍDO` | 3/3 Testes Automatizados Aprovados (`scratch/test_fase_f.js`) |
-| **Fase G** | **Multi-Tenant, Soft Delete, Planilhas & Isolamento RBAC:** Model `Empresa`, `empresaId` em todas as tabelas, Cloudinary por loja, `ativo: Boolean`, ExcelJS `.xlsx`/`.csv`, bloqueio estrito de `OPERADOR`, Seed 2 lojas e Polimento Mobile | `schema.prisma`, `authService.js`, `user/product/category/supplier/movementServices`, `productSpreadsheetService.js`, Frontend completo, `README.md` | `CONCLUÍDO` | **6/6 Baterias Aprovadas** (`backend/tests/multitenant_audit.test.mjs`) + `vite build` + `eslint` |
-
----
-
-### 5. Resumo Final do Projeto
-
-- **Auditoria Arquitetural e Valuation:** 14 relatórios técnicos na pasta `relatorios/` (`01` a `14`, além de `00_REGISTRO_DE_PROGRESSO.md`). Os relatórios originais (`01`, `02`, `05`, `07`, `08`, `10`, `12`, `13`) registram o retrato histórico pré-refatoração e os ciclos A–F; os relatórios **`03`, `04`, `06`, `09`, `11` e `14`** foram sincronizados com o estado real da branch `feature/multitenant`.
-- **Implementações Práticas:** 6 Ciclos de Engenharia executados com sucesso (Fases **A, B, C, D, F e G**).
-- **Testes Automatizados Versionados:** Suíte oficial em [`backend/tests/multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) (`npm --prefix backend test`) aprovada com **6/6 baterias** contra o banco PostgreSQL Neon real (testando Multi-Tenancy, RBAC de `OPERADOR`/`GERENTE`/`ADMIN`, Soft Delete + cache, e planilhas `.xlsx`/`.csv`).
-- **Build & Lint Frontend:** `vite build` e `eslint .` validados com 0 erros e 0 warnings.
-- **README.md Oficial:** Sincronizado com todas as **42 rotas HTTP reais** registradas no Express (40 endpoints de domínio/autenticação + 2 healthchecks + `/uploads`), credenciais das 2 lojas de seed e histórico completo A–G.
-- **Módulo de Exportação PDF:** Relatórios executivos de vendas consolidados com gráficos SVG vetoriais (barras e linhas) nos horizontes de 1 mês, 6 meses e 1 ano, respeitando isolamento de loja (`ADMIN`/`GERENTE`) ou individual (`OPERADOR`).
+| Arquivo | Título | Foco |
+|---|---|---|
+| [`01_visao_geral_e_inventario.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/01_visao_geral_e_inventario.md) | Visão Geral e Inventário | Stack real, árvore física e complexidade pós-Fase H |
+| [`02_mapeamento_de_modulos.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/02_mapeamento_de_modulos.md) | Mapeamento de Módulos | Entradas, saídas, RBAC e acoplamentos de todos os módulos |
+| [`03_mapeamento_de_apis.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/03_mapeamento_de_apis.md) | Mapeamento de APIs | Catálogo das **54 rotas HTTP + `/uploads`** |
+| [`04_models_e_banco_de_dados.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/04_models_e_banco_de_dados.md) | Models e Banco de Dados | ERD real (`Organizacao → Lojas → Pedidos`), índices e 6 migrações |
+| [`05_jornadas_de_uso.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/05_jornadas_de_uso.md) | Jornadas de Uso | Portais Admin/Loja, Multipedidos, Estorno, Exclusão e Auditoria |
+| [`06_regras_de_negocio.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/06_regras_de_negocio.md) | Catálogo de Regras de Negócio | Regras verificadas `RN-001` a `RN-031` e cobertura E2E |
+| [`07_diagnostico_auditoria_e_performance.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/07_diagnostico_auditoria_e_performance.md) | Diagnóstico e Performance | Auditoria `B1–A8` pós-Fase H + baseline histórico `MEDIDO` vs atual |
+| [`08_melhorias_por_componente.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/08_melhorias_por_componente.md) | Melhorias por Componente | Entregas Fases A–H e refatorações residuais por camada |
+| [`09_arquitetura_e_system_design.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/09_arquitetura_e_system_design.md) | Arquitetura e System Design | Diagrama atual (`Organizacao → Lojas`) vs escala +100 usuários |
+| [`10_plano_consolidado_de_implementacao.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/10_plano_consolidado_de_implementacao.md) | Plano Consolidado | Histórico concluído Fases A–H + backlog P0/P1/P2 futuro |
+| [`11_matriz_consolidada_de_falhas.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md) | Matriz Consolidada de Falhas | Status atualizado `B1–B11`, `I1–I11`, `A1–A8` |
+| [`12_analise_de_produto.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/12_analise_de_produto.md) | Análise de Produto | Posicionamento B2B multi-filial, diferenciais e lacunas |
+| [`13_relatorio_consolidado_de_mudancas_e_melhorias.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/13_relatorio_consolidado_de_mudancas_e_melhorias.md) | Resumo Executivo Consolidado | Comparativo Baseline vs Fase G vs Fase H e entregáveis finais |
+| [`14_analise_minuciosa_de_valor_de_mercado.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/14_analise_minuciosa_de_valor_de_mercado.md) | Valor de Mercado & Monetização | Valuation técnico de IP vs SaaS (`ARR atual = R$ 0,00`) e cenários |

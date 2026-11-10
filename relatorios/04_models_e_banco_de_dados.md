@@ -1,165 +1,120 @@
 # 📑 RELATÓRIO TÉCNICO 04 — MODELS, ESTRUTURAS DE DADOS E BANCO DE DADOS
-## Projeto: Estoque.OS — Modelagem Multi-Tenant e Camada de Persistência (Sincronizado Fase G)
+## Projeto: Estoque.OS — Modelagem Multi-Organização, Multipedidos & Preservação Histórica (Fase H)
 **Data da Atualização:** 2026-11-10  
 **Branch Auditada:** `feature/multitenant`  
-**Responsável Técnico:** Senior Software Architect / Lead Auditor  
 
 ---
 
-## 1. Topologia do Banco de Dados e ORM
+## 1. Topologia do Banco de Dados e Histórico de Migrações `[IMPLEMENTADO (verificado)]`
 
-- **SGBD Primário:** PostgreSQL (hospedado na nuvem via **Neon Database**, AWS `us-east-1`).
-- **Mecanismo de Conexão:** String de conexão via variável `DATABASE_URL` em `backend/.env` (com suporte a pooler PgBouncer gerenciado pelo Neon quando configurada na URL).
-- **ORM / Query Builder:** **Prisma ORM v6.16.2** (`@prisma/client`).
-- **Arquivo de Esquema:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma).
-- **Estratégia de Migrações:** **5 migrações versionadas** em `backend/prisma/migrations/`:
-  1. `20250918051748_init`
-  2. `20251012223132_add_field_imagem_usuario`
-  3. `20260601063115_upd_tabela_fornecedores`
-  4. `20261022_alter_enum_reposicao_venda`
-  5. `20261110_multitenant_softdelete` *(Introdução do model `Empresa`, chaves `empresaId`, unicidades compostas por loja, `ativo Boolean` e índices compostos multi-tenant)*
+- **SGBD Primário:** PostgreSQL (Neon Cloud Database).
+- **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2 na última checagem).
+- **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma) (227 linhas).
+- **6 Migrações Versionadas em `backend/prisma/migrations/`:**
+  1. `20250918051748_init` — Esquema base inicial.
+  2. `20251012223132_add_field_imagem_usuario` — Avatar em usuários.
+  3. `20260601063115_upd_tabela_fornecedores` — Expansão de fornecedores.
+  4. `20261022_alter_enum_reposicao_venda` — Enum canônico `REPOSICAO` / `VENDA`.
+  5. `20261110_multitenant_softdelete` — Introdução de `Empresa` + `ativo`.
+  6. `20261110_organizacao_multipedidos` — Evolução de `Empresa` → `Organizacao` + `Loja` (com backfill seguro preservando IDs), criação de `PedidoStatus`, `Pedido` e `ItemPedido`, remoção de `Usuario.ativo`, e inclusão de `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `precoUnitario`, `valorTotal`, `estorno` e `pedidoId` em `Movimento`.
 
 ---
 
-## 2. Diagrama Entidade-Relacionamento (ERD Real — `schema.prisma`)
+## 2. Diagrama Entidade-Relacionamento Real (`schema.prisma`)
 
 ```mermaid
 erDiagram
-    Empresa ||--o{ Usuario : "possui (Cascade)"
-    Empresa ||--o{ Categoria : "possui (Cascade)"
-    Empresa ||--o{ Fornecedor : "possui (Cascade)"
-    Empresa ||--o{ Produto : "possui (Cascade)"
-    Empresa ||--o{ Movimento : "possui (Cascade)"
-    Usuario ||--o{ Movimento : "registra (1:N)"
-    Categoria ||--o{ Produto : "classifica (1:N)"
+    Organizacao ||--o{ Loja : "possui filiais (Cascade)"
+    Organizacao ||--o{ Usuario : "possui equipe (Cascade)"
+    Organizacao ||--o{ Categoria : "possui"
+    Organizacao ||--o{ Fornecedor : "possui"
+    Organizacao ||--o{ Produto : "possui"
+    Organizacao ||--o{ Pedido : "possui"
+    Organizacao ||--o{ Movimento : "possui"
+
+    Loja ||--o{ Usuario : "vincula GERENTE/OPERADOR (SetNull)"
+    Loja ||--o{ Categoria : "escopa catálogo (Cascade)"
+    Loja ||--o{ Fornecedor : "escopa parceiros (Cascade)"
+    Loja ||--o{ Produto : "detém saldo (Cascade)"
+    Loja ||--o{ Pedido : "registra pedidos (Cascade)"
+    Loja ||--o{ Movimento : "registra livro-razão (Cascade)"
+
+    Usuario ||--o{ Pedido : "emite (SetNull ao excluir usuário)"
+    Usuario ||--o{ Movimento : "registra (SetNull ao excluir usuário)"
     Fornecedor ||--o{ Produto : "fornece (1:N)"
-    Produto ||--o{ Movimento : "movimenta (1:N)"
+    Fornecedor ||--o{ Pedido : "abastece reposições (SetNull)"
+    Categoria ||--o{ Produto : "classifica (1:N)"
 
-    Empresa {
-        int id PK "autoincrement"
-        string nome "NOT NULL"
-        string slug "UNIQUE, NOT NULL"
-        string cnpj "NULL"
-        string telefone "NULL"
-        boolean ativo "DEFAULT true"
-        datetime createdAt "now()"
-        datetime updatedAt "updatedAt"
+    Pedido ||--o{ ItemPedido : "contém itens (Cascade)"
+    Pedido ||--o{ Movimento : "gera espelho contábil (SetNull)"
+    Produto ||--o{ ItemPedido : "compõe (Restrict)"
+    Produto ||--o{ Movimento : "movimenta (Restrict)"
+
+    Organizacao {
+        int id PK
+        string nome
+        string slug UK
+        boolean ativo "Soft Delete na rede"
     }
-
-    Usuario {
-        int id PK "autoincrement"
-        string nome "NOT NULL"
-        string email "NOT NULL (UNIQUE por empresaId)"
-        string senha "NOT NULL (bcrypt)"
-        Role role "DEFAULT OPERADOR"
-        string imagem "NULL"
-        boolean ativo "DEFAULT true"
-        int empresaId FK "NOT NULL"
-        datetime createdAt "now()"
-        datetime updatedAt "updatedAt"
-    }
-
-    Categoria {
-        int id PK "autoincrement"
-        string nome "NOT NULL (UNIQUE por empresaId)"
-        boolean ativo "DEFAULT true"
-        int empresaId FK "NOT NULL"
-    }
-
-    Fornecedor {
-        int id PK "autoincrement"
-        string nome "NOT NULL"
-        string email "NULL"
-        string telefone "NULL"
+    Loja {
+        int id PK
+        int organizacaoId FK
+        string nome
+        string slug "Unique(organizacaoId, slug)"
         string endereco "NULL"
-        boolean ativo "DEFAULT true"
-        int empresaId FK "NOT NULL"
+        boolean ativo "Soft Delete na filial"
     }
-
-    Produto {
-        int id PK "autoincrement"
-        string nome "NOT NULL"
-        string descricao "NULL"
-        decimal preco "Decimal(10, 2) NOT NULL"
-        int quantidade "DEFAULT 0, NOT NULL"
-        string imagem "NULL"
-        boolean ativo "DEFAULT true"
-        int empresaId FK "NOT NULL"
-        int categoriaId FK "NULL"
-        int fornecedorId FK "NULL"
-        datetime createdAt "now()"
-        datetime updatedAt "updatedAt"
+    Usuario {
+        int id PK "Preservado em vendedorRefId após DELETE"
+        int organizacaoId FK
+        int lojaId FK "NULL para ADMIN; FK ativa para equipe"
+        string email "Unique(organizacaoId, email)"
+        Role role "ADMIN | GERENTE | OPERADOR"
     }
-
+    Pedido {
+        int id PK
+        string codigo "Unique(organizacaoId, codigo)"
+        MovimentoTipo tipo "VENDA | REPOSICAO"
+        PedidoStatus status "CONCLUIDO | CANCELADO"
+        decimal valorTotal "Decimal(10,2)"
+        int usuarioId FK "NULL se conta for excluída"
+        int vendedorRefId "ID imutável do autor"
+        string vendedorNomeSnapshot
+        string vendedorEmailSnapshot
+        int canceladoPorRefId "NULL"
+    }
+    ItemPedido {
+        int id PK
+        int pedidoId FK
+        int produtoId FK
+        string produtoNomeSnapshot
+        int quantidade
+        decimal precoUnitario "Decimal(10,2) congelado"
+        decimal subtotal "Decimal(10,2)"
+    }
     Movimento {
-        int id PK "autoincrement"
-        int produtoId FK "NOT NULL"
-        int quantidade "NOT NULL"
-        MovimentoTipo tipo "ENUM (REPOSICAO, VENDA)"
-        int usuarioId FK "NOT NULL"
-        int empresaId FK "NOT NULL"
-        datetime data "now()"
-        string observacao "NULL"
+        int id PK
+        int produtoId FK
+        int pedidoId FK "NULL se ajuste avulso"
+        int usuarioId FK "NULL se conta for excluída"
+        int vendedorRefId "ID imutável para busca histórica"
+        string vendedorNomeSnapshot
+        decimal precoUnitario "Decimal(10,2)"
+        decimal valorTotal "Decimal(10,2)"
+        boolean estorno "DEFAULT false"
     }
 ```
 
 ---
 
-## 3. Mapeamento Detalhado das Entidades e Índices
+## 3. Decisões Críticas de Integridade & Índices `[IMPLEMENTADO (verificado)]`
 
-### 3.1 Entidade `Empresa` (`schema.prisma` L10–L27)
-* **Finalidade:** Raiz do isolamento multi-tenant. Cada loja cadastrada (pelo `/auth/register` ou seed) ganha um `id` e `slug` próprios.
-* **Campos:** `id`, `nome`, `slug (@unique)`, `cnpj?`, `telefone?`, `ativo (Boolean, @default(true))`, `createdAt`, `updatedAt`.
-* **Índices:** `@@index([slug])`, `@@index([ativo])`. *(Nota: `slug` já recebe índice único automático do `@unique`, tornando `@@index([slug])` redundante).*
-
-### 3.2 Entidade `Usuario` (`schema.prisma` L29–L47)
-* **Campos:** `id`, `nome`, `email`, `senha` (hash Bcrypt cost 10), `role` (`ADMIN | GERENTE | OPERADOR`), `imagem?`, `ativo (Boolean, @default(true))`, `empresaId (Int FK -> Empresa.id onDelete: Cascade)`, `createdAt`, `updatedAt`.
-* **Restrições e Índices:**
-  - `@@unique([empresaId, email])`: Permite que a mesma pessoa física trabalhe em lojas diferentes com o mesmo e-mail, impedindo apenas duplicidade dentro da mesma loja.
-  - `@@index([empresaId, email])`, `@@index([empresaId, role])`, `@@index([empresaId, ativo])`. *(Obs.: `@@index([empresaId, email])` é redundante em B-Tree com `@@unique([empresaId, email])`)*.
-
-### 3.3 Entidade `Categoria` (`schema.prisma` L49–L60)
-* **Campos:** `id`, `nome`, `ativo (Boolean, @default(true))`, `empresaId (Int FK -> Empresa.id onDelete: Cascade)`.
-* **Restrições e Índices:** `@@unique([empresaId, nome])`, `@@index([empresaId])`, `@@index([empresaId, ativo])`.
-* **Lacuna Remanescente:** Ainda não possui campos `createdAt`/`updatedAt`.
-
-### 3.4 Entidade `Fornecedor` (`schema.prisma` L62–L75)
-* **Campos:** `id`, `nome`, `email?`, `telefone?`, `endereco?`, `ativo (Boolean, @default(true))`, `empresaId (Int FK -> Empresa.id onDelete: Cascade)`.
-* **Índices:** `@@index([empresaId])`, `@@index([empresaId, ativo])`.
-* **Lacunas Remanescentes:** Não há restrição `@@unique([empresaId, nome])` nem `createdAt`/`updatedAt`.
-
-### 3.5 Entidade `Produto` (`schema.prisma` L77–L100)
-* **Campos:** `id`, `nome`, `descricao?`, `preco` (`Decimal @db.Decimal(10, 2)` — erro histórico `I7` de `Float` **eliminado na Fase C**), `quantidade (Int @default(0))`, `imagem?`, `ativo (Boolean, @default(true))`, `empresaId (Int FK onDelete: Cascade)`, `categoriaId?`, `fornecedorId?`, `createdAt`, `updatedAt`.
-* **Índices Compostos Multi-Tenant:**
-  - `@@index([empresaId, ativo])`
-  - `@@index([empresaId, categoriaId, quantidade])`
-  - `@@index([empresaId, fornecedorId])`
-  - `@@index([empresaId, quantidade])`
-  - `@@index([empresaId, nome])`
-
-### 3.6 Entidade `Movimento` (`schema.prisma` L102–L118)
-* **Campos:** `id`, `produtoId`, `quantidade`, `tipo` (`REPOSICAO | VENDA`), `usuarioId`, `empresaId (Int FK onDelete: Cascade)`, `data (@default(now()))`, `observacao?`.
-* **Índices Compostos Multi-Tenant:**
-  - `@@index([empresaId, usuarioId])`
-  - `@@index([empresaId, produtoId, data])`
-  - `@@index([empresaId, data])`
-
----
-
-## 4. Avaliação Arquitetural e Integridade Referencial
-
-1. **Multi-Tenancy Shared Database, Shared Schema:** Todas as tabelas de negócio possuem `empresaId` indexado como coluna líder dos índices compostos, garantindo varreduras eficientes no PostgreSQL por estabelecimento.
-2. **Soft Delete vs. Cascata:** Enquanto a exclusão de uma `Empresa` limpa os filhos em cascata (`onDelete: Cascade`), as operações cotidianas em `Usuario`, `Produto`, `Categoria` e `Fornecedor` verificam vínculos (`_count.movimentos` ou `_count.produtos`) e aplicam **Soft Delete automático** (`ativo = false`), preservando 100% do livro-razão (`Movimento`).
-
----
-
-## 5. Estado Atual das Consultas Críticas (Pós-Fases A–G)
-
-| Consulta / Endpoint | Implementação Atual | Diagnóstico |
-| :--- | :--- | :--- |
-| **Patrimônio (`/products/stats`)** | `SELECT COALESCE(SUM(preco * quantidade), 0) ... WHERE "empresaId" = ... AND "ativo" = true` | `OTIMIZADO` (`Decimal(10,2)` exato no PostgreSQL) |
-| **Ajuste de Estoque (`/products/:id/adjust`)** | `prisma.$transaction` + `SELECT ... FOR UPDATE WHERE id AND "empresaId"` | `CORRIGIDO / TESTADO` (Serializado sem Lost Update) |
-| **Estatísticas de Equipe (`/movements/user-stats`)** | SQL `$queryRaw` único com `JOIN` e filtro `u."empresaId"` | `CORRIGIDO / TESTADO` (N+1 eliminado) |
-| **Métricas de Fornecedores (`/suppliers/stats`)** | SQL `$queryRaw` único com `LEFT JOIN` filtrando `ativo = true` | `CORRIGIDO / TESTADO` (Zero processamento N+1 em Node) |
-| **Importação em Lote (`POST /products/import`)** | Validação completa + `prisma.$transaction` (`create` categorias/fornecedores + `createMany` produtos) | `IMPLEMENTADO / TESTADO` (Atômico por loja) |
-| **Listagem (`/movements?limit=all`)** | `prisma.movimento.findMany` paginado ou `'all'` para gráficos | `MELHORÁVEL` (Futuramente substituir `'all'` nos gráficos por endpoint agregado SQL) |
+1. **Exclusão Física de `Usuario` Sem Quebrar Histórico:**
+   - Diferente de `Produto`, `Categoria`, `Fornecedor` e `Loja` (que usam `ativo: Boolean` pois itens podem ser descontinuados), `Usuario` foi projetado **sem `ativo`**.
+   - Quando um `Usuario` é excluído (`DELETE /users/:id`), as chaves estrangeiras `Pedido.usuarioId` e `Movimento.usuarioId` possuem `onDelete: SetNull`, tornando-se `NULL`, enquanto `vendedorRefId` (inteiro obrigatório), `vendedorNomeSnapshot` e `vendedorEmailSnapshot` permanecem intactos e indexados (`@@index([organizacaoId, vendedorRefId, createdAt])` em `Pedido` e `@@index([organizacaoId, vendedorRefId, data])` em `Movimento`).
+2. **Precisão Monetária Congelada (`Decimal(10, 2)`):**
+   - `Produto.preco`, `Pedido.valorTotal`, `ItemPedido.precoUnitario`, `ItemPedido.subtotal`, `Movimento.precoUnitario` e `Movimento.valorTotal` utilizam `@db.Decimal(10, 2)` (`numeric(10,2)`), garantindo que reajustes futuros no preço de um produto nunca alterem o faturamento histórico passado.
+3. **Seed Realista Multi-Organização (`backend/prisma/seed.js`):**
+   - **Organização 1 — `Grupo TechStock Varejo` (`grupo-techstock`):** Lojas `TechStock Centro` (`techstock-centro`) e `TechStock Shopping` (`techstock-shopping`), `ADMIN` (`admin@techstock.com`), 2 `GERENTE`s, 4 `OPERADOR`es ativos e **1 ex-funcionário fisicamente excluído (`Marcos Antunes`)** cujo `vendedorRefId` permanece auditável.
+   - **Organização 2 — `CyberForge Geek Store` (`cyberforge-geek`):** Loja `CyberForge Matriz` (`cyberforge-matriz`), `admin@cyberforge.com`, `gerente1@cyberforge.com`, `op1/op2@cyberforge.com`. Senha unificada: `Password123!`.
+   - Gera **12 meses** de multipedidos de compra e venda, cancelamento/estorno demonstrativo no mês atual e SKUs inativos com histórico (`Cabo VGA Analógico Legado`, `Hub USB 2.0 Antigo`, `Box Edição Limitada Convenção 2024`).
