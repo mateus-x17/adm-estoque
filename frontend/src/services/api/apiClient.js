@@ -1,6 +1,28 @@
 // arquivo responsável por centralizar requisições HTTP com JWT, cabeçalho de loja selecionada (X-Loja-Id), uploads e downloads binários
+import { showServerToast, hideServerToast } from "./serverToast.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+let activeRequestsCount = 0;
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Função para gerenciar espera de 1000ms e toast informativo enquanto a requisição à API não completa
+const executeRequest = async (fetchCallback) => {
+  activeRequestsCount++;
+  showServerToast("Aguardando resposta da API (serviços em repouso no Render podem levar alguns segundos para inicializar)...");
+
+  try {
+    // 1000ms de espera antes de efetivamente enviar a requisição ao backend
+    await delay(1000);
+    return await fetchCallback();
+  } finally {
+    activeRequestsCount--;
+    if (activeRequestsCount <= 0) {
+      activeRequestsCount = 0;
+      hideServerToast();
+    }
+  }
+};
 
 // função para recuperar o token JWT persistido no localStorage pelo Zustand
 const getToken = () => {
@@ -111,8 +133,10 @@ const request = async (endpoint, options = {}) => {
     headers: buildHeaders(fetchOptions.headers, skipAuth),
   };
 
-  const response = await fetch(url, config);
-  return handleResponse(response);
+  return executeRequest(async () => {
+    const response = await fetch(url, config);
+    return handleResponse(response);
+  });
 };
 
 export const apiClient = {
@@ -150,12 +174,14 @@ export const apiClient = {
       ...customHeaders,
     };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "POST",
-      headers,
-      body: formData,
+    return executeRequest(async () => {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+      return handleResponse(response);
     });
-    return handleResponse(response);
   },
 
   putFormData: async (endpoint, formData, customHeaders = {}) => {
@@ -167,12 +193,14 @@ export const apiClient = {
       ...customHeaders,
     };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "PUT",
-      headers,
-      body: formData,
+    return executeRequest(async () => {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "PUT",
+        headers,
+        body: formData,
+      });
+      return handleResponse(response);
     });
-    return handleResponse(response);
   },
 
   patchFormData: async (endpoint, formData, customHeaders = {}) => {
@@ -184,12 +212,14 @@ export const apiClient = {
       ...customHeaders,
     };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "PATCH",
-      headers,
-      body: formData,
+    return executeRequest(async () => {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "PATCH",
+        headers,
+        body: formData,
+      });
+      return handleResponse(response);
     });
-    return handleResponse(response);
   },
 
   downloadBlob: async (endpoint) => {
@@ -200,17 +230,19 @@ export const apiClient = {
       ...(lojaId ? { "X-Loja-Id": lojaId } : {}),
     };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "GET",
-      headers,
+    return executeRequest(async () => {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) return handleResponse(response);
+
+      const disposition = response.headers.get("content-disposition") || "";
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const filename = match ? match[1] : "download";
+      const blob = await response.blob();
+      return { blob, filename };
     });
-
-    if (!response.ok) return handleResponse(response);
-
-    const disposition = response.headers.get("content-disposition") || "";
-    const match = disposition.match(/filename="?([^";]+)"?/i);
-    const filename = match ? match[1] : "download";
-    const blob = await response.blob();
-    return { blob, filename };
   },
 };
