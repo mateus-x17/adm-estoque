@@ -1,4 +1,6 @@
 import express from "express";
+import multer from "multer";
+import path from "path";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { permit } from "../middlewares/roleMiddleware.js";
 import { validateRequest } from "../middlewares/validationMiddleware.js";
@@ -7,54 +9,87 @@ import {
   listProducts,
   getProduct,
   updateProduct,
+  toggleProductStatus,
   deleteProduct,
   adjustQuantity,
   countProducts,
-  getProductStats
+  getProductStats,
+  exportProducts,
+  downloadImportTemplate,
+  importProducts,
 } from "../controllers/productController.js";
 import { upload } from "../config/multerConfig.js";
+import { AppError } from "../utils/errorHandler.js";
 
-// arquivo de roteamento de produtos
+// arquivo de roteamento de produtos, planilhas em lote e movimentações de estoque por tenant
+
 const router = express.Router();
 
-// 1 - Autenticação requerida em todas as rotas
+// 1 - Configuração dedicada do Multer em memória para recebimento seguro de planilhas (.xlsx e .csv, máximo 2MB)
+const uploadSpreadsheet = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    if ([".xlsx", ".csv"].includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new AppError("Formato inválido. Apenas arquivos .xlsx ou .csv são aceitos.", 400));
+    }
+  },
+});
+
+// 2 - Autenticação obrigatória com validação de tenant e status ativo
 router.use(authMiddleware);
 
-// 2 - Rotas de dados agregados (estatísticas e contagem)
-// Devem ser declaradas antes das rotas com parâmetro dinâmico (/:id) para que o express não confunda "count" com um ID de produto.
+// 3 - Rotas agregadas e de planilhas (declaradas obrigatoriamente antes de /:id para evitar conflito de rotas)
 router.get("/count", countProducts);
 router.get("/stats", getProductStats);
+router.get("/export", permit("ADMIN", "GERENTE"), exportProducts);
+router.get("/import/template", permit("ADMIN", "GERENTE"), downloadImportTemplate);
+router.post(
+  "/import",
+  permit("ADMIN", "GERENTE"),
+  uploadSpreadsheet.single("file"),
+  importProducts
+);
 
-// 3 - Rotas de consulta geral (leitura)
-// Acessíveis por todos os usuários autenticados
+// 4 - Rotas de consulta geral (leitura restrita à loja autenticada)
 router.get("/", listProducts);
 router.get("/:id", getProduct);
 
-// 4 - Rotas de alteração de catálogo (criar, atualizar, excluir)
-// Reservadas apenas para ADMIN e GERENTE
-// Utiliza upload.single("imagem") fornecido pelo multer para lidar com o parsing do multipart/form-data e salvar o arquivo no servidor
-router.post("/", 
-  permit("ADMIN", "GERENTE"), 
-  upload.single("imagem"), 
-  validateRequest({ required: ['nome', 'preco', 'quantidade', 'categoriaId'] }),
+// 5 - Rotas de alteração de catálogo (criação, edição e Soft Delete restritos a ADMIN e GERENTE)
+router.post(
+  "/",
+  permit("ADMIN", "GERENTE"),
+  upload.single("imagem"),
+  validateRequest({ required: ["nome", "preco", "quantidade"] }),
   createProduct
 );
 
-router.put("/:id", 
-  permit("ADMIN", "GERENTE"), 
-  upload.single("imagem"), 
-  validateRequest({ required: ['nome', 'preco', 'quantidade', 'categoriaId'] }),
+router.put(
+  "/:id",
+  permit("ADMIN", "GERENTE"),
+  upload.single("imagem"),
+  validateRequest({ required: ["nome", "preco", "quantidade"] }),
   updateProduct
 );
 
+router.patch(
+  "/:id/status",
+  permit("ADMIN", "GERENTE"),
+  validateRequest({ required: ["ativo"] }),
+  toggleProductStatus
+);
+
+// 6 - Rota de exclusão definitiva ou Soft Delete restrita exclusivamente ao ADMIN do estabelecimento
 router.delete("/:id", permit("ADMIN"), deleteProduct);
 
-// 5 - Rota especializada para movimentação de estoque
-// Além da gerência, OPERADORES também podem acessar esta rota específica
-// Exige validação de que os campos "quantidade" e "tipo" (REPOSICAO/VENDA) foram enviados
-router.post("/:id/adjust", 
+// 7 - Rota especializada para movimentação de estoque (acessível por ADMIN, GERENTE e OPERADOR da loja)
+router.post(
+  "/:id/adjust",
   permit("ADMIN", "GERENTE", "OPERADOR"),
-  validateRequest({ required: ['quantidade', 'tipo'] }),
+  validateRequest({ required: ["quantidade", "tipo"] }),
   adjustQuantity
 );
 

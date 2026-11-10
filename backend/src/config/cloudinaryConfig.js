@@ -13,8 +13,24 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// função para montar o caminho hierárquico de pastas e subpastas dedicadas no Cloudinary por estabelecimento
+// 1 - Recebe o identificador/slug da empresa (tenant) e o nome da subpasta de mídia ('produtos' ou 'usuarios')
+// 2 - Sanitiza o identificador da loja garantindo caracteres seguros para diretório em nuvem
+// 3 - Retorna a rota estruturada no formato 'estoque-os/lojas/<loja>/<subpasta>' garantindo isolamento visual e organizacional no CDN
+export function getTenantFolder(empresaIdentifier, subfolder = "geral") {
+  const safeTenant = String(empresaIdentifier || "default")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "_");
+  const safeSub = String(subfolder || "geral")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "_");
+  return `estoque-os/lojas/${safeTenant}/${safeSub}`;
+}
+
 // função responsável por fazer o upload de um arquivo local para o Cloudinary
-// Resiliente com proteção de Timeout de 10s (A3) e expurgo garantido de arquivos temporários do disco
+// 1 - Configura uma promise de timeout de segurança (padrão 10 segundos) para evitar bloqueio de thread
+// 2 - Executa o upload enviando para a pasta dedicada no Cloudinary (com suporte a subpastas de cada loja)
+// 3 - No bloco finally, remove imediatamente o arquivo temporário salvo pelo Multer no disco local
 export async function uploadToCloudinary(filePath, folder = "general", timeoutMs = 10000) {
   try {
     const timeoutPromise = new Promise((_, reject) =>

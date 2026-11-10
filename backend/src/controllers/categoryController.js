@@ -2,78 +2,77 @@ import { childLogger } from '../config/logger.js';
 import * as categoryService from '../services/categoryService.js';
 const log = childLogger('categoryController');
 
-// função para listar todas as categorias
-// 1 - Recebe req, res, next
-// 2 - Chama o serviço categoryService.listCategories para obter a lista completa
-// 3 - Retorna os dados em formato JSON
-// 4 - Em caso de erro, usa o logger (childLogger) para registrar a falha e encaminha via next()
+// arquivo responsável por intermediar requisições HTTP para a gestão de categorias do tenant
+
+// função para listar as categorias da loja com suporte a filtro de status
+// 1 - Extrai status opcional da query (padrão 'ativos') e o empresaId do token
+// 2 - Chama o serviço listCategories e retorna o JSON
 export async function listCategories(req, res, next) {
   try {
-    const cats = await categoryService.listCategories();
+    const status = req.query.status || 'ativos';
+    const cats = await categoryService.listCategories(req.user.empresaId, status);
     res.json(cats);
   } catch (err) {
-    log.error({ err }, 'Error listing categories');
+    log.error({ err }, 'Erro ao listar categorias');
     next(err);
   }
 }
 
-// função para contar o total de categorias cadastradas
-// 1 - Solicita a contagem ao serviço
-// 2 - Retorna um objeto JSON com a propriedade "count"
+// função para contar as categorias ativas da loja
 export async function countCategories(req, res, next) {
   try {
-    const count = await categoryService.countCategories();
+    const count = await categoryService.countCategories(req.user.empresaId);
     res.json({ count });
   } catch (err) {
-    log.error({ err }, 'Error counting categories');
+    log.error({ err }, 'Erro ao contar categorias');
     next(err);
   }
 }
 
-// função para criar uma nova categoria
-// 1 - Puxa o "nome" do corpo da requisição e envia ao serviço createCategory
-// 2 - O serviço cria no banco e devolve o objeto criado
-// 3 - Registra a ação (CREATE_CATEGORY) no log, incluindo o id do usuário que executou
-// 4 - Retorna status 201 (Created) com os dados recém criados
+// função para criar uma nova categoria vinculada ao estabelecimento
 export async function createCategory(req, res, next) {
   try {
-    const c = await categoryService.createCategory(req.body.nome);
-    log.info({ user: req.user?.id, action: 'CREATE_CATEGORY', targetId: c.id }, 'User created a category');
+    const c = await categoryService.createCategory(req.body.nome, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'CREATE_CATEGORY', targetId: c.id }, 'Categoria criada');
     res.status(201).json(c);
   } catch (err) {
-    log.error({ err }, 'Error creating category');
+    log.error({ err }, 'Erro ao criar categoria');
     next(err);
   }
 }
 
-// função para atualizar uma categoria existente
-// 1 - Obtém o ID da rota (req.params.id) e o novo nome do corpo (req.body.nome)
-// 2 - Chama o serviço de atualização e aguarda a resposta
-// 3 - Registra o log de sucesso (UPDATE_CATEGORY)
-// 4 - Retorna os dados atualizados
+// função para atualizar uma categoria da loja
 export async function updateCategory(req, res, next) {
   try {
-    const updated = await categoryService.updateCategory(req.params.id, req.body.nome);
-    log.info({ user: req.user?.id, action: 'UPDATE_CATEGORY', targetId: updated.id }, 'User updated a category');
+    const updated = await categoryService.updateCategory(req.params.id, req.body.nome, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'UPDATE_CATEGORY', targetId: updated.id }, 'Categoria atualizada');
     res.json(updated);
   } catch (err) {
-    log.error({ err }, 'Error updating category');
+    log.error({ err }, 'Erro ao atualizar categoria');
     next(err);
   }
 }
 
-// função para deletar uma categoria
-// 1 - Extrai o ID da rota (req.params.id)
-// 2 - Chama o serviço de deleção
-// 3 - Registra a ação destrutiva no log
-// 4 - Retorna sucesso simples { ok: true }
+// função para inativar ou reativar uma categoria (Soft Delete)
+export async function toggleCategoryStatus(req, res, next) {
+  try {
+    const { ativo } = req.body;
+    const updated = await categoryService.toggleCategoryStatus(req.params.id, ativo, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'TOGGLE_CATEGORY_STATUS', targetId: updated.id, ativo }, 'Status de categoria alterado');
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// função para deletar categoria (ou inativação lógica se possuir produtos vinculados)
 export async function deleteCategory(req, res, next) {
   try {
-    await categoryService.deleteCategory(req.params.id);
-    log.info({ user: req.user?.id, action: 'DELETE_CATEGORY', targetId: req.params.id }, 'User deleted a category');
-    res.json({ ok: true });
+    const result = await categoryService.deleteCategory(req.params.id, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'DELETE_CATEGORY', targetId: req.params.id, result }, 'Resultado da exclusão de categoria');
+    res.json(result);
   } catch (err) {
-    log.error({ err }, 'Error deleting category');
+    log.error({ err }, 'Erro ao deletar categoria');
     next(err);
   }
 }

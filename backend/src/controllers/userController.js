@@ -1,184 +1,224 @@
 import { childLogger } from "../config/logger.js";
 import * as userService from "../services/userService.js";
 import { AppError } from "../utils/errorHandler.js";
-import { uploadToCloudinary } from "../config/cloudinaryConfig.js";
+import { uploadToCloudinary, getTenantFolder } from "../config/cloudinaryConfig.js";
 import { prisma } from "../config/prismaClient.js";
 const log = childLogger("userController");
 
-// função para criação de novos usuários (admin/gerente criando para operadores)
-// 1 - Checa se há arquivo anexado na requisição (req.file) via Multer
-// 2 - Se sim, faz o upload para o Cloudinary na pasta 'usuarios'
-// 3 - Chama o userService com os dados do corpo e o link da foto para salvar no banco
-// 4 - Registra a ação log e retorna com status 201 (Created)
+// arquivo responsável por intermediar requisições HTTP para a gestão de usuários isolados por loja
+
+// Cache em memória para dropdowns de nomes de usuários indexado por empresaId com TTL de 30s
+const namesCacheByTenant = new Map();
+const NAMES_CACHE_TTL_MS = 30 * 1000;
+
+// função para invalidar o cache de dropdown de uma loja ou de todas
+export function invalidateUserNamesCache(empresaId = null) {
+  if (empresaId) {
+    namesCacheByTenant.delete(Number(empresaId));
+  } else {
+    namesCacheByTenant.clear();
+  }
+}
+
+// função para criação de novos colaboradores dentro do estabelecimento
+// 1 - Realiza upload de foto de avatar na pasta dedicada do tenant no Cloudinary ('estoque-os/lojas/<loja>/usuarios')
+// 2 - Chama userService.createUser passando os dados validados e o empresaId do administrador logado
+// 3 - Invalida cache de dropdown e retorna status 201 com o novo colaborador
 export async function createUser(req, res, next) {
   try {
+    const empresaId = req.user.empresaId;
+    const tenantSlug = req.user.empresaSlug || empresaId;
+
     let imagem = undefined;
     if (req.file) {
-      imagem = await uploadToCloudinary(req.file.path, "usuarios");
+      const folder = getTenantFolder(tenantSlug, "usuarios");
+      imagem = await uploadToCloudinary(req.file.path, folder);
     }
-    const user = await userService.createUser(req.body, imagem);
-    log.info({ user: req.user?.id, action: 'CREATE_USER', targetId: user.id }, 'User created a new user');
+
+    const user = await userService.createUser(req.body, imagem, empresaId);
+    invalidateUserNamesCache(empresaId);
+
+    log.info({ user: req.user?.id, empresaId, action: 'CREATE_USER', targetId: user.id }, 'Colaborador criado com sucesso');
     res.status(201).json(user);
   } catch (err) {
-    log.error({ err }, "Error creating user");
+    log.error({ err }, "Erro ao criar colaborador");
     next(err);
   }
 }
 
-// Cache em memória para dropdowns de nomes de usuários com TTL de 30s
-let cachedUserNames = null;
-let cachedUserNamesTimestamp = 0;
-const NAMES_CACHE_TTL_MS = 30 * 1000;
-
-export function invalidateUserNamesCache() {
-  cachedUserNames = null;
-  cachedUserNamesTimestamp = 0;
-}
-
-// função simplificada para buscar apenas os nomes e IDs dos usuários (ótima para selects e dropdowns, reduzindo payload)
-// Otimizada com cache em memória (TTL 30s): responde em < 1ms para a interface
+// função para buscar apenas nomes e IDs dos colaboradores da loja atual (ideal para selects e filtros)
+// 1 - Consulta no cache local em memória pelo empresaId da sessão para entrega em < 1ms
+// 2 - Em caso de cache miss, busca apenas colaboradores ativos daquela loja ordenados por nome
+// 3 - Salva no cache com TTL de 30s e retorna o array para a interface
 export async function getUserNames(req, res, next) {
   try {
+    const empresaId = req.user.empresaId;
     const now = Date.now();
-    if (cachedUserNames && (now - cachedUserNamesTimestamp < NAMES_CACHE_TTL_MS)) {
-      return res.json(cachedUserNames);
+    const cached = namesCacheByTenant.get(empresaId);
+
+    if (cached && (now - cached.timestamp < NAMES_CACHE_TTL_MS)) {
+      return res.json(cached.data);
     }
 
     const users = await prisma.usuario.findMany({
-      select: { id: true, nome: true },
+      where: {
+        empresaId: Number(empresaId),
+        ativo: true,
+      },
+      select: { id: true, nome: true, role: true },
       orderBy: { nome: 'asc' },
     });
 
-    cachedUserNames = users;
-    cachedUserNamesTimestamp = now;
+    namesCacheByTenant.set(empresaId, { data: users, timestamp: now });
 
-    log.info({ user: req.user?.id, action: 'GET_USER_NAMES' }, 'User fetched user names list');
+    log.info({ user: req.user?.id, empresaId, action: 'GET_USER_NAMES' }, 'Lista de nomes da loja consultada');
     res.json(users);
   } catch (err) {
-    log.error({ err }, 'Error fetching user names');
+    log.error({ err }, 'Erro ao buscar nomes de colaboradores');
     next(err);
   }
 }
 
-// função para listagem rica de usuários com paginação e filtros de busca/role
-// 1 - Extrai da string de busca parâmetros page, limit, search e role e os converte
-// 2 - Chama o serviço enviando um objeto empacotado para o processamento de regras
-// 3 - Retorna o JSON processado (lista e metadados de paginação)
+// função para listar os colaboradores da loja com paginação, busca e filtros de cargo e status
+// 1 - Extrai parâmetros page, limit, search, role e status ('ativos', 'inativos', 'todos')
+// 2 - Delega a listagem ao serviço garantindo a clausula empresaId
+// 3 - Retorna dados sanitizados e metadados de paginação
 export async function listUsers(req, res, next) {
   try {
+    const empresaId = req.user.empresaId;
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const search = req.query.search || "";
     const role = req.query.role || "";
+    const status = req.query.status || "todos";
 
     const users = await userService.listUsers({
+      empresaId,
       page,
       limit,
       search,
       role,
+      status,
     });
 
     res.json(users);
   } catch (err) {
-    log.error({ err }, "Error listing users");
+    log.error({ err }, "Erro ao listar usuários");
     next(err);
   }
 }
 
-// função para obter os dados completos de um único usuário via ID
-// 1 - Pega req.params.id e aciona serviço
-// 2 - O serviço remove a senha da resposta e devolve os dados sanitizados
+// função para buscar dados de um usuário pelo ID garantindo isolamento da loja
 export async function getUser(req, res, next) {
   try {
-    const user = await userService.getUserById(req.params.id);
+    const user = await userService.getUserById(req.params.id, req.user.empresaId);
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error getting user");
+    log.error({ err }, "Erro ao buscar usuário");
     next(err);
   }
 }
 
-// função de administrador para atualizar usuários de terceiros
-// 1 - Avalia se há imagem via Multer para upload
-// 2 - Avalia a flag 'removerImagem' (caso o admin queira excluir a foto atual do usuário editado)
-// 3 - Invoca o serviço que salva as alterações
-// 4 - Registra ação (UPDATE_USER) e retorna novos dados
+// função para atualizar colaboradores da loja
+// 1 - Salva nova imagem na pasta dedicada do tenant no Cloudinary se houver upload
+// 2 - Repassa dados higienizados e empresaId ao serviço
+// 3 - Invalida cache de dropdown e devolve o usuário atualizado
 export async function updateUser(req, res, next) {
   try {
+    const empresaId = req.user.empresaId;
+    const tenantSlug = req.user.empresaSlug || empresaId;
+
     let newImagePath = null;
     if (req.file) {
-      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/usuarios");
+      const folder = getTenantFolder(tenantSlug, "usuarios");
+      newImagePath = await uploadToCloudinary(req.file.path, folder);
     }
     const removeImage = req.body.removerImagem === "true";
+
     const user = await userService.updateUser(
       req.params.id,
       req.body,
       newImagePath,
-      removeImage
+      removeImage,
+      empresaId
     );
-    log.info({ user: req.user?.id, action: 'UPDATE_USER', targetId: user.id }, 'User updated a user');
+
+    invalidateUserNamesCache(empresaId);
+    log.info({ user: req.user?.id, empresaId, action: 'UPDATE_USER', targetId: user.id }, 'Usuário da loja atualizado');
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error updating user");
+    log.error({ err }, "Erro ao atualizar usuário");
     next(err);
   }
 }
 
-// função que delega a exclusão ao serviço
-// 1 - Pega id, tenta apagar no serviço (que trata regras como impedir usuário de excluir a si mesmo)
+// função para inativar ou reativar um colaborador (Soft Delete)
+// 1 - Recebe ativo (boolean) do corpo da requisição
+// 2 - Aciona toggleUserStatus validando integridade e impedindo auto-inativação
+// 3 - Invalida caches e retorna o usuário com novo status
+export async function toggleUserStatus(req, res, next) {
+  try {
+    const empresaId = req.user.empresaId;
+    const { ativo } = req.body;
+    const user = await userService.toggleUserStatus(req.params.id, ativo, req.user.id, empresaId);
+
+    invalidateUserNamesCache(empresaId);
+    log.info({ user: req.user?.id, empresaId, action: 'TOGGLE_USER_STATUS', targetId: user.id, ativo }, 'Status de usuário alterado');
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// função para excluir colaborador da loja
+// 1 - Chama deleteUser: se tiver histórico de movimentações, executa Soft Delete automático preservando auditoria
+// 2 - Retorna resposta informando se foi exclusão física ou inativação lógica
 export async function deleteUser(req, res, next) {
   try {
-    await userService.deleteUser(req.params.id, req.user?.id);
-    log.info({ user: req.user?.id, action: 'DELETE_USER', targetId: req.params.id }, 'User deleted a user');
-    res.json({ ok: true });
+    const empresaId = req.user.empresaId;
+    const result = await userService.deleteUser(req.params.id, req.user?.id, empresaId);
+
+    invalidateUserNamesCache(empresaId);
+    log.info({ user: req.user?.id, empresaId, action: 'DELETE_USER', targetId: req.params.id, result }, 'Resultado da exclusão de usuário');
+    res.json(result);
   } catch (err) {
-    log.error({ err }, "Error deleting user");
+    log.error({ err }, "Erro ao deletar usuário");
     next(err);
   }
 }
 
-// função para o próprio usuário autenticado pegar seus dados ("Meu Perfil")
-// 1 - Usa o req.user.id injetado pelo token jwt em authMiddleware
-// 2 - Chama serviço getUserById garantindo que pega apenas as própias infos
+// função para o próprio usuário autenticado buscar suas informações de perfil
 export async function getMe(req, res, next) {
   try {
-    const user = await userService.getUserById(req.user.id);
+    const user = await userService.getUserById(req.user.id, req.user.empresaId);
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error getting logged user");
+    log.error({ err }, "Erro ao obter perfil logado");
     next(err);
   }
 }
 
-// função para o próprio usuário logado atualizar seus dados (Meu Perfil)
-// 1 - Verifica se o solicitante é ADMIN usando a role extraída do token
-// 2 - Lida com nova imagem ou deleção de imagem
-// 3 - Aplica "Guardrails": Se um usuário NÃO for admin e tentar mudar sua 'role' (passando esse parâmetro pelo cliente/POSTMAN forçadamente), a aplicação lança 403 negando a operação
-// 4 - Caso o solicitante seja ADMIN e passe uma role, o sistema autoriza alterar os privilégios
-// 5 - Aciona o serviço para efetivar as mudanças permitidas no banco e gera o log (UPDATE_ME)
+// função para o próprio colaborador logado atualizar seus dados de perfil
 export async function updateMe(req, res, next) {
   try {
     const isAdmin = req.user.role === "ADMIN";
+    const empresaId = req.user.empresaId;
+    const tenantSlug = req.user.empresaSlug || empresaId;
 
     let newImagePath = null;
     if (req.file) {
-      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/usuarios");
+      const folder = getTenantFolder(tenantSlug, "usuarios");
+      newImagePath = await uploadToCloudinary(req.file.path, folder);
     }
 
     const removeImage = req.body.removerImagem === "true";
-
     const { nome, email, role } = req.body || {};
 
-    // Guardrails: Impede escalonamento de privilégios via API falsificada (proteção extra de segurança vital em APIs nodejs)
     if (!isAdmin && role !== undefined) {
-      throw new AppError("Acesso negado", 403);
+      throw new AppError("Acesso negado para alteração de privilégios", 403);
     }
 
-    const updateData = {
-      nome,
-      email,
-    };
-
+    const updateData = { nome, email };
     if (isAdmin && role !== undefined && role !== "") {
       const allowedRoles = ["ADMIN", "GERENTE", "OPERADOR"];
       const normalizedRole = String(role).toUpperCase();
@@ -192,13 +232,15 @@ export async function updateMe(req, res, next) {
       req.user.id,
       updateData,
       newImagePath,
-      removeImage
+      removeImage,
+      empresaId
     );
 
-    log.info({ user: req.user?.id, action: 'UPDATE_ME' }, 'User updated their own profile');
+    invalidateUserNamesCache(empresaId);
+    log.info({ user: req.user?.id, empresaId, action: 'UPDATE_ME' }, 'Colaborador atualizou o próprio perfil');
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error updating logged user");
+    log.error({ err }, "Erro ao atualizar perfil logado");
     next(err);
   }
 }

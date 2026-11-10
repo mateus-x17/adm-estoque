@@ -7,43 +7,83 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Empresa {
+  id           Int          @id @default(autoincrement())
+  nome         String
+  slug         String       @unique
+  cnpj         String?
+  telefone     String?
+  ativo        Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  usuarios     Usuario[]
+  produtos     Produto[]
+  categorias   Categoria[]
+  fornecedores Fornecedor[]
+  movimentos   Movimento[]
+
+  @@index([slug])
+  @@index([ativo])
+}
+
 model Usuario {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   nome      String
-  email     String   @unique
+  email     String
   senha     String
-  role      Role     @default(OPERADOR)
+  role      Role      @default(OPERADOR)
   imagem    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ativo     Boolean   @default(true)
+  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   movimentos Movimento[]
 
-  @@index([email])
-  @@index([role])
+  @@unique([empresaId, email])
+  @@index([empresaId, email])
+  @@index([empresaId, role])
+  @@index([empresaId, ativo])
 }
 
 model Categoria {
-  id       Int      @id @default(autoincrement())
-  nome     String   @unique
-  produtos Produto[]
+  id        Int       @id @default(autoincrement())
+  nome      String
+  ativo     Boolean   @default(true)
+  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId Int
+  produtos  Produto[]
+
+  @@unique([empresaId, nome])
+  @@index([empresaId])
+  @@index([empresaId, ativo])
 }
 
 model Fornecedor {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   nome      String
   email     String?
   telefone  String?
   endereco  String?
+  ativo     Boolean   @default(true)
+  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId Int
   produtos  Produto[]
+
+  @@index([empresaId])
+  @@index([empresaId, ativo])
 }
 
 model Produto {
-  id          Int       @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   nome        String
   descricao   String?
-  preco       Decimal   @db.Decimal(10, 2)
-  quantidade  Int       @default(0)
+  preco       Decimal    @db.Decimal(10, 2)
+  quantidade  Int        @default(0)
   imagem      String?
+  ativo       Boolean    @default(true)
+  empresa     Empresa    @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId   Int
   categoria   Categoria? @relation(fields: [categoriaId], references: [id])
   categoriaId Int?
   fornecedor  Fornecedor? @relation(fields: [fornecedorId], references: [id])
@@ -52,26 +92,29 @@ model Produto {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  @@index([categoriaId, quantidade])
-  @@index([fornecedorId])
-  @@index([quantidade])
-  @@index([nome])
+  @@index([empresaId, ativo])
+  @@index([empresaId, categoriaId, quantidade])
+  @@index([empresaId, fornecedorId])
+  @@index([empresaId, quantidade])
+  @@index([empresaId, nome])
 }
 
 model Movimento {
-  id         Int       @id @default(autoincrement())
-  produto    Produto   @relation(fields: [produtoId], references: [id])
+  id         Int           @id @default(autoincrement())
+  produto    Produto       @relation(fields: [produtoId], references: [id])
   produtoId  Int
   quantidade Int
   tipo       MovimentoTipo
-  usuario    Usuario   @relation(fields: [usuarioId], references: [id])
+  usuario    Usuario       @relation(fields: [usuarioId], references: [id])
   usuarioId  Int
-  data       DateTime  @default(now())
+  empresa    Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId  Int
+  data       DateTime      @default(now())
   observacao String?
 
-  @@index([usuarioId])
-  @@index([produtoId, data])
-  @@index([data])
+  @@index([empresaId, usuarioId])
+  @@index([empresaId, produtoId, data])
+  @@index([empresaId, data])
 }
 
 enum Role {

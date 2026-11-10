@@ -28,7 +28,7 @@ setInterval(() => {
 
 // middleware responsável por validar a autenticação do usuário nas rotas protegidas
 // Otimizado com camada de cache em memória: se o token for válido e o usuário estiver em cache ativo,
-// a requisição é atendida instantaneamente em < 1ms sem consultar o banco remoto.
+// a requisição é atendida instantaneamente em < 1ms validando também se o usuário e sua loja estão ativos.
 export async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return next(new AppError('Token não fornecido', 401));
@@ -46,20 +46,52 @@ export async function authMiddleware(req, res, next) {
       return next();
     }
 
-    // 2. Cache miss: busca no banco com projeção enxuta
+    // 2. Cache miss: busca no banco com projeção incluindo dados da empresa e flag de soft delete (ativo)
     const user = await prisma.usuario.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true }
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        role: true,
+        ativo: true,
+        empresaId: true,
+        empresa: {
+          select: {
+            id: true,
+            nome: true,
+            slug: true,
+            ativo: true,
+          },
+        },
+      },
     });
 
     if (!user) return next(new AppError('Usuário não encontrado', 401));
 
-    const userData = { id: user.id, email: user.email, role: user.role };
+    // Verificação de soft delete: bloqueia usuário ou loja inativada
+    if (!user.ativo) {
+      return next(new AppError('Sua conta de usuário foi inativada pelo administrador', 403));
+    }
+
+    if (!user.empresa || !user.empresa.ativo) {
+      return next(new AppError('O estabelecimento vinculado a esta conta está temporariamente desativado', 403));
+    }
+
+    const userData = {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      role: user.role,
+      empresaId: user.empresaId,
+      empresaSlug: user.empresa.slug,
+      empresaNome: user.empresa.nome,
+    };
     userCache.set(userId, { user: userData, timestamp: now });
 
     req.user = userData;
     next();
   } catch (err) {
-    return next(new AppError('Token inválido', 401));
+    return next(new AppError('Token inválido ou expirado', 401));
   }
 }

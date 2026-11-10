@@ -1,11 +1,11 @@
 import { prisma, Prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
 
-/**
- * Constrói um Date a partir de uma string "YYYY-MM-DD" usando os componentes
- * de ano/mês/dia diretamente (sem passar pelo parser ISO, que interpreta
- * a string como UTC e pode deslocar o dia ao reaplicar horários no fuso local).
- */
+// arquivo responsável pelas regras de negócio e consultas analíticas de movimentações isoladas por loja e perfil
+
+// função utilitária para construir Date local a partir de string YYYY-MM-DD sem deslocamento de fuso UTC
+// 1 - Quebra ano, mês e dia numericamente
+// 2 - Retorna início (00:00:00.000) ou fim (23:59:59.999) do dia selecionado
 function dateFromYMD(ymd, endOfDay = false) {
   const [year, month, day] = ymd.split('-').map(Number);
   return endOfDay
@@ -13,13 +13,15 @@ function dateFromYMD(ymd, endOfDay = false) {
     : new Date(year, month - 1, day, 0, 0, 0, 0);
 }
 
-// serviço focado na busca super completa e relatorial de movimentações de estoque
-// 1 - Recebe um objeto de filtros que pode conter diversos parâmetros simultâneos
-// 2 - Constrói um array 'where.AND' condicionalmente, adicionando apenas os filtros que o usuário preencheu (ID, data específica, range de datas, produto, tipo, usuário)
-// 3 - Lida dinamicamente com paginação, limitando o limite a 100 itens para evitar sobrecarga (ou aceitando 'all' em casos excepcionais de relatórios)
-// 4 - Dispara paralelamente via Promise.all duas queries ao Prisma: uma pra buscar a página de dados com paginação (skip, take) e relações (include) e outra para contar o total absoluto dos filtros para criar páginas
-// 5 - Retorna um objeto JSON padronizado com os dados em 'data' e os metadados de paginação em 'pagination'
-export async function listMovementsPaginated(filters = {}) {
+// serviço focado na listagem paginada e filtragem de movimentações com isolamento por tenant e RBAC
+// 1 - Exige empresaId válido da sessão impedindo leitura de movimentações de outras lojas
+// 2 - Aplica restrição estrita de visibilidade: usuários com cargo OPERADOR visualizam exclusivamente suas próprias movimentações
+// 3 - Constrói cláusulas opcionais de ID, produto, data, intervalo de datas, tipo e pesquisa textual
+// 4 - Executa busca paginada e contagem total em paralelo via Promise.all
+// 5 - Retorna objeto estruturado com data e metadados de paginação
+export async function listMovementsPaginated(filters = {}, empresaId, requestingUser = null) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
   const {
     id,
     date,
@@ -41,27 +43,28 @@ export async function listMovementsPaginated(filters = {}) {
     else if (upper === 'SAIDA' || upper === 'VENDA') normalizedTipo = 'VENDA';
   }
 
+  // Regra estrita de RBAC: OPERADOR não pode consultar vendas ou movimentações de outros vendedores
+  const isOperador = requestingUser?.role === 'OPERADOR';
+  const effectiveUsuarioId = isOperador
+    ? Number(requestingUser.id)
+    : usuarioId && usuarioId !== 'undefined' && usuarioId !== 'null' && !isNaN(Number(usuarioId))
+    ? Number(usuarioId)
+    : undefined;
+
   const where = {
     AND: [
-      id && !isNaN(Number(id))
-        ? {
-          id: Number(id),
-        }
-        : {},
-      produtoId && !isNaN(Number(produtoId))
-        ? {
-          produtoId: Number(produtoId),
-        }
-        : {},
+      { empresaId: Number(empresaId) },
+      id && !isNaN(Number(id)) ? { id: Number(id) } : {},
+      produtoId && !isNaN(Number(produtoId)) ? { produtoId: Number(produtoId) } : {},
       date && date !== 'undefined' && date !== 'null'
         ? {
-          data: {
-            gte: dateFromYMD(date, false),
-            lte: dateFromYMD(date, true),
-          },
-        }
+            data: {
+              gte: dateFromYMD(date, false),
+              lte: dateFromYMD(date, true),
+            },
+          }
         : from || to
-          ? {
+        ? {
             data: {
               ...(from && from !== 'undefined' && from !== 'null'
                 ? { gte: dateFromYMD(from, false) }
@@ -71,26 +74,18 @@ export async function listMovementsPaginated(filters = {}) {
                 : {}),
             },
           }
-          : {},
-      normalizedTipo
-        ? {
-          tipo: normalizedTipo,
-        }
         : {},
-      usuarioId && usuarioId !== 'undefined' && usuarioId !== 'null' && !isNaN(Number(usuarioId))
-        ? {
-          usuarioId: Number(usuarioId),
-        }
-        : {},
+      normalizedTipo ? { tipo: normalizedTipo } : {},
+      effectiveUsuarioId ? { usuarioId: effectiveUsuarioId } : {},
       search && search !== 'undefined' && search !== 'null'
         ? {
-          produto: {
-            nome: {
-              contains: search,
-              mode: "insensitive", // busca sem distinção entre maiúscula e minúscula
+            produto: {
+              nome: {
+                contains: search,
+                mode: 'insensitive',
+              },
             },
-          },
-        }
+          }
         : {},
     ],
   };
@@ -102,16 +97,18 @@ export async function listMovementsPaginated(filters = {}) {
 
   const orderBy = { data: order === 'asc' ? 'asc' : 'desc' };
 
-  // executa chamadas pesadas ao DB em paralelo (Promise.all) em vez de em série para melhorar performance (TTFB)
   const [movements, total] = await Promise.all([
     prisma.movimento.findMany({
       where,
-      include: { produto: true, usuario: { select: { id: true, nome: true, email: true, role: true } } },
+      include: {
+        produto: true,
+        usuario: { select: { id: true, nome: true, email: true, role: true } },
+      },
       orderBy,
       skip,
       take: limitSafe,
     }),
-    prisma.movimento.count({ where })
+    prisma.movimento.count({ where }),
   ]);
 
   return {
@@ -120,38 +117,42 @@ export async function listMovementsPaginated(filters = {}) {
       page: pageSafe,
       limit: isAll ? 'all' : limitSafe,
       total,
-      pages: isAll ? 1 : Math.ceil(total / limitSafe)
-    }
+      pages: isAll ? 1 : Math.ceil(total / limitSafe),
+    },
   };
 }
 
-// serviço otimizado para agregar estatísticas de usuário baseado no histórico de movimentações geral
-// Executa em uma única consulta SQL no PostgreSQL via queryRaw eliminando o gargalo de N+1 queries (I3)
-// Agrega contagem de movimentações, total de itens movimentados e valor financeiro de vendas com 1 roundtrip
-export async function getUserStatsAggregated({ from, to } = {}) {
-  const dateConditions = [];
+// serviço otimizado para agregar estatísticas de colaboradores do estabelecimento via SQL nativo
+// 1 - Obriga empresaId para garantir que gerentes e administradores vejam apenas sua equipe
+// 2 - Aplica filtros de data opcionais com parâmetros seguros do Prisma.sql
+// 3 - Retorna contagem, quantidade de peças movimentadas e valor total de vendas por colaborador
+export async function getUserStatsAggregated({ from, to } = {}, empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+  const tenantId = Number(empresaId);
+
+  const conditions = [Prisma.sql`u."empresaId" = ${tenantId}`];
 
   if (from && from !== 'undefined') {
-    const fromDate = typeof from === 'string' && from.includes('-') && from.length === 10
-      ? dateFromYMD(from, false)
-      : new Date(from);
+    const fromDate =
+      typeof from === 'string' && from.includes('-') && from.length === 10
+        ? dateFromYMD(from, false)
+        : new Date(from);
     if (!isNaN(fromDate.getTime())) {
-      dateConditions.push(Prisma.sql`m.data >= ${fromDate}`);
+      conditions.push(Prisma.sql`m.data >= ${fromDate}`);
     }
   }
 
   if (to && to !== 'undefined') {
-    const toDate = typeof to === 'string' && to.includes('-') && to.length === 10
-      ? dateFromYMD(to, true)
-      : new Date(to);
+    const toDate =
+      typeof to === 'string' && to.includes('-') && to.length === 10
+        ? dateFromYMD(to, true)
+        : new Date(to);
     if (!isNaN(toDate.getTime())) {
-      dateConditions.push(Prisma.sql`m.data <= ${toDate}`);
+      conditions.push(Prisma.sql`m.data <= ${toDate}`);
     }
   }
 
-  const whereClause = dateConditions.length > 0
-    ? Prisma.sql`WHERE ${Prisma.join(dateConditions, ' AND ')}`
-    : Prisma.empty;
+  const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 
   const rawResults = await prisma.$queryRaw`
     SELECT
@@ -161,8 +162,8 @@ export async function getUserStatsAggregated({ from, to } = {}) {
       COALESCE(SUM(m.quantidade), 0)::int AS "totalQuantity",
       COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade * p.preco ELSE 0 END), 0)::float AS "totalValue"
     FROM "Usuario" u
-    JOIN "Movimento" m ON m."usuarioId" = u.id
-    JOIN "Produto" p ON m."produtoId" = p.id
+    JOIN "Movimento" m ON m."usuarioId" = u.id AND m."empresaId" = u."empresaId"
+    JOIN "Produto" p ON m."produtoId" = p.id AND p."empresaId" = u."empresaId"
     ${whereClause}
     GROUP BY u.id, u.nome
     ORDER BY "count" DESC
@@ -174,19 +175,19 @@ export async function getUserStatsAggregated({ from, to } = {}) {
     count: Number(r.count || 0),
     totalQuantity: Number(r.totalQuantity || 0),
     totalValue: Number(r.totalValue || 0),
-    // Propriedades retrocompatíveis
     totalMovimentos: Number(r.count || 0),
     totalMovimentacoes: Number(r.count || 0),
   }));
 }
 
-// função para agregar os dados históricos de vendas para relatórios e exportação
-// 1 - Valida o parâmetro de período recebido ('1m', '6m' ou '1y'), atribuindo '1m' como padrão
-// 2 - Calcula dinamicamente a data de corte inicial retroativa com base no intervalo de dias
-// 3 - Executa consulta ao banco trazendo todas as saídas ('VENDA') no intervalo com os dados dos produtos
-// 4 - Consolida o montante financeiro total faturado, volume de peças, ticket médio e produtos líderes
-// 5 - Monta a linha do tempo cronológica com pontos de dados estruturados para renderização de gráficos
-export async function getSalesReportData(period = '1m') {
+// função para agregar dados históricos de vendas da loja (ou do próprio operador) para relatórios e exportação PDF
+// 1 - Valida o período ('1m', '6m' ou '1y') e o empresaId da sessão
+// 2 - Aplica regra de privacidade RBAC: se o solicitante for OPERADOR, filtra estritamente suas próprias vendas
+// 3 - Consolida montante faturado, volume de peças, ticket médio, top 5 produtos e timeline cronológica
+// 4 - Retorna os indicadores acompanhados do escopo ('user' para operador, 'store' para gerente/admin)
+export async function getSalesReportData(period = '1m', empresaId, requestingUser = null) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
   const normalizedPeriod = ['1m', '6m', '1y'].includes(period) ? period : '1m';
   const now = new Date();
   const startDate = new Date();
@@ -199,9 +200,13 @@ export async function getSalesReportData(period = '1m') {
     startDate.setDate(now.getDate() - 365);
   }
 
+  const isOperador = requestingUser?.role === 'OPERADOR';
+
   const movements = await prisma.movimento.findMany({
     where: {
+      empresaId: Number(empresaId),
       tipo: 'VENDA',
+      ...(isOperador ? { usuarioId: Number(requestingUser.id) } : {}),
       data: {
         gte: startDate,
         lte: now,
@@ -301,7 +306,14 @@ export async function getSalesReportData(period = '1m') {
 
   return {
     period: normalizedPeriod,
-    periodLabel: normalizedPeriod === '1m' ? 'Último Mês (30 dias)' : normalizedPeriod === '6m' ? 'Últimos 6 Meses' : 'Último 1 Ano',
+    periodLabel:
+      normalizedPeriod === '1m'
+        ? 'Último Mês (30 dias)'
+        : normalizedPeriod === '6m'
+        ? 'Últimos 6 Meses'
+        : 'Último 1 Ano',
+    scope: isOperador ? 'user' : 'store',
+    empresaNome: requestingUser?.empresaNome || null,
     generatedAt: now.toISOString(),
     startDate: startDate.toISOString(),
     endDate: now.toISOString(),

@@ -1,291 +1,360 @@
-// prisma/seed.js
-// const { PrismaClient } = require("@prisma/client");
-// const bcrypt = require("bcrypt");
+// arquivo responsável pelo povoamento inicial (seed) multi-tenant com 2 estabelecimentos completos,
+// fotos isoladas por pasta de loja no Cloudinary, categorias, fornecedores, produtos e histórico de 12 meses
 import bcrypt from "bcryptjs";
-import {prisma} from "../src/config/prismaClient.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { prisma } from "../src/config/prismaClient.js";
+import cloudinary, { getTenantFolder } from "../src/config/cloudinaryConfig.js";
 
-// const prisma = new PrismaClient();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOADS_ROOT = path.resolve(__dirname, "../uploads");
 const SALT_ROUNDS = 10;
 
-async function main() {
-  console.log("🔄 Iniciando seed...");
+// função auxiliar para localizar arquivo local pelo prefixo do nome sem sofrer com diferenças de acentuação no sistema de arquivos
+// 1 - Lista os arquivos da subpasta informada ('usuarios' ou 'produtos')
+// 2 - Procura o primeiro arquivo cujo nome inicia com o prefixo informado
+// 3 - Retorna objeto com caminho absoluto e URL relativa de fallback
+function findLocalUploadAsset(subfolder, filePrefix) {
+  const dir = path.join(UPLOADS_ROOT, subfolder);
+  if (!fs.existsSync(dir)) return null;
+  const files = fs.readdirSync(dir);
+  const match = files.find((f) => f.startsWith(filePrefix));
+  if (!match) return null;
+  return {
+    fullPath: path.join(dir, match),
+    relativeUrl: `/uploads/${subfolder}/${match}`,
+  };
+}
 
-  // 1) Usuários
-  const plainPassword = "Password123!";
-  const hashedAdmin = await bcrypt.hash(plainPassword, SALT_ROUNDS);
-  const hashedGerente = await bcrypt.hash(plainPassword, SALT_ROUNDS);
-  const hashedOperador = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+// função auxiliar para enviar imagem de seed para a pasta dedicada da loja no Cloudinary sem remover o arquivo local
+// 1 - Verifica se as credenciais do Cloudinary estão disponíveis no ambiente
+// 2 - Envia para 'estoque-os/lojas/<slug>/<subfolder>' usando public_id determinístico para evitar duplicatas ao re-executar o seed
+// 3 - Caso falhe ou não esteja configurado, retorna o fallback relativo local '/uploads/...'
+async function resolveSeedImage(subfolder, filePrefix, tenantSlug, publicId) {
+  const asset = findLocalUploadAsset(subfolder, filePrefix);
+  if (!asset) return null;
 
-  const usuarioAdmin = await prisma.usuario.create({
+  const hasCloudinary =
+    Boolean(process.env.CLOUDINARY_CLOUD_NAME) &&
+    Boolean(process.env.CLOUDINARY_API_KEY) &&
+    Boolean(process.env.CLOUDINARY_API_SECRET);
+
+  if (!hasCloudinary) {
+    return asset.relativeUrl;
+  }
+
+  try {
+    const folder = getTenantFolder(tenantSlug, subfolder);
+    const result = await cloudinary.uploader.upload(asset.fullPath, {
+      folder,
+      public_id: publicId,
+      overwrite: true,
+    });
+    return result.secure_url;
+  } catch (err) {
+    console.warn(`⚠️ Falha no upload Cloudinary para ${publicId}, usando caminho local:`, err.message);
+    return asset.relativeUrl;
+  }
+}
+
+// função auxiliar para construir datas retroativas relativas ao dia atual cobrindo os últimos 12 meses
+// 1 - Recebe quantos meses atrás (0 = mês atual, 11 = 11 meses atrás) e dia/hora desejados
+// 2 - Garante que nenhuma data ultrapasse o instante atual ('now') para aparecer corretamente nos relatórios 1m/6m/1y
+function buildRelativeDate(monthsAgo, dayOfMonth, hour = 10) {
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() - monthsAgo, dayOfMonth, hour, Math.floor(Math.random() * 50), 0);
+  if (target > now) {
+    return new Date(now.getTime() - (Math.floor(Math.random() * 48) + 1) * 60 * 60 * 1000);
+  }
+  return target;
+}
+
+// função para criar completamente um estabelecimento (tenant) com equipe, fotos, catálogo e histórico
+// 1 - Cria o registro Empresa com slug único
+// 2 - Cria Admin, Gerente, Operadores (e opcionalmente colaborador inativo para demonstração de Soft Delete) com fotos no Cloudinary
+// 3 - Cria Categorias, Fornecedores e Produtos vinculados exclusivamente à empresa
+// 4 - Gera histórico coerente de reposições e vendas nos últimos 12 meses ajustando o saldo final em transação
+async function seedStore(storeConfig, passwordHash) {
+  console.log(`\n🏪 Criando estabelecimento: ${storeConfig.nome} (${storeConfig.slug})...`);
+
+  const empresa = await prisma.empresa.create({
     data: {
-      nome: "Lucas Silva",
-      email: "lucas.admin@example.com",
-      senha: hashedAdmin,
-      role: "ADMIN",
-      imagem: null,
+      nome: storeConfig.nome,
+      slug: storeConfig.slug,
+      cnpj: storeConfig.cnpj,
+      telefone: storeConfig.telefone,
+      ativo: true,
     },
   });
-  console.log(`✅ Usuário ADMIN criado: ${usuarioAdmin.nome} (id ${usuarioAdmin.id})`);
 
-  const usuarioGerente = await prisma.usuario.create({
-    data: {
-      nome: "Maria Oliveira",
-      email: "maria.gerente@example.com",
-      senha: hashedGerente,
-      role: "GERENTE",
-      imagem: null,
-    },
-  });
-  console.log(`✅ Usuário GERENTE criado: ${usuarioGerente.nome} (id ${usuarioGerente.id})`);
+  // 1) Usuários com fotos enviadas para subpasta isolada no Cloudinary
+  const activeUsers = [];
+  for (const u of storeConfig.usuarios) {
+    const imagem = await resolveSeedImage(
+      "usuarios",
+      u.avatarPrefix,
+      storeConfig.slug,
+      `avatar-${u.slugId}`
+    );
 
-  // 3 operadores
-  const operadores = [];
-  const operadoresData = [
-    { nome: "João Pereira", email: "joao.op1@example.com" },
-    { nome: "Ana Costa", email: "ana.op2@example.com" },
-    { nome: "Pedro Santos", email: "pedro.op3@example.com" },
-  ];
-  for (const op of operadoresData) {
-    const u = await prisma.usuario.create({
+    const createdUser = await prisma.usuario.create({
       data: {
-        nome: op.nome,
-        email: op.email,
-        senha: hashedOperador,
-        role: "OPERADOR",
-        imagem: null,
+        nome: u.nome,
+        email: u.email.toLowerCase(),
+        senha: passwordHash,
+        role: u.role,
+        ativo: u.ativo !== undefined ? u.ativo : true,
+        imagem,
+        empresaId: empresa.id,
       },
     });
-    operadores.push(u);
-    console.log(`✅ Usuário OPERADOR criado: ${u.nome} (id ${u.id})`);
+
+    if (createdUser.ativo) {
+      activeUsers.push(createdUser);
+    }
+    console.log(
+      `   👤 [${createdUser.role}] ${createdUser.nome} (${createdUser.email}) | ativo=${createdUser.ativo} | foto=${imagem ? "OK" : "null"}`
+    );
   }
 
-  // 2) Categorias
-  const categorias = [];
-  const categoriesData = ["Periféricos", "Monitores", "Cadeiras"];
-  for (const nome of categoriesData) {
-    const c = await prisma.categoria.create({ data: { nome } });
-    categorias.push(c);
-    console.log(`📂 Categoria criada: ${c.nome} (id ${c.id})`);
+  // 2) Categorias da loja
+  const catMap = new Map();
+  for (const catName of storeConfig.categorias) {
+    const cat = await prisma.categoria.create({
+      data: {
+        nome: catName,
+        ativo: true,
+        empresaId: empresa.id,
+      },
+    });
+    catMap.set(catName, cat);
   }
 
-  // 3) Fornecedores
-  const fornecedoresData = [
-    { nome: "TechDistribuidora Ltda", email: "contato@techdist.com", endereco: "Av. Tecnológica, 1000" },
-    { nome: "Mundo dos Periféricos", email: "vendas@mperifericos.com", endereco: "Rua Central, 200" },
-    { nome: "ErgoMóveis SA", email: "suporte@ergomoveis.com", endereco: "Av. Conforto, 55" },
-  ];
-  const fornecedores = [];
-  for (const f of fornecedoresData) {
-    const created = await prisma.fornecedor.create({ data: f });
-    fornecedores.push(created);
-    console.log(`🏷️ Fornecedor criado: ${created.nome} (id ${created.id})`);
+  // 3) Fornecedores da loja
+  const supMap = new Map();
+  for (const sup of storeConfig.fornecedores) {
+    const createdSup = await prisma.fornecedor.create({
+      data: {
+        nome: sup.nome,
+        email: sup.email,
+        telefone: sup.telefone,
+        endereco: sup.endereco,
+        ativo: true,
+        empresaId: empresa.id,
+      },
+    });
+    supMap.set(sup.nome, createdSup);
   }
 
-  // 4) Produtos (10 produtos com nomes reais) - inicialmente quantidade 0
-  const produtosData = [
-    { nome: "Mouse Gamer Logitech G502", descricao: "Mouse com sensor de alta precisão", preco: 279.90, categoria: "Periféricos", fornecedor: "TechDistribuidora Ltda" },
-    { nome: "Teclado Mecânico Redragon K552", descricao: "Teclado compacto mecânico", preco: 199.90, categoria: "Periféricos", fornecedor: "Mundo dos Periféricos" },
-    { nome: "Monitor 24\" Full HD Samsung", descricao: "Monitor 24 polegadas 1080p", preco: 899.00, categoria: "Monitores", fornecedor: "TechDistribuidora Ltda" },
-    { nome: "Monitor 27\" QHD Dell", descricao: "Monitor 27 polegadas QHD", preco: 1799.00, categoria: "Monitores", fornecedor: "TechDistribuidora Ltda" },
-    { nome: "Cadeira Gamer AlphaSeries", descricao: "Cadeira ergonômica com reclínio", preco: 1299.00, categoria: "Cadeiras", fornecedor: "ErgoMóveis SA" },
-    { nome: "Mousepad XL HyperX", descricao: "Mousepad grande para jogos", preco: 89.90, categoria: "Periféricos", fornecedor: "Mundo dos Periféricos" },
-    { nome: "Suporte VESA 75/100", descricao: "Suporte para monitor VESA", preco: 149.90, categoria: "Monitores", fornecedor: "Mundo dos Periféricos" },
-    { nome: "Teclado Wireless Logitech K380", descricao: "Teclado compacto wireless", preco: 259.90, categoria: "Periféricos", fornecedor: "TechDistribuidora Ltda" },
-    { nome: "Cadeira Office Comfort", descricao: "Cadeira escritório com ajuste lombar", preco: 799.00, categoria: "Cadeiras", fornecedor: "ErgoMóveis SA" },
-    { nome: "Headset Gamer HyperSound", descricao: "Headset com microfone e som 7.1", preco: 349.90, categoria: "Periféricos", fornecedor: "Mundo dos Periféricos" },
-  ];
-
+  // 4) Produtos da loja com imagens isoladas no Cloudinary
   const createdProducts = [];
-  for (const p of produtosData) {
-    // acha categoria e fornecedor por nome
-    const categoria = categorias.find(c => c.nome === p.categoria);
-    const fornecedor = fornecedores.find(f => f.nome === p.fornecedor);
+  for (const p of storeConfig.produtos) {
+    const imagem = p.imagePrefix
+      ? await resolveSeedImage("produtos", p.imagePrefix, storeConfig.slug, `prod-${p.slugId}`)
+      : null;
 
-    const initialBaseStock = Math.floor(Math.random() * 21) + 95; // 95 a 115 de base
+    const categoria = p.categoria ? catMap.get(p.categoria) : null;
+    const fornecedor = p.fornecedor ? supMap.get(p.fornecedor) : null;
+    const baseStock = p.baseStock ?? 100;
 
-    const created = await prisma.produto.create({
+    const prod = await prisma.produto.create({
       data: {
         nome: p.nome,
         descricao: p.descricao,
         preco: p.preco,
-        quantidade: initialBaseStock,
-        imagem: null,
+        quantidade: baseStock,
+        ativo: p.ativo !== undefined ? p.ativo : true,
+        imagem,
+        empresaId: empresa.id,
         categoriaId: categoria ? categoria.id : null,
         fornecedorId: fornecedor ? fornecedor.id : null,
       },
     });
-    createdProducts.push({ ...created, initialBaseStock });
-    console.log(`📦 Produto criado: "${created.nome}" (id ${created.id}) com estoque base ${initialBaseStock}`);
+    createdProducts.push({ ...prod, baseStock });
   }
+  console.log(`   📦 ${createdProducts.length} produtos criados para ${storeConfig.nome}`);
 
-  // 5) Movimentações e atualizações de estoque (por produto ao longo dos meses de 2026)
-  // Distribuição de usuários: admin, gerente, operadores (rota de uso)
-  const usersForActions = [usuarioAdmin, usuarioGerente, ...operadores];
-  let userIndex = 0;
-  function nextUser() {
-    const u = usersForActions[userIndex % usersForActions.length];
-    userIndex += 1;
+  // 5) Movimentações dos últimos 12 meses até o dia atual (garante relatórios 1m, 6m e 1y preenchidos)
+  let userCursor = 0;
+  function pickUser() {
+    const u = activeUsers[userCursor % activeUsers.length];
+    userCursor += 1;
     return u;
   }
 
-  function createDate(year, month, day, hour = 10, min = 0) {
-    return new Date(year, month, day, hour, min, Math.floor(Math.random() * 60));
-  }
-
-  let orderCounter = 1001;
+  let orderCounter = empresa.id * 10000 + 1;
 
   for (let prodIdx = 0; prodIdx < createdProducts.length; prodIdx++) {
     const prod = createdProducts[prodIdx];
-    let currentStock = prod.initialBaseStock;
+    let currentStock = prod.baseStock;
     let totalRep = 0;
     let totalVen = 0;
+    const ops = [];
 
-    const movimentosOps = [];
-
-    // Meses de 2026: 0 = Janeiro até 9 = Outubro (mês corrente)
-    for (let m = 0; m <= 9; m++) {
-      const isWorstMonth = (m === 1 || m === 6); // Fevereiro (mês 1) e Julho (mês 6)
-
-      let repMonth = 0;
-      let venMonth = 0;
-
-      if (isWorstMonth) {
-        // Piores meses: reposição se iguala ou é ligeiramente maior que vendas
-        venMonth = Math.floor(Math.random() * 5) + 14; // 14 a 18
-        const diff = (m === 1)
-          ? (Math.floor(Math.random() * 2) + 1) // Fev: +1 ou +2 para reposição
-          : (prodIdx % 2 === 0 ? 0 : 1);        // Jul: se iguala (diff = 0) ou +1
-        repMonth = venMonth + diff;
-      } else {
-        // Meses normais: vendas sempre maiores que as reposições
-        repMonth = Math.floor(Math.random() * 6) + 11; // 11 a 16
-        venMonth = repMonth + Math.floor(Math.random() * 6) + 6; // rep + 6 a 11 (vendas sempre maiores)
-      }
-
-      totalRep += repMonth;
-      totalVen += venMonth;
-
-      // 1) Reposição 1 - início do mês (dias 2 a 4)
-      const repPart1 = Math.max(1, Math.floor(repMonth * 0.55));
-      const repPart2 = repMonth - repPart1;
-
-      const diaRep1 = Math.floor(Math.random() * 3) + 2; // dias 2 a 4
-      const dataRep1 = createDate(2026, m, diaRep1, 8 + Math.floor(Math.random() * 5), Math.floor(Math.random() * 50));
-
-      movimentosOps.push(
+    // Produto inativo de demonstração recebe apenas 2 movimentações históricas antigas para provar Soft Delete
+    if (!prod.ativo) {
+      ops.push(
         prisma.movimento.create({
           data: {
             produtoId: prod.id,
-            quantidade: repPart1,
+            empresaId: empresa.id,
+            quantidade: 15,
             tipo: "REPOSICAO",
-            usuarioId: nextUser().id,
-            data: dataRep1,
-            observacao: `Reposição de estoque - Fornecedor Lote ${m + 1}A/2026`,
+            usuarioId: pickUser().id,
+            data: buildRelativeDate(4, 10, 9),
+            observacao: "Lote inicial antes de descontinuação",
           },
-        })
-      );
-
-      // 2) Venda 1 - primeira semana (dias 6 a 8)
-      const v1 = Math.max(1, Math.floor(venMonth * 0.35));
-      const v2 = Math.max(1, Math.floor(venMonth * 0.35));
-      const v3 = venMonth - v1 - v2;
-
-      const diaV1 = Math.floor(Math.random() * 3) + 6; // dias 6 a 8
-      const dataV1 = createDate(2026, m, diaV1, 9 + Math.floor(Math.random() * 7), Math.floor(Math.random() * 50));
-      movimentosOps.push(
+        }),
         prisma.movimento.create({
           data: {
             produtoId: prod.id,
-            quantidade: v1,
+            empresaId: empresa.id,
+            quantidade: 12,
             tipo: "VENDA",
-            usuarioId: nextUser().id,
-            data: dataV1,
-            observacao: `Venda balcão / Pedido #${orderCounter++}`,
+            usuarioId: pickUser().id,
+            data: buildRelativeDate(3, 18, 15),
+            observacao: `Queima de estoque #${orderCounter++}`,
           },
+        }),
+        prisma.produto.update({
+          where: { id: prod.id },
+          data: { quantidade: Math.max(0, currentStock + 15 - 12) },
         })
       );
-
-      // 3) Venda 2 - meio do mês (dias 10 a 13)
-      const diaV2 = Math.floor(Math.random() * 4) + 10; // dias 10 a 13
-      const dataV2 = createDate(2026, m, diaV2, 9 + Math.floor(Math.random() * 7), Math.floor(Math.random() * 50));
-      movimentosOps.push(
-        prisma.movimento.create({
-          data: {
-            produtoId: prod.id,
-            quantidade: v2,
-            tipo: "VENDA",
-            usuarioId: nextUser().id,
-            data: dataV2,
-            observacao: `Saída por venda online #${orderCounter++}`,
-          },
-        })
-      );
-
-      // 4) Reposição 2 e Venda 3 intercaladas na segunda quinzena
-      let diaRep2, diaV3;
-      if (prodIdx % 2 === 0) {
-        // Produtos pares: Reposição mais recente nos dias 19 a 21, Venda 3 nos dias 15 a 18
-        diaV3 = Math.floor(Math.random() * 4) + 15; // dias 15 a 18
-        diaRep2 = (m === 9) ? (Math.floor(Math.random() * 3) + 19) : (Math.floor(Math.random() * 4) + 20); // dias 19 a 21/23
-      } else {
-        // Produtos ímpares: Venda 3 mais recente nos dias 19 a 22, Reposição nos dias 15 a 18
-        diaRep2 = Math.floor(Math.random() * 4) + 15; // dias 15 a 18
-        diaV3 = (m === 9) ? (Math.floor(Math.random() * 3) + 19) : (Math.floor(Math.random() * 4) + 20); // dias 19 a 21/23
-      }
-
-      if (repPart2 > 0) {
-        const dataRep2 = createDate(2026, m, diaRep2, 8 + Math.floor(Math.random() * 5), Math.floor(Math.random() * 50));
-        movimentosOps.push(
-          prisma.movimento.create({
-            data: {
-              produtoId: prod.id,
-              quantidade: repPart2,
-              tipo: "REPOSICAO",
-              usuarioId: nextUser().id,
-              data: dataRep2,
-              observacao: `Reposição complementar de estoque Lote ${m + 1}B/2026`,
-            },
-          })
-        );
-      }
-
-      if (v3 > 0) {
-        const dataV3 = createDate(2026, m, diaV3, 9 + Math.floor(Math.random() * 7), Math.floor(Math.random() * 50));
-        movimentosOps.push(
-          prisma.movimento.create({
-            data: {
-              produtoId: prod.id,
-              quantidade: v3,
-              tipo: "VENDA",
-              usuarioId: nextUser().id,
-              data: dataV3,
-              observacao: `Venda corporativa #${orderCounter++}`,
-            },
-          })
-        );
-      }
+      await prisma.$transaction(ops);
+      continue;
     }
 
-    // Calcula estoque final
-    const finalStock = currentStock + totalRep - totalVen;
+    // Produtos ativos: movimentações ao longo dos últimos 12 meses (11 meses atrás até mês corrente 0)
+    for (let monthsAgo = 11; monthsAgo >= 0; monthsAgo--) {
+      const repQty = Math.floor(Math.random() * 5) + 6; // 6 a 10
+      const venQty1 = Math.floor(Math.random() * 4) + 4; // 4 a 7
+      const venQty2 = Math.floor(Math.random() * 4) + 3; // 3 a 6
 
-    // Atualiza o estoque final do produto
-    movimentosOps.push(
+      totalRep += repQty;
+      totalVen += venQty1 + venQty2;
+
+      ops.push(
+        prisma.movimento.create({
+          data: {
+            produtoId: prod.id,
+            empresaId: empresa.id,
+            quantidade: repQty,
+            tipo: "REPOSICAO",
+            usuarioId: pickUser().id,
+            data: buildRelativeDate(monthsAgo, 4, 9),
+            observacao: `Reposição mensal #${orderCounter++}`,
+          },
+        }),
+        prisma.movimento.create({
+          data: {
+            produtoId: prod.id,
+            empresaId: empresa.id,
+            quantidade: venQty1,
+            tipo: "VENDA",
+            usuarioId: pickUser().id,
+            data: buildRelativeDate(monthsAgo, 12, 14),
+            observacao: `Venda balcão #${orderCounter++}`,
+          },
+        }),
+        prisma.movimento.create({
+          data: {
+            produtoId: prod.id,
+            empresaId: empresa.id,
+            quantidade: venQty2,
+            tipo: "VENDA",
+            usuarioId: pickUser().id,
+            data: buildRelativeDate(monthsAgo, 22, 16),
+            observacao: `Venda online #${orderCounter++}`,
+          },
+        })
+      );
+    }
+
+    const finalStock = Math.max(5, currentStock + totalRep - totalVen);
+    ops.push(
       prisma.produto.update({
         where: { id: prod.id },
         data: { quantidade: finalStock },
       })
     );
 
-    await prisma.$transaction(movimentosOps);
-
-    console.log(`📦 Produto: "${prod.nome}" (id ${prod.id})`);
-    console.log(`   ➕ Total Reposições: +${totalRep}`);
-    console.log(`   ➖ Total Vendas:     -${totalVen} (Saldo positivo Vendas > Reposições: +${totalVen - totalRep})`);
-    console.log(`   🏁 Estoque final:     ${finalStock} (base inicial: ${prod.initialBaseStock})`);
+    await prisma.$transaction(ops);
   }
 
-  console.log("\n✅ Seed concluído com sucesso!");
+  console.log(`   📊 Movimentações dos últimos 12 meses geradas com sucesso para ${storeConfig.nome}`);
+}
+
+// função principal que orquestra o seed de 2 estabelecimentos independentes (com e-mail compartilhado para demonstrar unicidade por loja)
+async function main() {
+  console.log("🔄 Iniciando seed multi-tenant (2 lojas com fotos e histórico)...");
+
+  const passwordHash = await bcrypt.hash("Password123!", SALT_ROUNDS);
+
+  const lojas = [
+    {
+      nome: "TechStock Matriz",
+      slug: "techstock-matriz",
+      cnpj: "12.345.678/0001-90",
+      telefone: "(11) 3000-1001",
+      usuarios: [
+        { nome: "Lucas Silva", email: "lucas.admin@techstock.com", role: "ADMIN", avatarPrefix: "1780345070847", slugId: "lucas-admin" },
+        { nome: "Maria Oliveira", email: "gestao@estoqueos.com", role: "GERENTE", avatarPrefix: "1760766985751", slugId: "maria-gerente" },
+        { nome: "João Pereira", email: "joao.op@techstock.com", role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "joao-op" },
+        { nome: "Ana Costa", email: "ana.op@techstock.com", role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "ana-op" },
+        { nome: "Pedro Desligado", email: "pedro.ex@techstock.com", role: "OPERADOR", ativo: false, avatarPrefix: "1780345070847", slugId: "pedro-inativo" },
+      ],
+      categorias: ["Periféricos", "Monitores", "Cadeiras"],
+      fornecedores: [
+        { nome: "TechDistribuidora Ltda", email: "contato@techdist.com", telefone: "(11) 3333-1111", endereco: "Av. Tecnológica, 1000" },
+        { nome: "Mundo dos Periféricos", email: "vendas@mperifericos.com", telefone: "(11) 3333-2222", endereco: "Rua Central, 200" },
+        { nome: "ErgoMóveis SA", email: "suporte@ergomoveis.com", telefone: "(11) 3333-3333", endereco: "Av. Conforto, 55" },
+      ],
+      produtos: [
+        { nome: "Mouse Gamer Logitech G502", descricao: "Mouse com sensor Hero 25K de alta precisão", preco: 279.9, categoria: "Periféricos", fornecedor: "TechDistribuidora Ltda", imagePrefix: "1760764515263", slugId: "mouse-g502", baseStock: 85 },
+        { nome: "Teclado Mecânico Redragon K552", descricao: "Teclado compacto mecânico switch Outemu Blue", preco: 199.9, categoria: "Periféricos", fornecedor: "Mundo dos Periféricos", imagePrefix: "1760764570683", slugId: "teclado-k552", baseStock: 72 },
+        { nome: "Monitor 24\" Full HD Samsung", descricao: "Monitor IPS 24 polegadas 75Hz", preco: 899.0, categoria: "Monitores", fornecedor: "TechDistribuidora Ltda", imagePrefix: "1769021129540", slugId: "monitor-24", baseStock: 45 },
+        { nome: "Cadeira Office Comfort", descricao: "Cadeira ergonômica com ajuste lombar e tela mesh", preco: 799.0, categoria: "Cadeiras", fornecedor: "ErgoMóveis SA", imagePrefix: "1760765007228", slugId: "cadeira-comfort", baseStock: 34 },
+        { nome: "Mousepad XL HyperX Fury", descricao: "Mousepad estendido speed para setups gamers", preco: 89.9, categoria: "Periféricos", fornecedor: "Mundo dos Periféricos", imagePrefix: "1760766700112", slugId: "mousepad-xl", baseStock: 120 },
+        { nome: "Monitor 27\" QHD Dell UltraSharp", descricao: "Monitor profissional 27 polegadas QHD 99% sRGB", preco: 1799.0, categoria: "Monitores", fornecedor: "TechDistribuidora Ltda", imagePrefix: "1769021129540", slugId: "monitor-27", baseStock: 28 },
+        { nome: "Adaptador Serial PS/2 Legado", descricao: "Item descontinuado mantido apenas para auditoria", preco: 29.9, categoria: "Periféricos", fornecedor: "Mundo dos Periféricos", imagePrefix: "1768960856511", slugId: "adaptador-legado", ativo: false, baseStock: 4 },
+      ],
+    },
+    {
+      nome: "MegaModa Express",
+      slug: "megamoda-express",
+      cnpj: "98.765.432/0001-10",
+      telefone: "(21) 4000-2002",
+      usuarios: [
+        { nome: "Camila Ferreira", email: "camila.admin@megamoda.com", role: "ADMIN", avatarPrefix: "1780345070847", slugId: "camila-admin" },
+        { nome: "Bruno Almeida", email: "gestao@estoqueos.com", role: "GERENTE", avatarPrefix: "1782851574852", slugId: "bruno-gerente" },
+        { nome: "Rafael Souza", email: "rafael.op@megamoda.com", role: "OPERADOR", avatarPrefix: "1760766985751", slugId: "rafael-op" },
+        { nome: "Juliana Lima", email: "juliana.op@megamoda.com", role: "OPERADOR", avatarPrefix: "1782851574852", slugId: "juliana-op" },
+      ],
+      categorias: ["Vestuário", "Calçados", "Acessórios"],
+      fornecedores: [
+        { nome: "Têxtil Sul Atacado", email: "pedidos@textilsul.com", telefone: "(47) 3200-4400", endereco: "Rod. BR-470, Km 12" },
+        { nome: "Passo Forte Calçados", email: "comercial@passoforte.com", telefone: "(51) 3500-8800", endereco: "Av. das Indústrias, 890" },
+      ],
+      produtos: [
+        { nome: "Jaqueta Corta-Vento Urban", descricao: "Tecido impermeável leve com capuz ajustável", preco: 229.9, categoria: "Vestuário", fornecedor: "Têxtil Sul Atacado", imagePrefix: "1769021129540", slugId: "jaqueta-urban", baseStock: 60 },
+        { nome: "Tênis Running Pro Air", descricao: "Amortecimento EVA de alta densidade para corrida", preco: 389.9, categoria: "Calçados", fornecedor: "Passo Forte Calçados", imagePrefix: "1760766700112", slugId: "tenis-running", baseStock: 54 },
+        { nome: "Camiseta Básica Algodão Pima", descricao: "Malha peruana penteada fio 40.1", preco: 99.9, categoria: "Vestuário", fornecedor: "Têxtil Sul Atacado", imagePrefix: "1760764570683", slugId: "camiseta-pima", baseStock: 140 },
+        { nome: "Mochila Executiva Anti-Furto", descricao: "Compartimento acolchoado para notebook 15.6", preco: 189.0, categoria: "Acessórios", fornecedor: "Passo Forte Calçados", imagePrefix: "1760765007228", slugId: "mochila-exec", baseStock: 35 },
+        { nome: "Bota Couro Adventure", descricao: "Solado tratorado em borracha vulcanizada", preco: 459.0, categoria: "Calçados", fornecedor: "Passo Forte Calçados", imagePrefix: "1760764515263", slugId: "bota-adventure", baseStock: 8 },
+        { nome: "Coleção Inverno 2024 (Encerrada)", descricao: "SKU sazonal inativado após fim de temporada", preco: 159.0, categoria: "Vestuário", fornecedor: "Têxtil Sul Atacado", imagePrefix: "1768960856511", slugId: "colecao-inativa", ativo: false, baseStock: 2 },
+      ],
+    },
+  ];
+
+  for (const loja of lojas) {
+    await seedStore(loja, passwordHash);
+  }
+
+  console.log("\n✅ Seed multi-tenant finalizado com sucesso!");
+  console.log("🔑 Senha padrão de demonstração para todos os usuários: Password123!");
+  console.log("💡 Teste e-mail único por loja usando: gestao@estoqueos.com (presente nas 2 lojas).");
 }
 
 main()

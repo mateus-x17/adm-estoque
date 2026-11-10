@@ -2,85 +2,97 @@ import * as supplierService from '../services/supplierService.js';
 import { childLogger } from '../config/logger.js';
 const log = childLogger('supplierController');
 
-// função para criar um novo fornecedor
-// Delega validação e persistência para supplierService.createSupplier
+// arquivo responsável por controlar as requisições HTTP de fornecedores vinculados ao tenant
+
+// função para criar um novo fornecedor na loja atual
 export async function criarFornecedor(req, res, next) {
   try {
     const { nome } = req.body || {};
     if (!nome) return res.status(400).json({ error: "Nome é obrigatório" });
 
-    const fornecedor = await supplierService.createSupplier(req.body);
-    log.info({ user: req.user?.id, action: 'CREATE_SUPPLIER', targetId: fornecedor.id }, 'User created a supplier');
-    res.json({ fornecedor });
+    const fornecedor = await supplierService.createSupplier(req.body, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'CREATE_SUPPLIER', targetId: fornecedor.id }, 'Fornecedor criado');
+    res.status(201).json({ fornecedor });
   } catch (err) {
-    log.error({ err }, 'Error creating supplier');
+    log.error({ err }, 'Erro ao criar fornecedor');
     next(err);
   }
 }
 
-// função para listar todos os fornecedores
+// função para listar os fornecedores da loja com filtro opcional de status ('ativos', 'inativos', 'todos')
 export async function listarFornecedores(req, res, next) {
   try {
-    const fornecedores = await supplierService.listSuppliers();
+    const status = req.query.status || 'ativos';
+    const fornecedores = await supplierService.listSuppliers(req.user.empresaId, status);
     res.json({ fornecedores });
   } catch (err) {
-    log.error({ err }, 'Error listing suppliers');
+    log.error({ err }, 'Erro ao listar fornecedores');
     next(err);
   }
 }
 
-// função para contar a quantidade total de fornecedores
+// função para contar fornecedores ativos da loja
 export async function countFornecedores(req, res, next) {
   try {
-    const count = await supplierService.countSuppliers();
+    const count = await supplierService.countSuppliers(req.user.empresaId);
     res.json({ count });
   } catch (err) {
-    log.error({ err }, 'Error counting suppliers');
+    log.error({ err }, 'Erro ao contar fornecedores');
     next(err);
   }
 }
 
-// função para atualizar dados de um fornecedor
+// função para atualizar um fornecedor da loja
 export async function atualizarFornecedor(req, res, next) {
   try {
-    const fornecedor = await supplierService.updateSupplier(req.params.id, req.body);
-    log.info({ user: req.user?.id, action: 'UPDATE_SUPPLIER', targetId: fornecedor.id }, 'User updated a supplier');
+    const fornecedor = await supplierService.updateSupplier(req.params.id, req.body, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'UPDATE_SUPPLIER', targetId: fornecedor.id }, 'Fornecedor atualizado');
     res.json({ fornecedor });
   } catch (err) {
-    log.error({ err }, 'Error updating supplier');
+    log.error({ err }, 'Erro ao atualizar fornecedor');
     next(err);
   }
 }
 
-// função para deletar um fornecedor
-// Protegida por verificação de vínculos em supplierService.deleteSupplier (B6)
+// função para inativar ou reativar um fornecedor (Soft Delete)
+export async function toggleFornecedorStatus(req, res, next) {
+  try {
+    const { ativo } = req.body;
+    const fornecedor = await supplierService.toggleSupplierStatus(req.params.id, ativo, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'TOGGLE_SUPPLIER_STATUS', targetId: fornecedor.id, ativo }, 'Status de fornecedor alterado');
+    res.json({ fornecedor });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// função para deletar ou inativar logicamente um fornecedor
 export async function deletarFornecedor(req, res, next) {
   try {
-    await supplierService.deleteSupplier(req.params.id);
-    log.info({ user: req.user?.id, action: 'DELETE_SUPPLIER', targetId: req.params.id }, 'User deleted a supplier');
-    res.json({ message: "Fornecedor deletado com sucesso" });
+    const result = await supplierService.deleteSupplier(req.params.id, req.user.empresaId);
+    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'DELETE_SUPPLIER', targetId: req.params.id, result }, 'Resultado exclusão fornecedor');
+    res.json(result);
   } catch (err) {
-    log.error({ err }, 'Error deleting supplier');
+    log.error({ err }, 'Erro ao deletar fornecedor');
     next(err);
   }
 }
 
-// função para gerar estatísticas agregadas por fornecedor
-// Agregação SQL nativa (I4) delegada ao supplierService.getSupplierStats
+// função para gerar estatísticas agregadas por fornecedor da loja
 export async function getSupplierStats(req, res, next) {
   try {
-    const stats = await supplierService.getSupplierStats();
+    const stats = await supplierService.getSupplierStats(req.user.empresaId);
     res.json(stats);
   } catch (err) {
-    log.error({ err }, 'Error getting supplier stats');
+    log.error({ err }, 'Erro ao gerar estatísticas de fornecedores');
     next(err);
   }
 }
 
-// função para recuperar dados singulares de um fornecedor
+// função para recuperar detalhes de um fornecedor da loja
 export async function obterFornecedor(req, res, next) {
   try {
-    const fornecedor = await supplierService.getSupplierById(req.params.id);
+    const fornecedor = await supplierService.getSupplierById(req.params.id, req.user.empresaId);
     res.json(fornecedor);
   } catch (err) {
     next(err);

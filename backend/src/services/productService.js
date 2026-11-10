@@ -1,27 +1,82 @@
 import { prisma } from '../config/prismaClient.js';
 import { AppError } from '../utils/errorHandler.js';
 import { deleteFromCloudinary } from '../config/cloudinaryConfig.js';
+import { parseBooleanFlag } from '../utils/sanitizers.js';
 import fs from 'fs';
 
-// serviço responsável por listar os produtos aplicando paginação e filtros complexos
-// 1 - Desestrutura as chaves de busca e paginação recebidas do controlador
-// 2 - Monta dinamicamente a cláusula "where" no ORM (Prisma), checando se o filtro existe e não é nulo/undefined antes de injetá-lo
-// 3 - Configura os valores seguros (limitSafe, pageSafe, skip) evitando SQL Injection ou sobrecarga de requisição
-// 4 - Executa paralelamente via Promise.all: (a) a busca dos produtos com as relações inclusas; e (b) a contagem absoluta
-// 5 - Retorna o array formatado pronto para consumo com as chaves 'data' e 'pagination'
-export async function listProductsPaginated(filters = {}) {
+// arquivo responsável pelas regras de negócio, isolamento multi-tenant, soft delete e controle transacional de produtos
+
+// função auxiliar para validar se uma categoria opcional pertence à mesma loja
+// 1 - Se categoriaId não for informado, retorna null
+// 2 - Busca a categoria garantindo pertencimento ao empresaId
+// 3 - Lança AppError 400 se a categoria não existir no estabelecimento
+async function resolveTenantCategoryId(categoriaId, empresaId) {
+  if (categoriaId === undefined || categoriaId === null || categoriaId === '' || categoriaId === 'null') {
+    return null;
+  }
+  const parsedId = Number(categoriaId);
+  if (isNaN(parsedId)) throw new AppError('ID de categoria inválido', 400);
+
+  const cat = await prisma.categoria.findFirst({
+    where: { id: parsedId, empresaId: Number(empresaId) },
+  });
+  if (!cat) {
+    throw new AppError('Categoria selecionada não pertence a este estabelecimento', 400);
+  }
+  return parsedId;
+}
+
+// função auxiliar para validar se um fornecedor opcional pertence à mesma loja
+// 1 - Se fornecedorId não for informado, retorna null
+// 2 - Busca o fornecedor garantindo pertencimento ao empresaId
+// 3 - Lança AppError 400 se o fornecedor não existir no estabelecimento
+async function resolveTenantSupplierId(fornecedorId, empresaId) {
+  if (fornecedorId === undefined || fornecedorId === null || fornecedorId === '' || fornecedorId === 'null') {
+    return null;
+  }
+  const parsedId = Number(fornecedorId);
+  if (isNaN(parsedId)) throw new AppError('ID de fornecedor inválido', 400);
+
+  const sup = await prisma.fornecedor.findFirst({
+    where: { id: parsedId, empresaId: Number(empresaId) },
+  });
+  if (!sup) {
+    throw new AppError('Fornecedor selecionado não pertence a este estabelecimento', 400);
+  }
+  return parsedId;
+}
+
+// serviço responsável por listar os produtos da loja aplicando paginação, busca e filtros de categoria e status
+// 1 - Exige empresaId válido para impedir vazamento de catálogo entre lojas
+// 2 - Aplica filtro de Soft Delete pelo parâmetro status ('ativos' padrão, 'inativos', ou 'todos')
+// 3 - Monta cláusula 'where.AND' para busca por nome e filtro por categoriaId
+// 4 - Executa listagem e contagem total em paralelo via Promise.all
+// 5 - Retorna os produtos encontrados com metadados de paginação
+export async function listProductsPaginated(filters = {}, empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
   const {
     page = 1,
     limit = 10,
     search,
     sortPrice,
     categoriaId,
+    status = 'ativos',
   } = filters;
+
+  const statusFilter =
+    status === 'ativos'
+      ? { ativo: true }
+      : status === 'inativos'
+      ? { ativo: false }
+      : {};
 
   const where = {
     AND: [
+      { empresaId: Number(empresaId) },
+      statusFilter,
       search && search !== 'undefined' && search !== 'null'
-        ? { nome: { contains: search, mode: "insensitive" } }
+        ? { nome: { contains: search, mode: 'insensitive' } }
         : {},
       categoriaId && categoriaId !== 'undefined' && categoriaId !== 'null' && !isNaN(Number(categoriaId))
         ? { categoriaId: Number(categoriaId) }
@@ -33,9 +88,10 @@ export async function listProductsPaginated(filters = {}) {
   const pageSafe = Math.max(1, parseInt(page) || 1);
   const skip = limit === 'all' ? undefined : (pageSafe - 1) * limitSafe;
 
-  const orderBy = sortPrice && ['asc', 'desc'].includes(sortPrice)
-    ? { preco: sortPrice }
-    : undefined;
+  const orderBy =
+    sortPrice && ['asc', 'desc'].includes(sortPrice)
+      ? [{ preco: sortPrice }]
+      : [{ ativo: 'desc' }, { id: 'desc' }];
 
   const [products, total] = await Promise.all([
     prisma.produto.findMany({
@@ -43,63 +99,80 @@ export async function listProductsPaginated(filters = {}) {
       skip,
       take: limitSafe,
       orderBy,
-      include: { categoria: true, fornecedor: true }
+      include: { categoria: true, fornecedor: true },
     }),
-    prisma.produto.count({ where })
+    prisma.produto.count({ where }),
   ]);
 
   return {
     data: products,
-    pagination: { page: pageSafe, limit: limitSafe, total, pages: limit === 'all' ? 1 : Math.ceil(total / limitSafe) }
+    pagination: {
+      page: pageSafe,
+      limit: limitSafe,
+      total,
+      pages: limit === 'all' ? 1 : Math.ceil(total / limitSafe),
+    },
   };
 }
 
-// serviço responsável por buscar o detalhamento de um produto individual
-// 1 - Puxa no banco com base no ID
-// 2 - Força um 'include' para pegar também as categorias e os fornecedores atrelados
-// 3 - Lança erro 404 se nada for encontrado
-export async function getProductById(id) {
-  const product = await prisma.produto.findUnique({
-    where: { id: Number(id) },
-    include: { categoria: true, fornecedor: true } // join com tabelas estrangeiras
+// serviço responsável por buscar os detalhes de um produto garantindo isolamento por loja
+// 1 - Busca via findFirst filtrando obrigatoriamente por id e empresaId
+// 2 - Inclui categoria e fornecedor vinculados
+// 3 - Lança 404 caso o produto não exista nesta loja
+export async function getProductById(id, empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
+  const product = await prisma.produto.findFirst({
+    where: { id: Number(id), empresaId: Number(empresaId) },
+    include: { categoria: true, fornecedor: true },
   });
   if (!product) throw new AppError('Produto não encontrado', 404);
   return product;
 }
 
-// serviço responsável por criar um produto novo
-// 1 - Valida regras de negócio puras (se o nome está vazio)
-// 2 - Converte tipos que vieram do FormData (texto) para Number ou Decimal a depender da necessidade
-// 3 - Salva no Prisma e retorna o objeto formatado
-export async function createProduct(data, imagePath = null) {
+// serviço responsável por criar um produto novo dentro do estabelecimento autenticado
+// 1 - Valida nome obrigatório e empresaId da sessão
+// 2 - Garante que categoriaId e fornecedorId informados pertencem à mesma loja
+// 3 - Persiste o produto com ativo = true e retorna com relações inclusas
+export async function createProduct(data, imagePath = null, empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
   const { nome, descricao, preco, quantidade, categoriaId, fornecedorId } = data;
-  if (!nome) throw new AppError('Nome é obrigatório', 400);
+  if (!nome || String(nome).trim() === '') throw new AppError('Nome é obrigatório', 400);
+
+  const validCategoriaId = await resolveTenantCategoryId(categoriaId, empresaId);
+  const validFornecedorId = await resolveTenantSupplierId(fornecedorId, empresaId);
 
   return prisma.produto.create({
     data: {
-      nome,
-      descricao,
-      preco: parseFloat(preco) || 0,
-      quantidade: Number(quantidade) || 0,
+      nome: String(nome).trim(),
+      descricao: descricao !== undefined ? String(descricao) : null,
+      preco: preco !== undefined && preco !== '' ? parseFloat(preco) : 0,
+      quantidade: quantidade !== undefined && quantidade !== '' ? Number(quantidade) : 0,
       imagem: imagePath,
-      categoriaId: categoriaId ? Number(categoriaId) : null,
-      fornecedorId: fornecedorId ? Number(fornecedorId) : null
+      ativo: true,
+      empresaId: Number(empresaId),
+      categoriaId: validCategoriaId,
+      fornecedorId: validFornecedorId,
     },
-    include: { categoria: true, fornecedor: true }
+    include: { categoria: true, fornecedor: true },
   });
 }
 
-// serviço responsável por atualizar um produto
-// 1 - Confirma se o produto que se deseja atualizar existe e resgata seus dados antigos, especialmente a "imagem"
-// 2 - Avalia a intenção da requisição: "removeImage" (limpar foto atual) ou "newImagePath" (substituir por nova foto)
-// 3 - Caso haja deleção, ele tenta remover a imagem do CDN (Cloudinary) ou localmente se estiver em /uploads
-// 4 - Atualiza o banco com a string nova do path de imagem (seja ela nula, ou um novo link) e os demais dados, garantindo os tipos
-export async function updateProduct(id, data, newImagePath = null, removeImage = false) {
-  const product = await prisma.produto.findUnique({ where: { id: Number(id) } });
+// serviço responsável por atualizar um produto pertencente à loja
+// 1 - Verifica se o produto existe e pertence ao empresaId da sessão
+// 2 - Valida pertencimento de categoriaId e fornecedorId se fornecidos
+// 3 - Gerencia remoção ou substituição segura da imagem no Cloudinary/disco
+// 4 - Atualiza campos respeitando valores zerados (preco = 0, quantidade = 0) e retorna produto completo
+export async function updateProduct(id, data, newImagePath = null, removeImage = false, empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
+  const product = await prisma.produto.findFirst({
+    where: { id: Number(id), empresaId: Number(empresaId) },
+  });
   if (!product) throw new AppError('Produto não encontrado', 404);
 
   let imagePath = product.imagem;
-  // Lógica pesada de gerência de assets da nuvem
   if (removeImage) {
     if (imagePath) {
       if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
@@ -120,30 +193,78 @@ export async function updateProduct(id, data, newImagePath = null, removeImage =
     imagePath = newImagePath;
   }
 
-  const { nome, descricao, preco, quantidade, categoriaId, fornecedorId } = data;
+  const { nome, descricao, preco, quantidade, categoriaId, fornecedorId, ativo } = data;
+
+  const updateData = {
+    imagem: imagePath,
+  };
+
+  if (nome !== undefined) updateData.nome = String(nome).trim();
+  if (descricao !== undefined) updateData.descricao = descricao;
+  if (preco !== undefined && preco !== '') updateData.preco = parseFloat(preco);
+  if (quantidade !== undefined && quantidade !== '') updateData.quantidade = Number(quantidade);
+  if (ativo !== undefined) updateData.ativo = parseBooleanFlag(ativo);
+
+  if (categoriaId !== undefined) {
+    updateData.categoriaId = await resolveTenantCategoryId(categoriaId, empresaId);
+  }
+  if (fornecedorId !== undefined) {
+    updateData.fornecedorId = await resolveTenantSupplierId(fornecedorId, empresaId);
+  }
+
   return prisma.produto.update({
     where: { id: Number(id) },
-    data: {
-      nome,
-      descricao,
-      preco: preco ? parseFloat(preco) : undefined,
-      quantidade: quantidade ? Number(quantidade) : undefined,
-      imagem: imagePath,
-      categoriaId: categoriaId ? Number(categoriaId) : null,
-      fornecedorId: fornecedorId ? Number(fornecedorId) : null
-    },
-    include: { categoria: true, fornecedor: true }
+    data: updateData,
+    include: { categoria: true, fornecedor: true },
   });
 }
 
-// serviço responsável por excluir um produto e limpar as fotos órfãs na nuvem
-// 1 - Puxa o produto do banco via ID
-// 2 - Identifica se havia imagem; em caso positivo limpa no servidor ou Cloudinary de forma controlada
-// 3 - Deleta efetivamente do Postgres via Prisma
-export async function deleteProduct(id) {
-  const product = await prisma.produto.findUnique({ where: { id: Number(id) } });
+// serviço responsável por inativar ou reativar logicamente um produto (Soft Delete)
+// 1 - Valida se o produto pertence ao estabelecimento autenticado
+// 2 - Atualiza a flag ativo para true/false mantendo histórico e mídia preservados
+export async function toggleProductStatus(id, ativo, empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
+  const product = await prisma.produto.findFirst({
+    where: { id: Number(id), empresaId: Number(empresaId) },
+  });
   if (!product) throw new AppError('Produto não encontrado', 404);
 
+  return prisma.produto.update({
+    where: { id: Number(id) },
+    data: { ativo: parseBooleanFlag(ativo) },
+    include: { categoria: true, fornecedor: true },
+  });
+}
+
+// serviço responsável por excluir um produto (com fallback automático para Soft Delete se houver histórico)
+// 1 - Busca o produto garantindo pertencimento ao empresaId e contabiliza suas movimentações
+// 2 - Se possuir movimentações registradas, preserva a imagem/histórico e realiza inativação lógica (ativo = false)
+// 3 - Caso não possua histórico, remove a imagem do Cloudinary/disco e exclui fisicamente do banco
+export async function deleteProduct(id, empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
+  const product = await prisma.produto.findFirst({
+    where: { id: Number(id), empresaId: Number(empresaId) },
+    include: { _count: { select: { movimentos: true } } },
+  });
+  if (!product) throw new AppError('Produto não encontrado', 404);
+
+  if (product._count.movimentos > 0) {
+    const inactivated = await prisma.produto.update({
+      where: { id: Number(id) },
+      data: { ativo: false },
+      include: { categoria: true, fornecedor: true },
+    });
+    return {
+      ok: true,
+      softDeleted: true,
+      message: `Produto "${product.nome}" possui ${product._count.movimentos} movimentação(ões) no histórico e foi inativado logicamente.`,
+      produto: inactivated,
+    };
+  }
+
+  // Sem movimentações vinculadas: remove mídia na nuvem/disco antes de deletar do banco
   if (product.imagem) {
     if (product.imagem.startsWith('http://') || product.imagem.startsWith('https://')) {
       await deleteFromCloudinary(product.imagem);
@@ -152,19 +273,15 @@ export async function deleteProduct(id) {
     }
   }
 
-  // Verifica se o produto tem movimentações registradas antes de tentar excluir
-  const movementsCount = await prisma.movimento.count({ where: { produtoId: Number(id) } });
-  if (movementsCount > 0) {
-    throw new AppError(
-      `Não é possível excluir o produto "${product.nome}" porque ele possui ${movementsCount} movimentação(ões) registrada(s) no histórico.`,
-      400
-    );
-  }
-
-  return prisma.produto.delete({ where: { id: Number(id) } });
+  await prisma.produto.delete({ where: { id: Number(id) } });
+  return {
+    ok: true,
+    softDeleted: false,
+    message: `Produto "${product.nome}" excluído permanentemente com sucesso.`,
+  };
 }
 
-// Armazenamento em memória para chaves de idempotência e prevenção de cliques duplos simultâneos (I9)
+// Armazenamento em memória para chaves de idempotência e prevenção de cliques duplos simultâneos
 const IDEMPOTENCY_TTL_MS = 1000 * 60 * 10; // 10 minutos
 const idempotencyStore = new Map();
 const recentOperations = new Map();
@@ -184,13 +301,23 @@ setInterval(() => {
   }
 }, 1000 * 60 * 5).unref();
 
-// serviço ultra crítico: ajusta quantidade e salva o registro histórico como transação interativa atômica
-// 1 - Validações estruturais rigorosas
-// 2 - Bloqueio de concorrência com lock pessimista (FOR UPDATE) no PostgreSQL (Eliminação de Lost Update e Race Conditions - I1, I8)
-// 3 - Suporte nativo a chave de idempotência (Idempotency-Key) e trava anti-duplo clique (I9)
-// 4 - Previne Race Condition e garante que o estoque não fique negativo
-// 5 - Retorna o resultado mantendo compatibilidade 100% com o contrato do frontend
-export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, observacao = null, idempotencyKey = null) {
+// serviço crítico: ajusta quantidade e salva movimentação histórica em transação atômica isolada por tenant
+// 1 - Valida quantidade, tipo (REPOSICAO/VENDA) e empresaId da sessão
+// 2 - Aplica idempotência e trava anti-duplo clique com namespace do estabelecimento
+// 3 - Executa bloqueio pessimista FOR UPDATE no PostgreSQL filtrando id e empresaId
+// 4 - Impede movimentação em produto inativo (Soft Delete) e bloqueia saldo negativo em vendas
+// 5 - Cria registro no livro-razão (Movimento) com empresaId e atualiza o saldo do produto
+export async function adjustProductQuantity(
+  id,
+  quantidade,
+  tipo,
+  usuarioId,
+  observacao = null,
+  idempotencyKey = null,
+  empresaId
+) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+
   const qtdNum = Number(quantidade);
   if (!quantidade || isNaN(qtdNum) || qtdNum <= 0 || !tipo) {
     throw new AppError('Quantidade válida e tipo são obrigatórios', 400);
@@ -205,41 +332,44 @@ export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, obs
   }
 
   const productId = Number(id);
+  const tenantId = Number(empresaId);
   if (isNaN(productId)) throw new AppError('ID de produto inválido', 400);
 
-  // Verificação de Idempotência Explícita (I9)
-  if (idempotencyKey) {
-    const cached = idempotencyStore.get(idempotencyKey);
+  const scopedIdempotencyKey = idempotencyKey ? `${tenantId}:${idempotencyKey}` : null;
+
+  if (scopedIdempotencyKey) {
+    const cached = idempotencyStore.get(scopedIdempotencyKey);
     if (cached) {
       if (cached.status === 'PROCESSING') {
         throw new AppError('Esta operação já está em processamento. Por favor, aguarde.', 409);
       }
       return cached.result;
     }
-    idempotencyStore.set(idempotencyKey, { status: 'PROCESSING', timestamp: Date.now() });
+    idempotencyStore.set(scopedIdempotencyKey, { status: 'PROCESSING', timestamp: Date.now() });
   }
 
-  // Trava anti-duplo clique involuntário (debounce de 1.2 segundos por usuário + produto + tipo + quantidade)
-  const debounceKey = `user_${usuarioId}_prod_${productId}_${normalizedTipo}_${qtdNum}`;
+  const debounceKey = `emp_${tenantId}_user_${usuarioId}_prod_${productId}_${normalizedTipo}_${qtdNum}`;
   const now = Date.now();
   const lastOp = recentOperations.get(debounceKey);
-  if (!idempotencyKey && lastOp && (now - lastOp) < 1200) {
+  if (!scopedIdempotencyKey && lastOp && now - lastOp < 1200) {
     throw new AppError('Operação duplicada detectada (clique duplo). Por favor, aguarde a conclusão.', 429);
   }
   recentOperations.set(debounceKey, now);
 
   try {
-    // Transação interativa atômica com Bloqueio Pessimista no PostgreSQL (I1, I2, I8)
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Lock pessimista FOR UPDATE na linha do produto: serializa requisições concorrentes
+      // Lock pessimista FOR UPDATE filtrando pelo tenant (impede alteração cruzada e race condition)
       const [product] = await tx.$queryRaw`
-        SELECT id, nome, quantidade, preco
+        SELECT id, nome, quantidade, preco, ativo, "empresaId"
         FROM "Produto"
-        WHERE id = ${productId}
+        WHERE id = ${productId} AND "empresaId" = ${tenantId}
         FOR UPDATE
       `;
 
-      if (!product) throw new AppError('Produto não encontrado', 404);
+      if (!product) throw new AppError('Produto não encontrado neste estabelecimento', 404);
+      if (!product.ativo) {
+        throw new AppError('Este produto está inativo. Reative-o antes de registrar movimentações.', 400);
+      }
 
       if (normalizedTipo === 'VENDA' && product.quantidade < qtdNum) {
         throw new AppError(
@@ -258,6 +388,7 @@ export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, obs
           quantidade: qtdNum,
           tipo: normalizedTipo,
           usuarioId: Number(usuarioId),
+          empresaId: tenantId,
           observacao,
         },
         include: {
@@ -274,45 +405,52 @@ export async function adjustProductQuantity(id, quantidade, tipo, usuarioId, obs
       return { ok: true, novaQuantidade: updatedProduct.quantidade, movimento };
     });
 
-    if (idempotencyKey) {
-      idempotencyStore.set(idempotencyKey, { status: 'DONE', result, timestamp: Date.now() });
+    if (scopedIdempotencyKey) {
+      idempotencyStore.set(scopedIdempotencyKey, { status: 'DONE', result, timestamp: Date.now() });
     }
 
     return result;
   } catch (err) {
-    if (idempotencyKey) {
-      idempotencyStore.delete(idempotencyKey);
+    if (scopedIdempotencyKey) {
+      idempotencyStore.delete(scopedIdempotencyKey);
     }
     throw err;
   }
 }
 
-// serviço responsável por obter as macroestatísticas de dashboard dos produtos
-// 1 - Puxa a contagem de todos produtos
-// 2 - Puxa a contagem e lista limitada dos produtos com estoque crítico (< 10)
-// 3 - Executa o cálculo de patrimônio (SUM(preco * quantidade)) via SQL aggregation direto no PostgreSQL
-// 4 - Evita trazer toda a tabela para a memória do Node.js (Prevenção de OOM)
-export async function getProductStats() {
-  const total = await prisma.produto.count();
-  const lowStockCount = await prisma.produto.count({ where: { quantidade: { lt: 10 } } });
+// serviço responsável por obter as macroestatísticas de estoque do estabelecimento ativo
+// 1 - Contabiliza apenas produtos ativos da loja (Soft Delete)
+// 2 - Lista até 5 produtos ativos com estoque crítico (< 10)
+// 3 - Executa agregação de patrimônio total (SUM(preco * quantidade)) direto no PostgreSQL filtrando por empresaId e ativo = true
+export async function getProductStats(empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+  const tenantId = Number(empresaId);
+
+  const total = await prisma.produto.count({ where: { empresaId: tenantId, ativo: true } });
+  const lowStockCount = await prisma.produto.count({
+    where: { empresaId: tenantId, ativo: true, quantidade: { lt: 10 } },
+  });
   const lowStockList = await prisma.produto.findMany({
-    where: { quantidade: { lt: 10 } },
+    where: { empresaId: tenantId, ativo: true, quantidade: { lt: 10 } },
     select: { id: true, nome: true, quantidade: true },
     take: 5,
   });
 
-  // Agregação nativa direta no PostgreSQL via queryRaw (alta performance, zero sobrecarga de memória)
   const valueResult = await prisma.$queryRaw`
     SELECT COALESCE(SUM(preco * quantidade), 0) AS "totalValue"
     FROM "Produto"
+    WHERE "empresaId" = ${tenantId} AND "ativo" = true
   `;
   const totalValue = Number(valueResult[0]?.totalValue || 0);
 
   return { total, lowStock: lowStockCount, totalValue, lowStockList };
 }
 
-// serviço isolado para contagem total dos produtos
-// 1 - O Prisma conta rapidamente o id na tabela
-export async function countProducts() {
-  return prisma.produto.count();
+// serviço isolado para contagem de produtos ativos da loja
+// 1 - Filtra estritamente por empresaId e ativo = true
+export async function countProducts(empresaId) {
+  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+  return prisma.produto.count({
+    where: { empresaId: Number(empresaId), ativo: true },
+  });
 }

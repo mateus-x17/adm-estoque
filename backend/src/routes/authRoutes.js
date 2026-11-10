@@ -1,17 +1,16 @@
 import express from "express";
 import rateLimit from 'express-rate-limit';
-import { loginController, registerController} from "../controllers/authController.js";
+import { loginController, registerController } from "../controllers/authController.js";
 import { validateRequest } from '../middlewares/validationMiddleware.js';
 
-// arquivo central de rotas de autenticação (não protegidas)
-// 1 - Inicializa o roteador do express
+// arquivo central de rotas de autenticação e criação de estabelecimentos (públicas)
+// 1 - Inicializa o roteador do Express
 const router = express.Router();
 
-// 2 - Configura limitadores de taxa (rate limiters) específicos para autenticação
-// Evita ataques de força bruta limitando a 10 tentativas a cada 15 minutos por IP no login
+// 2 - Configura limitador de taxa no login (máximo 15 tentativas por 15 minutos por IP contra força bruta)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 15,
   message: {
     message: 'Muitas tentativas de login a partir deste IP. Tente novamente mais tarde.',
     statusCode: 429
@@ -20,9 +19,9 @@ const loginLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// Proteção contra DoS e criação em massa de contas (I10): máximo de 10 cadastros por hora por IP
+// 3 - Configura limitador de taxa na criação de lojas/contas (máximo 10 cadastros por hora por IP contra DoS/bots)
 const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hora
+  windowMs: 60 * 60 * 1000,
   max: 10,
   message: {
     message: 'Muitas tentativas de cadastro a partir deste endereço IP. Tente novamente mais tarde.',
@@ -32,13 +31,21 @@ const registerLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// 3 - Define a rota POST /login
-// Aplica o rate limiter, o middleware de validação do corpo (exigindo email e senha) e chama o controlador
-router.post("/login", loginLimiter, validateRequest({ required: ['email', 'senha'] }), loginController);
+// 4 - Rota POST /login: autentica usuário (suporta slug opcional da loja e seleção de estabelecimento quando multi-loja)
+router.post(
+  "/login",
+  loginLimiter,
+  validateRequest({ required: ['email', 'senha'] }),
+  loginController
+);
 
-// 4 - Define a rota POST /register
-// Aplica o rate limiter contra DoS/bots, middleware de validação e chama o controlador
-router.post("/register", registerLimiter, validateRequest({ required: ['nome', 'email', 'senha'] }), registerController);
+// 5 - Rota POST /register: cadastra novo estabelecimento (Empresa) e cria automaticamente o usuário fundador ADMIN
+router.post(
+  "/register",
+  registerLimiter,
+  validateRequest({ required: ['nomeLoja', 'nome', 'email', 'senha'] }),
+  registerController
+);
 
-// 5 - Exporta o roteador para ser anexado ao arquivo principal (app.js)
+// 6 - Exporta o roteador para montagem em index.js
 export default router;
