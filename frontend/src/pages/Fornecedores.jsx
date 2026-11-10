@@ -1,15 +1,16 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { FiPlus } from "react-icons/fi";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FiPlus, FiSliders, FiSearch } from "react-icons/fi";
 import EditarItem from "../components/forms/EditarItem.jsx";
 import FornecedorDashboard from "../components/dashboard/FornecedorDashboard.jsx";
 import FornecedoresTable from "../components/tables/FornecedoresTable.jsx";
 import { suppliersApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
+import ModalConfirmacao from "../components/common/ModalConfirmacao.jsx";
 import ModalFornecedor from "../components/forms/ModalFornecedor.jsx";
 import { useUserStore } from "../store/userStore.js";
 import { useTenantStore } from "../store/useTenantStore.js";
 
-// arquivo responsável pela página de listagem e gestão de fornecedores por Organização/Loja com RBAC e Soft Delete
+// arquivo responsável pela página de listagem e gestão de fornecedores por Organização/Loja com RBAC, filtros colapsáveis e Soft Delete
 
 const Fornecedores = () => {
   const user = useUserStore((state) => state.user);
@@ -21,6 +22,8 @@ const Fornecedores = () => {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFiltro, setStatusFiltro] = useState("ativos");
+  const [searchFiltro, setSearchFiltro] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -28,40 +31,53 @@ const Fornecedores = () => {
   const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
 
-  // função para buscar fornecedores filtrados por status e métricas agregadas da rede/loja
-  const fetchData = useCallback(async (status = statusFiltro) => {
-    setLoading(true);
-    try {
-      const [dataSup, dataStats] = await Promise.all([
-        suppliersApi.getSuppliers({
-          status,
-          ...(selectedLojaId && selectedLojaId !== "all" ? { lojaId: selectedLojaId } : {}),
-        }),
-        suppliersApi.getSupplierStats(),
-      ]);
+  const [confirmState, setConfirmState] = useState({ isOpen: false, action: null, item: null });
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
-      setFornecedores(dataSup.fornecedores || []);
-      setStats(dataStats || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFiltro, selectedLojaId]);
+  // função para buscar fornecedores filtrados por status e métricas agregadas da rede/loja
+  const fetchData = useCallback(
+    async (status = statusFiltro) => {
+      setLoading(true);
+      try {
+        const [dataSup, dataStats] = await Promise.all([
+          suppliersApi.getSuppliers({
+            status,
+            ...(selectedLojaId && selectedLojaId !== "all" ? { lojaId: selectedLojaId } : {}),
+          }),
+          suppliersApi.getSupplierStats(status),
+        ]);
+
+        setFornecedores(dataSup.fornecedores || []);
+        setStats(dataStats || []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [statusFiltro, selectedLojaId]
+  );
 
   useEffect(() => {
     fetchData(statusFiltro);
   }, [statusFiltro, fetchData]);
 
-  // função para alternar status ativo/inativo de um fornecedor via Soft Delete
-  // 1 - Solicita confirmação caso esteja inativando o parceiro
-  // 2 - Envia PATCH /suppliers/:id/status e recarrega lista e métricas
-  const handleToggleStatus = async (fornecedor) => {
-    const novoStatus = fornecedor.ativo === false;
-    if (!novoStatus && !window.confirm(`Deseja inativar o fornecedor "${fornecedor.nome}"?`)) {
-      return;
-    }
+  const fornecedoresFiltrados = useMemo(() => {
+    const q = searchFiltro.trim().toLowerCase();
+    if (!q) return fornecedores;
+    return fornecedores.filter(
+      (f) =>
+        f.nome?.toLowerCase().includes(q) ||
+        f.email?.toLowerCase().includes(q) ||
+        f.endereco?.toLowerCase().includes(q) ||
+        String(f.id) === q
+    );
+  }, [fornecedores, searchFiltro]);
 
+  // função para alternar status ativo/inativo de um fornecedor com confirmação estilizada ao inativar
+  const executeToggleStatus = async (fornecedor) => {
+    const novoStatus = fornecedor.ativo === false;
+    setConfirmLoading(true);
     try {
       await suppliersApi.toggleSupplierStatus(fornecedor.id, novoStatus);
       setModalMsg({
@@ -79,24 +95,24 @@ const Fornecedores = () => {
         mensagem: err.message || "Erro ao alterar status do fornecedor",
         tipo: "erro",
       });
+    } finally {
+      setConfirmLoading(false);
+      setConfirmState({ isOpen: false, action: null, item: null });
     }
   };
 
-  // função para excluir ou aplicar Soft Delete automático em um fornecedor (exclusivo ADMIN)
-  // 1 - Confirma a exclusão e chama DELETE /suppliers/:id
-  // 2 - Exibe o retorno do backend informando remoção física ou preservação como inativo
-  const handleDelete = async (fornecedor) => {
-    const targetId = typeof fornecedor === "object" ? fornecedor.id : fornecedor;
-    const targetName = typeof fornecedor === "object" ? fornecedor.nome : `#${targetId}`;
-
-    if (
-      !window.confirm(
-        `Deseja excluir o fornecedor "${targetName}"? Se houver produtos vinculados, ele será preservado como inativo.`
-      )
-    ) {
+  const handleToggleStatus = (fornecedor) => {
+    if (fornecedor.ativo === false) {
+      executeToggleStatus(fornecedor);
       return;
     }
+    setConfirmState({ isOpen: true, action: "inactivate", item: fornecedor });
+  };
 
+  // função para excluir ou aplicar Soft Delete automático em um fornecedor com confirmação estilizada
+  const executeDelete = async (fornecedor) => {
+    const targetId = typeof fornecedor === "object" ? fornecedor.id : fornecedor;
+    setConfirmLoading(true);
     try {
       const result = await suppliersApi.deleteSupplier(targetId);
       setModalMsg({
@@ -113,7 +129,14 @@ const Fornecedores = () => {
         mensagem: err.message || "Erro ao excluir fornecedor",
         tipo: "erro",
       });
+    } finally {
+      setConfirmLoading(false);
+      setConfirmState({ isOpen: false, action: null, item: null });
     }
+  };
+
+  const handleDelete = (fornecedor) => {
+    setConfirmState({ isOpen: true, action: "delete", item: fornecedor });
   };
 
   const openNewModal = () => {
@@ -143,31 +166,55 @@ const Fornecedores = () => {
             Fornecedores
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary mt-1">
-            Gerencie parceiros e visualize métricas de desempenho da loja.
+            Gerencie parceiros, visualize inativos e acompanhe métricas de desempenho da loja.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-          <select
-            value={statusFiltro}
-            onChange={(e) => setStatusFiltro(e.target.value)}
-            className="flex-1 sm:flex-none px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+          <button
+            type="button"
+            onClick={() => setFiltrosAbertos((prev) => !prev)}
+            className="btn-secondary px-3.5 py-2 text-xs font-medium flex items-center gap-1.5"
           >
-            <option value="ativos">Somente Ativos</option>
-            <option value="inativos">Somente Inativos</option>
-            <option value="todos">Todos</option>
-          </select>
+            <FiSliders size={13} />
+            {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
+          </button>
 
           {canManage && (
             <button
               onClick={openNewModal}
-              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap flex-1 sm:flex-none"
+              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap"
             >
               <FiPlus size={14} /> Novo fornecedor
             </button>
           )}
         </div>
       </header>
+
+      {filtrosAbertos && (
+        <section className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-up">
+          <div className="relative">
+            <FiSearch size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+            <input
+              type="text"
+              value={searchFiltro}
+              onChange={(e) => setSearchFiltro(e.target.value)}
+              placeholder="Buscar por nome, e-mail ou endereço..."
+              className="w-full pl-9 pr-3 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+            />
+          </div>
+
+          <select
+            value={statusFiltro}
+            onChange={(e) => setStatusFiltro(e.target.value)}
+            className="w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+          >
+            <option value="ativos">Somente Ativos</option>
+            <option value="inativos">Somente Inativos</option>
+            <option value="todos">Todos</option>
+          </select>
+        </section>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center gap-3 py-20">
@@ -176,11 +223,12 @@ const Fornecedores = () => {
         </div>
       ) : (
         <div className="space-y-6 sm:space-y-8">
-          <FornecedorDashboard stats={stats} loading={loading} />
+          <FornecedorDashboard stats={stats} loading={loading} statusFiltro={statusFiltro} />
 
           <FornecedoresTable
-            fornecedores={fornecedores}
+            fornecedores={fornecedoresFiltrados}
             loading={loading}
+            statusFiltro={statusFiltro}
             onEdit={openEditModal}
             onToggleStatus={handleToggleStatus}
             onDelete={handleDelete}
@@ -200,13 +248,12 @@ const Fornecedores = () => {
         />
       )}
 
-      {modalMsg.visible && (
-        <ModalMensagem
-          mensagem={modalMsg.mensagem}
-          tipo={modalMsg.tipo}
-          onClose={() => setModalMsg({ visible: false, mensagem: "", tipo: "" })}
-        />
-      )}
+      <ModalMensagem
+        visible={modalMsg.visible}
+        mensagem={modalMsg.mensagem}
+        tipo={modalMsg.tipo}
+        onClose={() => setModalMsg({ visible: false, mensagem: "", tipo: "" })}
+      />
 
       {fornecedorSelecionado && (
         <ModalFornecedor
@@ -222,6 +269,25 @@ const Fornecedores = () => {
           onDelete={handleDelete}
         />
       )}
+
+      <ModalConfirmacao
+        isOpen={confirmState.isOpen}
+        variant={confirmState.action === "delete" ? "danger" : "warning"}
+        loading={confirmLoading}
+        title={confirmState.action === "delete" ? "Excluir fornecedor" : "Inativar fornecedor"}
+        message={
+          confirmState.action === "delete"
+            ? `Deseja excluir o fornecedor "${confirmState.item?.nome}"? Se houver produtos ou pedidos vinculados, ele será preservado como inativo.`
+            : `Deseja inativar o fornecedor "${confirmState.item?.nome}"? Ele ficará oculto para novas compras até ser reativado.`
+        }
+        confirmText={confirmState.action === "delete" ? "Sim, excluir" : "Sim, inativar"}
+        onCancel={() => setConfirmState({ isOpen: false, action: null, item: null })}
+        onConfirm={() =>
+          confirmState.action === "delete"
+            ? executeDelete(confirmState.item)
+            : executeToggleStatus(confirmState.item)
+        }
+      />
     </div>
   );
 };

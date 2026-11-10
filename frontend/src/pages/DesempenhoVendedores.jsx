@@ -7,10 +7,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Search, TrendingUp, Printer, Award, UserX, Calendar, Package } from "lucide-react";
+import { Search, TrendingUp, Printer, Award, UserX, Calendar, Package, SlidersHorizontal } from "lucide-react";
 import { movementsApi } from "../services/api/index.js";
 import { useUserStore } from "../store/userStore.js";
 import { useTenantStore } from "../store/useTenantStore.js";
+import ModalMensagem from "../components/common/ModalMensagem.jsx";
 
 // arquivo responsável pela página de Desempenho & Auditoria de Vendedores (ADMIN e GERENTE),
 // incluindo ranking do melhor ao pior, comparação 1m/6m/1y e busca por antigo ID de ex-colaboradores excluídos
@@ -41,6 +42,7 @@ const DesempenhoVendedores = () => {
   const [period, setPeriod] = useState("1m");
   const [search, setSearch] = useState("");
   const [includeDeleted, setIncludeDeleted] = useState(true);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [rankingData, setRankingData] = useState({ ranking: [], totalFaturadoPeriodo: 0 });
   const [loadingRanking, setLoadingRanking] = useState(true);
 
@@ -49,6 +51,7 @@ const DesempenhoVendedores = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [directIdInput, setDirectIdInput] = useState("");
+  const [toastMsg, setToastMsg] = useState({ visible: false, mensagem: "", tipo: "erro" });
 
   // função para carregar ranking completo de vendedores do melhor ao pior no período selecionado
   // 1 - Passa período (1m/6m/1y), pesquisa e flag includeDeleted para exibir ou ocultar ex-colaboradores excluídos
@@ -115,7 +118,11 @@ const DesempenhoVendedores = () => {
     const { vendedor, periodos, topProdutos, pedidosRecentes } = detailData;
     const printWindow = window.open("", "_blank", "width=850,height=900");
     if (!printWindow) {
-      alert("Permita pop-ups para exportar o PDF de desempenho.");
+      setToastMsg({
+        visible: true,
+        mensagem: "Permita pop-ups no navegador para exportar o PDF de desempenho.",
+        tipo: "erro",
+      });
       return;
     }
 
@@ -232,6 +239,10 @@ const DesempenhoVendedores = () => {
     printWindow.document.close();
   };
 
+  const selectedRankInfo = rankingData.ranking.find(
+    (r) => Number(r.vendedorRefId) === Number(detailData?.vendedor?.vendedorRefId)
+  );
+
   return (
     <div className="w-full min-h-screen pt-2 pb-12 space-y-6 max-w-7xl mx-auto">
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 py-3 border-b border-[var(--color-border)]">
@@ -247,83 +258,96 @@ const DesempenhoVendedores = () => {
           </p>
         </div>
 
-        {/* Busca direta por ID (inclusive antigo ID após exclusão física) */}
-        <form onSubmit={handleLookupById} className="flex items-center gap-2 w-full lg:w-auto">
-          <input
-            type="number"
-            min="1"
-            value={directIdInput}
-            onChange={(e) => setDirectIdInput(e.target.value)}
-            placeholder="Consultar por ID (ex: 63)"
-            className="w-full sm:w-52 px-3.5 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
-          />
-          <button type="submit" className="btn-secondary px-4 py-2 text-xs font-semibold whitespace-nowrap">
-            Buscar ID
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+          {/* Busca direta por ID (inclusive antigo ID após exclusão física) */}
+          <form onSubmit={handleLookupById} className="flex items-center gap-2 flex-1 sm:flex-none">
+            <input
+              type="number"
+              min="1"
+              value={directIdInput}
+              onChange={(e) => setDirectIdInput(e.target.value)}
+              placeholder="Consultar ID (ex: 63)"
+              className="w-full sm:w-44 px-3.5 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+            />
+            <button type="submit" className="btn-secondary px-4 py-2 text-xs font-semibold whitespace-nowrap">
+              Buscar ID
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => setFiltrosAbertos((prev) => !prev)}
+            className="btn-secondary px-3.5 py-2 text-xs font-medium flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <SlidersHorizontal size={13} />
+            {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
           </button>
-        </form>
+        </div>
       </header>
 
-      {/* Filtros do Ranking */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-[var(--color-bg)] p-1 rounded-xl border border-[var(--color-border)]">
-            <Calendar size={14} className="text-text-secondary ml-1.5" />
-            {[
-              { id: "1m", label: "1 Mês" },
-              { id: "6m", label: "6 Meses" },
-              { id: "1y", label: "1 Ano" },
-            ].map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setPeriod(p.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  period === p.id ? "bg-accent-purple text-white" : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {isAdmin && stores.length > 0 && (
-            <select
-              value={selectedLojaId}
-              onChange={(e) => setSelectedLojaId(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
-            >
-              <option value="all">Todas as Lojas ({stores.length})</option>
-              {stores.map((st) => (
-                <option key={st.id} value={String(st.id)}>
-                  {st.nome}
-                </option>
+      {/* Filtros Colapsáveis do Ranking */}
+      {filtrosAbertos && (
+        <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between animate-fade-up">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-[var(--color-bg)] p-1 rounded-xl border border-[var(--color-border)]">
+              <Calendar size={14} className="text-text-secondary ml-1.5" />
+              {[
+                { id: "1m", label: "1 Mês" },
+                { id: "6m", label: "6 Meses" },
+                { id: "1y", label: "1 Ano" },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPeriod(p.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    period === p.id ? "bg-accent-purple text-white" : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  {p.label}
+                </button>
               ))}
-            </select>
-          )}
-        </div>
+            </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          <div className="relative flex-1 sm:w-64">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filtrar nome, email ou ID..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
-            />
+            {isAdmin && stores.length > 0 && (
+              <select
+                value={selectedLojaId}
+                onChange={(e) => setSelectedLojaId(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+              >
+                <option value="all">Todas as Lojas ({stores.length})</option>
+                {stores.map((st) => (
+                  <option key={st.id} value={String(st.id)}>
+                    {st.nome}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none px-2">
-            <input
-              type="checkbox"
-              checked={includeDeleted}
-              onChange={(e) => setIncludeDeleted(e.target.checked)}
-              className="accent-accent-purple rounded"
-            />
-            Incluir ex-funcionários excluídos
-          </label>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="relative flex-1 sm:w-64">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Filtrar nome, email ou ID..."
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none px-2">
+              <input
+                type="checkbox"
+                checked={includeDeleted}
+                onChange={(e) => setIncludeDeleted(e.target.checked)}
+                className="accent-accent-purple rounded"
+              />
+              Incluir ex-funcionários excluídos
+            </label>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Grade principal: Ranking (esq) + Detalhes 1m/6m/1y (dir) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -434,6 +458,11 @@ const DesempenhoVendedores = () => {
                     <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-[var(--color-bg)] border border-[var(--color-border)] text-text-secondary">
                       ID #{detailData.vendedor.vendedorRefId}
                     </span>
+                    {selectedRankInfo?.posicao && (
+                      <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-accent-pink/15 text-accent-pink font-bold">
+                        {selectedRankInfo.posicao}º no ranking
+                      </span>
+                    )}
                     {detailData.vendedor.excluido ? (
                       <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-500 text-[10px] font-bold uppercase">
                         Conta Excluída (Auditoria Preservada)
@@ -584,6 +613,13 @@ const DesempenhoVendedores = () => {
           )}
         </div>
       </div>
+
+      <ModalMensagem
+        visible={toastMsg.visible}
+        mensagem={toastMsg.mensagem}
+        tipo={toastMsg.tipo}
+        onClose={() => setToastMsg({ ...toastMsg, visible: false })}
+      />
     </div>
   );
 };

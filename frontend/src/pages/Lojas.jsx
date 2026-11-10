@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { FiPlus, FiEdit2, FiTrash2, FiPower, FiMapPin, FiPhone, FiX } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiPower, FiMapPin, FiPhone, FiX, FiSliders, FiSearch } from "react-icons/fi";
 import { Building2 } from "lucide-react";
 import { storesApi } from "../services/api/index.js";
 import { useTenantStore } from "../store/useTenantStore.js";
 import { useUserStore } from "../store/userStore.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
+import ModalConfirmacao from "../components/common/ModalConfirmacao.jsx";
 
 // arquivo responsável pela gestão de Lojas/Filiais da Organização (exclusivo ADMIN)
 
@@ -16,7 +17,12 @@ const Lojas = () => {
   const [lojas, setLojas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "sucesso" });
+
+  const [confirmState, setConfirmState] = useState({ isOpen: false, action: null, loja: null });
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingStore, setEditingStore] = useState(null);
@@ -86,14 +92,21 @@ const Lojas = () => {
     }
   };
 
-  const handleToggleStatus = async (loja) => {
+  const lojasFiltradas = useMemo(() => {
+    const q = searchFilter.trim().toLowerCase();
+    if (!q) return lojas;
+    return lojas.filter(
+      (l) =>
+        l.nome?.toLowerCase().includes(q) ||
+        l.slug?.toLowerCase().includes(q) ||
+        l.endereco?.toLowerCase().includes(q) ||
+        String(l.id) === q
+    );
+  }, [lojas, searchFilter]);
+
+  const executeToggleStatus = async (loja) => {
     const novoStatus = !loja.ativo;
-    if (
-      !novoStatus &&
-      !window.confirm(`Deseja desativar a filial "${loja.nome}"? Colaboradores vinculados perderão acesso até reativação.`)
-    ) {
-      return;
-    }
+    setConfirmLoading(true);
     try {
       await storesApi.toggleStoreStatus(loja.id, novoStatus);
       setModalMsg({
@@ -104,13 +117,22 @@ const Lojas = () => {
       await fetchLojas();
     } catch (err) {
       setModalMsg({ visible: true, mensagem: err.message || "Erro ao alterar status da loja.", tipo: "erro" });
+    } finally {
+      setConfirmLoading(false);
+      setConfirmState({ isOpen: false, action: null, loja: null });
     }
   };
 
-  const handleDelete = async (loja) => {
-    if (!window.confirm(`Deseja excluir a loja "${loja.nome}"? Caso possua histórico, será apenas desativada.`)) {
+  const handleToggleStatus = (loja) => {
+    if (!loja.ativo) {
+      executeToggleStatus(loja);
       return;
     }
+    setConfirmState({ isOpen: true, action: "inactivate", loja });
+  };
+
+  const executeDelete = async (loja) => {
+    setConfirmLoading(true);
     try {
       const res = await storesApi.deleteStore(loja.id);
       setModalMsg({
@@ -121,7 +143,14 @@ const Lojas = () => {
       await fetchLojas();
     } catch (err) {
       setModalMsg({ visible: true, mensagem: err.message || "Erro ao excluir loja.", tipo: "erro" });
+    } finally {
+      setConfirmLoading(false);
+      setConfirmState({ isOpen: false, action: null, loja: null });
     }
+  };
+
+  const handleDelete = (loja) => {
+    setConfirmState({ isOpen: true, action: "delete", loja });
   };
 
   return (
@@ -139,16 +168,15 @@ const Lojas = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+          <button
+            type="button"
+            onClick={() => setFiltrosAbertos((prev) => !prev)}
+            className="btn-secondary px-3.5 py-2.5 text-xs font-medium flex items-center gap-1.5"
           >
-            <option value="todos">Todas</option>
-            <option value="ativos">Ativas</option>
-            <option value="inativos">Inativas</option>
-          </select>
+            <FiSliders size={13} />
+            {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
+          </button>
 
           <button
             onClick={() => openModal(null)}
@@ -160,13 +188,44 @@ const Lojas = () => {
         </div>
       </header>
 
+      {filtrosAbertos && (
+        <section className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-up">
+          <div className="relative">
+            <FiSearch size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+            <input
+              type="text"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              placeholder="Buscar por nome, slug, endereço ou #ID..."
+              className="w-full pl-9 pr-3 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+          >
+            <option value="todos">Todas as unidades</option>
+            <option value="ativos">Somente Ativas</option>
+            <option value="inativos">Somente Inativas</option>
+          </select>
+        </section>
+      )}
+
       {loading ? (
         <div className="py-16 text-center text-sm text-text-secondary animate-pulse">
           Carregando unidades da organização...
         </div>
+      ) : lojasFiltradas.length === 0 ? (
+        <div className="glass-card p-10 text-center text-xs text-text-secondary rounded-2xl">
+          {statusFilter === "inativos"
+            ? "Não há lojas ou filiais inativas nesta organização."
+            : "Nenhuma loja encontrada com os filtros atuais."}
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {lojas.map((loja) => (
+          {lojasFiltradas.map((loja) => (
             <div
               key={loja.id}
               className={`glass-card p-5 rounded-2xl flex flex-col justify-between gap-4 border ${
@@ -356,6 +415,25 @@ const Lojas = () => {
           </div>,
           document.body
         )}
+
+      <ModalConfirmacao
+        isOpen={confirmState.isOpen}
+        variant={confirmState.action === "delete" ? "danger" : "warning"}
+        loading={confirmLoading}
+        title={confirmState.action === "delete" ? "Excluir filial" : "Desativar filial"}
+        message={
+          confirmState.action === "delete"
+            ? `Deseja excluir a loja "${confirmState.loja?.nome}"? Caso possua histórico ou colaboradores vinculados, ela será apenas desativada.`
+            : `Deseja desativar a filial "${confirmState.loja?.nome}"? Gerentes e operadores vinculados perderão acesso até reativação.`
+        }
+        confirmText={confirmState.action === "delete" ? "Sim, excluir" : "Sim, desativar"}
+        onCancel={() => setConfirmState({ isOpen: false, action: null, loja: null })}
+        onConfirm={() =>
+          confirmState.action === "delete"
+            ? executeDelete(confirmState.loja)
+            : executeToggleStatus(confirmState.loja)
+        }
+      />
 
       <ModalMensagem
         visible={modalMsg.visible}

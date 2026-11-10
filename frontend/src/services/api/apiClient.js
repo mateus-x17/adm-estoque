@@ -175,6 +175,23 @@ export const apiClient = {
     return handleResponse(response);
   },
 
+  patchFormData: async (endpoint, formData, customHeaders = {}) => {
+    const token = getToken();
+    const lojaId = getSelectedLojaId();
+    const headers = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(lojaId ? { "X-Loja-Id": lojaId } : {}),
+      ...customHeaders,
+    };
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "PATCH",
+      headers,
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
   downloadBlob: async (endpoint) => {
     const token = getToken();
     const lojaId = getSelectedLojaId();

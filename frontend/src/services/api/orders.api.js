@@ -20,14 +20,25 @@ export const ordersApi = {
   // 1 - Solicita GET /orders/:id com cabeçalho X-Loja-Id automático do apiClient
   getOrderById: async (id) => apiClient.get(`/orders/${id}`),
 
-  // função para criar um pedido multi-item atômico (VENDA ou REPOSICAO)
-  // 1 - Injeta cabeçalho Idempotency-Key quando fornecido e envia itens no payload POST /orders
-  createOrder: async (orderData, idempotencyKey = null) =>
-    apiClient.post(
-      "/orders",
-      orderData,
-      idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}
-    ),
+  // função para criar um pedido multi-item atômico (VENDA ou REPOSICAO) com suporte a FormData (comprovante anexo) ou JSON
+  // 1 - Injeta cabeçalho Idempotency-Key quando fornecido
+  // 2 - Utiliza postFormData quando payload for FormData para preservar envio de arquivo comprovante
+  createOrder: async (orderData, idempotencyKey = null) => {
+    const headers = idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {};
+    if (orderData instanceof FormData) {
+      return apiClient.postFormData("/orders", orderData, headers);
+    }
+    return apiClient.post("/orders", orderData, Object.keys(headers).length ? { headers } : {});
+  },
+
+  // função para anexar ou atualizar comprovante de pagamento/recebimento de um pedido existente
+  // 1 - Aceita FormData (arquivo + campos) ou JSON enviando via PATCH /orders/:id/proof
+  updateOrderProof: async (id, proofData) => {
+    if (proofData instanceof FormData) {
+      return apiClient.patchFormData(`/orders/${id}/proof`, proofData);
+    }
+    return apiClient.patch(`/orders/${id}/proof`, proofData);
+  },
 
   // função para cancelar um pedido concluído e estornar o estoque (ADMIN e GERENTE)
   // 1 - Envia POST /orders/:id/cancel com justificativa opcional

@@ -22,9 +22,10 @@ export const suppliersApi = {
     return response.data || response;
   },
 
-  // função para obter estatísticas agregadas de movimentação por fornecedor
-  getSupplierStats: async () => {
-    const response = await apiClient.get("/suppliers/stats");
+  // função para obter estatísticas agregadas de movimentação por fornecedor respeitando filtro de status
+  getSupplierStats: async (status = "ativos") => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+    const response = await apiClient.get(`/suppliers/stats${qs}`);
     return response.data || response;
   },
 

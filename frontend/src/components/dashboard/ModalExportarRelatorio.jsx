@@ -25,6 +25,7 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [popupWarning, setPopupWarning] = useState(false);
 
   const currentUser = useUserStore((state) => state.user);
   const { stores, selectedLojaId, setSelectedLojaId } = useTenantStore();
@@ -264,7 +265,7 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
 
     const printWindow = window.open("", "_blank", "width=900,height=920");
     if (!printWindow) {
-      alert("Permita pop-ups no navegador para gerar a visualização em PDF do relatório.");
+      setPopupWarning(true);
       return;
     }
 
@@ -764,6 +765,18 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
         </div>
 
         {/* Rodapé */}
+        {popupWarning && (
+          <div className="px-4 sm:px-6 py-2.5 bg-amber-500/10 border-t border-amber-500/25 text-xs text-amber-400 flex items-center justify-between gap-2">
+            <span>Pop-up bloqueado pelo navegador. Habilite pop-ups para este site e tente imprimir novamente.</span>
+            <button
+              type="button"
+              onClick={() => setPopupWarning(false)}
+              className="underline font-semibold shrink-0"
+            >
+              Entendi
+            </button>
+          </div>
+        )}
         <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
           <span className="text-[11px] text-text-secondary text-center sm:text-left">
             Pronto para impressão / exportação PDF A4 vetorial

@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { movementsApi } from "../../services/api/index.js";
+import { useTenantStore } from "../../store/useTenantStore.js";
 
 // arquivo responsável pelo gráfico comparativo de entradas (reposições) e saídas (vendas) por produto no Dashboard
 
@@ -41,20 +42,21 @@ const CustomLegend = ({ payload }) => (
   </div>
 );
 
-// função principal para buscar movimentações e plotar barras responsivas filtradas por janela temporal
-// 1 - Carrega as movimentações da loja (ou do próprio operador conforme RBAC) via API
-// 2 - Agrupa volumes de venda e reposição por nome de produto respeitando o filtro selecionado
+// função principal para buscar movimentações e plotar barras responsivas filtradas por Mês Atual, 6 Meses e Último Ano
+// 1 - Carrega as movimentações da loja/rede (ou do operador) recarregando ao alternar selectedLojaId
+// 2 - Ignora registros de estorno/cancelamento e agrupa vendas x reposições conforme a janela (1m, 6m, 1y)
 export default function StockFlowChart() {
+  const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const [loading, setLoading] = useState(true);
   const [allMovements, setAllMovements] = useState([]);
-  const [periodo, setPeriodo] = useState("all"); // "all", "30d", "month"
+  const [periodo, setPeriodo] = useState("1m"); // "1m" (Mês atual), "6m" (6 Meses), "1y" (Último ano)
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const res = await movementsApi.getMovements({ limit: "all" });
-        const movements = Array.isArray(res) ? res : (res?.data || []);
+        const movements = Array.isArray(res) ? res : res?.data || [];
         setAllMovements(movements);
       } catch (error) {
         console.error("Error fetching stock flow data:", error);
@@ -64,37 +66,39 @@ export default function StockFlowChart() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedLojaId]);
 
   const chartData = useMemo(() => {
     if (!allMovements.length) return [];
 
     const now = new Date();
-    const filteredMovements = allMovements.filter((m) => {
-      if (periodo === "all") return true;
+    const startCutoff = new Date(now);
+    if (periodo === "1m") {
+      startCutoff.setDate(1);
+      startCutoff.setHours(0, 0, 0, 0);
+    } else if (periodo === "6m") {
+      startCutoff.setMonth(now.getMonth() - 6);
+    } else {
+      startCutoff.setFullYear(now.getFullYear() - 1);
+    }
+
+    const validMovements = allMovements.filter((m) => {
+      if (m.estorno || m.pedido?.status === "CANCELADO") return false;
       const d = new Date(m.data);
-      if (periodo === "30d") {
-        const past30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return d >= past30;
-      }
-      if (periodo === "month") {
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-      }
-      return true;
+      return d >= startCutoff;
     });
 
-    const products = [...new Set(allMovements.map((m) => m.produto?.nome).filter(Boolean))];
+    const products = [...new Set(validMovements.map((m) => m.produto?.nome).filter(Boolean))];
 
     return products.map((produto) => {
-      const reposicoes = filteredMovements
+      const reposicoes = validMovements
         .filter((m) => m.produto?.nome === produto && (m.tipo === "REPOSICAO" || m.tipo === "ENTRADA"))
         .reduce((acc, cur) => acc + cur.quantidade, 0);
 
-      const vendas = filteredMovements
+      const vendas = validMovements
         .filter((m) => m.produto?.nome === produto && (m.tipo === "VENDA" || m.tipo === "SAIDA"))
         .reduce((acc, cur) => acc + cur.quantidade, 0);
 
-      // Nome curto para exibição sem cortar excessivamente no eixo X
       const shortName = produto.length > 18 ? `${produto.slice(0, 16)}...` : produto;
 
       return {
@@ -114,45 +118,30 @@ export default function StockFlowChart() {
             Fluxo de mercadorias
           </h2>
           <p className="font-secondary text-xs text-text-secondary mt-1">
-            Volume de vendas e reposições por produto
+            Volume líquido de vendas e reposições por produto
           </p>
         </div>
 
-        {/* Seletor de Período dinâmico */}
+        {/* Seletor executivo de janela: Mês atual, 6 Meses e Último ano */}
         <div className="flex flex-wrap items-center gap-1 bg-surface-dark/40 p-1 rounded-lg border border-[var(--color-border-light)] self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setPeriodo("all")}
-            className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
-              periodo === "all"
-                ? "bg-accent-purple/20 text-accent-purple border border-accent-purple/30 shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Geral
-          </button>
-          <button
-            type="button"
-            onClick={() => setPeriodo("month")}
-            className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
-              periodo === "month"
-                ? "bg-accent-purple/20 text-accent-purple border border-accent-purple/30 shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Mês atual
-          </button>
-          <button
-            type="button"
-            onClick={() => setPeriodo("30d")}
-            className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
-              periodo === "30d"
-                ? "bg-accent-purple/20 text-accent-purple border border-accent-purple/30 shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Últimos 30d
-          </button>
+          {[
+            { id: "1m", label: "Mês atual" },
+            { id: "6m", label: "6 Meses" },
+            { id: "1y", label: "Último ano" },
+          ].map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setPeriodo(opt.id)}
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
+                periodo === opt.id
+                  ? "bg-accent-purple/20 text-accent-purple border border-accent-purple/30 shadow-sm"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -160,6 +149,10 @@ export default function StockFlowChart() {
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-xs text-text-secondary">
+            Nenhuma movimentação registrada no período selecionado.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

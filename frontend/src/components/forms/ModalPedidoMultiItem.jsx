@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { X, Plus, Trash2, ShoppingCart, ShieldCheck, Upload } from "lucide-react";
 import {
   productsApi,
   suppliersApi,
@@ -30,6 +30,13 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
   const [fornecedorId, setFornecedorId] = useState("");
   const [observacao, setObservacao] = useState("");
 
+  // Campos comprobatórios de pagamento / recebimento
+  const [formaPagamento, setFormaPagamento] = useState("PIX");
+  const [statusPagamento, setStatusPagamento] = useState("PAGO");
+  const [comprovanteCodigo, setComprovanteCodigo] = useState("");
+  const [recebidoPor, setRecebidoPor] = useState("");
+  const [comprovanteFile, setComprovanteFile] = useState(null);
+
   const [produtos, setProdutos] = useState([]);
   const [fornecedores, setFornecedores] = useState([]);
   const [selectedProdId, setSelectedProdId] = useState("");
@@ -47,6 +54,11 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
     setClienteNome("");
     setFornecedorId("");
     setObservacao("");
+    setFormaPagamento("PIX");
+    setStatusPagamento("PAGO");
+    setComprovanteCodigo("");
+    setRecebidoPor("");
+    setComprovanteFile(null);
     if (isAdmin) {
       if (selectedLojaId && selectedLojaId !== "all") {
         setTargetLojaId(String(selectedLojaId));
@@ -149,6 +161,21 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
       return;
     }
 
+    if (statusPagamento === "PAGO") {
+      if (formaPagamento !== "DINHEIRO" && !comprovanteCodigo.trim() && !comprovanteFile) {
+        setError(
+          `Para pagamento via ${formaPagamento}, informe o código/NSU/ID do comprovante ou anexe o arquivo comprobatório.`
+        );
+        return;
+      }
+      if (formaPagamento === "DINHEIRO" && !recebidoPor.trim() && !comprovanteCodigo.trim() && !comprovanteFile) {
+        setError(
+          "Para pagamento em DINHEIRO, informe quem recebeu/conferiu ou o número do recibo."
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const idempotencyKey =
@@ -156,17 +183,39 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random()}`;
 
-      await ordersApi.createOrder(
-        {
-          tipo,
-          lojaId: targetLojaId ? Number(targetLojaId) : undefined,
-          clienteNome: tipo === "VENDA" ? clienteNome : undefined,
-          fornecedorId: tipo === "REPOSICAO" && fornecedorId ? Number(fornecedorId) : undefined,
-          observacao,
-          itens: cart.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })),
-        },
-        idempotencyKey
-      );
+      const itensPayload = cart.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade }));
+
+      if (comprovanteFile) {
+        const fd = new FormData();
+        fd.append("tipo", tipo);
+        if (targetLojaId) fd.append("lojaId", String(targetLojaId));
+        if (tipo === "VENDA" && clienteNome.trim()) fd.append("clienteNome", clienteNome.trim());
+        if (tipo === "REPOSICAO" && fornecedorId) fd.append("fornecedorId", String(fornecedorId));
+        if (observacao.trim()) fd.append("observacao", observacao.trim());
+        fd.append("formaPagamento", formaPagamento);
+        fd.append("statusPagamento", statusPagamento);
+        if (comprovanteCodigo.trim()) fd.append("comprovanteCodigo", comprovanteCodigo.trim());
+        if (recebidoPor.trim()) fd.append("recebidoPor", recebidoPor.trim());
+        fd.append("itens", JSON.stringify(itensPayload));
+        fd.append("comprovante", comprovanteFile);
+        await ordersApi.createOrder(fd, idempotencyKey);
+      } else {
+        await ordersApi.createOrder(
+          {
+            tipo,
+            lojaId: targetLojaId ? Number(targetLojaId) : undefined,
+            clienteNome: tipo === "VENDA" ? clienteNome.trim() || undefined : undefined,
+            fornecedorId: tipo === "REPOSICAO" && fornecedorId ? Number(fornecedorId) : undefined,
+            observacao: observacao.trim() || undefined,
+            formaPagamento,
+            statusPagamento,
+            comprovanteCodigo: comprovanteCodigo.trim() || undefined,
+            recebidoPor: recebidoPor.trim() || undefined,
+            itens: itensPayload,
+          },
+          idempotencyKey
+        );
+      }
 
       onOrderCreated?.();
       onClose();
@@ -281,9 +330,100 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
                 type="text"
                 value={observacao}
                 onChange={(e) => setObservacao(e.target.value)}
-                placeholder="Ex: Pagamento PIX / Lote #44"
+                placeholder="Ex: Entrega balcão / Detalhe extra"
                 className="w-full px-3.5 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-bg)] text-xs text-text-primary outline-none focus:border-accent-purple"
               />
+            </div>
+          </div>
+
+          {/* Comprovação de Pagamento e Recebimento */}
+          <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)] space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={15} className="text-accent-green" />
+              <span className="text-[11px] font-mono uppercase tracking-wider text-text-primary font-semibold">
+                Comprovação de Pagamento / Recebimento
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                  Forma de Pagamento *
+                </label>
+                <select
+                  value={formaPagamento}
+                  onChange={(e) => setFormaPagamento(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+                >
+                  <option value="PIX">PIX</option>
+                  <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                  <option value="CARTAO_DEBITO">Cartão de Débito</option>
+                  <option value="DINHEIRO">Dinheiro</option>
+                  <option value="BOLETO">Boleto Bancário</option>
+                  <option value="TRANSFERENCIA">Transferência / TED</option>
+                  <option value="A_PRAZO">Faturado / A Prazo</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                  Situação do Pagamento *
+                </label>
+                <select
+                  value={statusPagamento}
+                  onChange={(e) => setStatusPagamento(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+                >
+                  <option value="PAGO">Pago / Confirmado</option>
+                  <option value="PENDENTE">Pendente (Anexar depois)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                  Código Comprovante / NSU / ID PIX
+                </label>
+                <input
+                  type="text"
+                  value={comprovanteCodigo}
+                  onChange={(e) => setComprovanteCodigo(e.target.value)}
+                  placeholder="Ex: E2E PIX, NSU 94821 ou Nº Recibo/NF"
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                  Recebido / Conferido por
+                </label>
+                <input
+                  type="text"
+                  value={recebidoPor}
+                  onChange={(e) => setRecebidoPor(e.target.value)}
+                  placeholder="Nome do recebedor ou conferente"
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                Anexar Comprovante (Foto ou PDF opcional até 5MB)
+              </label>
+              <label className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-dashed border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-secondary cursor-pointer hover:border-accent-purple transition-colors">
+                <span className="flex items-center gap-2 truncate">
+                  <Upload size={14} className="text-accent-purple shrink-0" />
+                  {comprovanteFile ? comprovanteFile.name : "Clique para anexar imagem ou PDF do comprovante..."}
+                </span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.jfif,.pdf"
+                  className="hidden"
+                  onChange={(e) => setComprovanteFile(e.target.files?.[0] || null)}
+                />
+              </label>
             </div>
           </div>
 

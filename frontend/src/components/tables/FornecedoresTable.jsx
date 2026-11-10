@@ -4,11 +4,12 @@ import FornecedorRow from "./FornecedorRow.jsx";
 // arquivo responsável pelo contêiner de listagem de fornecedores com estado de carregamento e repasse RBAC
 
 // componente de tabela/lista de fornecedores
-// 1 - Exibe estado de carregamento ou mensagem vazia quando não há registros
+// 1 - Exibe estado de carregamento ou mensagem contextual clara quando não houver registros (ex: nenhum inativo)
 // 2 - Mapeia cada fornecedor repassando callbacks de detalhes, edição, Soft Delete e exclusão
 const FornecedoresTable = ({
   fornecedores,
   loading,
+  statusFiltro = "ativos",
   onEdit,
   onToggleStatus,
   onDelete,
@@ -16,6 +17,11 @@ const FornecedoresTable = ({
   canManage,
   canDelete,
 }) => {
+  const emptyText =
+    statusFiltro === "inativos"
+      ? "Não há fornecedores inativos no momento."
+      : "Nenhum fornecedor encontrado com os filtros aplicados.";
+
   return (
     <div className="flex flex-col gap-3">
       {loading ? (
@@ -24,7 +30,7 @@ const FornecedoresTable = ({
         </div>
       ) : fornecedores.length === 0 ? (
         <div className="glass-card p-8 text-center text-sm text-text-secondary">
-          Nenhum fornecedor encontrado.
+          {emptyText}
         </div>
       ) : (
         fornecedores.map((sup, index) => (

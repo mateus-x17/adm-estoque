@@ -1,12 +1,13 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { FiPlus, FiEdit, FiTrash, FiX, FiPower } from "react-icons/fi";
+import { FiPlus, FiEdit, FiTrash, FiX, FiPower, FiSliders, FiSearch } from "react-icons/fi";
 import { categoriesApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
+import ModalConfirmacao from "../components/common/ModalConfirmacao.jsx";
 import { useUserStore } from "../store/userStore.js";
 import { useTenantStore } from "../store/useTenantStore.js";
 
-// arquivo responsável pela página de gestão de categorias com RBAC, multi-loja e Soft Delete
+// arquivo responsável pela página de gestão de categorias com RBAC, multi-loja, filtros colapsáveis e Soft Delete
 
 const Categorias = () => {
   const user = useUserStore((state) => state.user);
@@ -18,31 +19,51 @@ const Categorias = () => {
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFiltro, setStatusFiltro] = useState("ativos");
+  const [searchFiltro, setSearchFiltro] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [nome, setNome] = useState("");
   const [targetLojaId, setTargetLojaId] = useState("");
   const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
 
+  const [confirmState, setConfirmState] = useState({ isOpen: false, action: null, item: null });
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
   // função para carregar as categorias da organização/loja conforme filtro de status e loja selecionada
-  const fetchCategorias = useCallback(async (status = statusFiltro) => {
-    setLoading(true);
-    try {
-      const data = await categoriesApi.getCategories({
-        status,
-        ...(selectedLojaId && selectedLojaId !== "all" ? { lojaId: selectedLojaId } : {}),
-      });
-      setCategorias(Array.isArray(data) ? data : data?.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFiltro, selectedLojaId]);
+  const fetchCategorias = useCallback(
+    async (status = statusFiltro) => {
+      setLoading(true);
+      try {
+        const data = await categoriesApi.getCategories({
+          status,
+          ...(selectedLojaId && selectedLojaId !== "all" ? { lojaId: selectedLojaId } : {}),
+        });
+        setCategorias(Array.isArray(data) ? data : data?.data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [statusFiltro, selectedLojaId]
+  );
 
   useEffect(() => {
     fetchCategorias(statusFiltro);
   }, [statusFiltro, fetchCategorias]);
+
+  const categoriasFiltradas = useMemo(() => {
+    const q = searchFiltro.trim().toLowerCase();
+    if (!q) return categorias;
+    return categorias.filter(
+      (c) =>
+        c.nome?.toLowerCase().includes(q) ||
+        String(c.id) === q ||
+        c.loja?.nome?.toLowerCase().includes(q)
+    );
+  }, [categorias, searchFiltro]);
 
   // função para salvar criação ou edição de categoria via API real
   const handleSubmit = async (e) => {
@@ -78,22 +99,16 @@ const Categorias = () => {
     }
   };
 
-  // função para abrir modal preenchido para edição da categoria selecionada
   const handleEdit = (cat) => {
     setEditingId(cat.id);
     setNome(cat.nome);
     setModalOpen(true);
   };
 
-  // função para alternar status ativo/inativo da categoria (Soft Delete)
-  // 1 - Envia PATCH /categories/:id/status invertendo o estado atual
-  // 2 - Atualiza a listagem e exibe confirmação na tela
-  const handleToggleStatus = async (cat) => {
+  // função para alternar status ativo/inativo da categoria com confirmação estilizada ao inativar
+  const executeToggleStatus = async (cat) => {
     const novoStatus = cat.ativo === false;
-    if (!novoStatus && !window.confirm(`Deseja inativar a categoria "${cat.nome}"?`)) {
-      return;
-    }
-
+    setConfirmLoading(true);
     try {
       await categoriesApi.toggleCategoryStatus(cat.id, novoStatus);
       setModalMsg({
@@ -110,21 +125,23 @@ const Categorias = () => {
         mensagem: err.message || "Erro ao alterar status da categoria",
         tipo: "erro",
       });
+    } finally {
+      setConfirmLoading(false);
+      setConfirmState({ isOpen: false, action: null, item: null });
     }
   };
 
-  // função para excluir ou aplicar Soft Delete automático em uma categoria (exclusivo ADMIN)
-  // 1 - Solicita confirmação ao administrador antes de chamar DELETE /categories/:id
-  // 2 - Exibe a mensagem devolvida pelo servidor (exclusão física ou preservação lógica se houver produtos)
-  const handleDelete = async (cat) => {
-    if (
-      !window.confirm(
-        `Deseja excluir a categoria "${cat.nome}"? Se houver produtos vinculados, ela será apenas inativada.`
-      )
-    ) {
+  const handleToggleStatus = (cat) => {
+    if (cat.ativo === false) {
+      executeToggleStatus(cat);
       return;
     }
+    setConfirmState({ isOpen: true, action: "inactivate", item: cat });
+  };
 
+  // função para excluir ou aplicar Soft Delete automático em uma categoria com confirmação estilizada
+  const executeDelete = async (cat) => {
+    setConfirmLoading(true);
     try {
       const result = await categoriesApi.deleteCategory(cat.id);
       setModalMsg({
@@ -140,10 +157,16 @@ const Categorias = () => {
         mensagem: err.message || "Erro ao excluir categoria",
         tipo: "erro",
       });
+    } finally {
+      setConfirmLoading(false);
+      setConfirmState({ isOpen: false, action: null, item: null });
     }
   };
 
-  // função para abrir o modal limpo para cadastro de nova categoria
+  const handleDelete = (cat) => {
+    setConfirmState({ isOpen: true, action: "delete", item: cat });
+  };
+
   const openModal = () => {
     setEditingId(null);
     setNome("");
@@ -165,21 +188,20 @@ const Categorias = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-          <select
-            value={statusFiltro}
-            onChange={(e) => setStatusFiltro(e.target.value)}
-            className="flex-1 sm:flex-none px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+          <button
+            type="button"
+            onClick={() => setFiltrosAbertos((prev) => !prev)}
+            className="btn-secondary px-3.5 py-2 text-xs font-medium flex items-center gap-1.5"
           >
-            <option value="ativos">Somente Ativas</option>
-            <option value="inativos">Somente Inativas</option>
-            <option value="todos">Todas</option>
-          </select>
+            <FiSliders size={13} />
+            {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
+          </button>
 
           {canManage && (
             <button
               onClick={openModal}
-              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap flex-1 sm:flex-none"
+              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap"
             >
               <FiPlus size={14} /> Nova categoria
             </button>
@@ -187,18 +209,45 @@ const Categorias = () => {
         </div>
       </header>
 
+      {filtrosAbertos && (
+        <section className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-up">
+          <div className="relative">
+            <FiSearch size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+            <input
+              type="text"
+              value={searchFiltro}
+              onChange={(e) => setSearchFiltro(e.target.value)}
+              placeholder="Buscar por nome, #ID ou loja..."
+              className="w-full pl-9 pr-3 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+            />
+          </div>
+
+          <select
+            value={statusFiltro}
+            onChange={(e) => setStatusFiltro(e.target.value)}
+            className="w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+          >
+            <option value="ativos">Somente Ativas</option>
+            <option value="inativos">Somente Inativas</option>
+            <option value="todos">Todas</option>
+          </select>
+        </section>
+      )}
+
       {/* Lista de Cards */}
       <div className="flex flex-col gap-3">
         {loading ? (
           <div className="glass-card p-8 text-center text-sm text-text-secondary">
             Carregando categorias...
           </div>
-        ) : categorias.length === 0 ? (
+        ) : categoriasFiltradas.length === 0 ? (
           <div className="glass-card p-8 text-center text-sm text-text-secondary">
-            Nenhuma categoria encontrada.
+            {statusFiltro === "inativos"
+              ? "Não há categorias inativas no momento."
+              : "Nenhuma categoria encontrada."}
           </div>
         ) : (
-          categorias.map((cat) => {
+          categoriasFiltradas.map((cat) => {
             const isInactive = cat.ativo === false;
             return (
               <div
@@ -208,12 +257,8 @@ const Categorias = () => {
                 }`}
               >
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                  <span className="font-mono text-xs text-text-secondary shrink-0">
-                    #{cat.id}
-                  </span>
-                  <span className="font-semibold text-text-primary text-sm truncate">
-                    {cat.nome}
-                  </span>
+                  <span className="font-mono text-xs text-text-secondary shrink-0">#{cat.id}</span>
+                  <span className="font-semibold text-text-primary text-sm truncate">{cat.nome}</span>
                   {cat.loja?.nome && (
                     <span className="font-mono text-[10px] text-text-secondary hidden sm:inline shrink-0">
                       @{cat.loja.nome}
@@ -345,13 +390,31 @@ const Categorias = () => {
           document.body
         )}
 
-      {modalMsg.visible && (
-        <ModalMensagem
-          mensagem={modalMsg.mensagem}
-          tipo={modalMsg.tipo}
-          onClose={() => setModalMsg({ visible: false, mensagem: "", tipo: "" })}
-        />
-      )}
+      <ModalConfirmacao
+        isOpen={confirmState.isOpen}
+        variant={confirmState.action === "delete" ? "danger" : "warning"}
+        loading={confirmLoading}
+        title={confirmState.action === "delete" ? "Excluir categoria" : "Inativar categoria"}
+        message={
+          confirmState.action === "delete"
+            ? `Deseja excluir a categoria "${confirmState.item?.nome}"? Se houver produtos vinculados, ela será preservada como inativa.`
+            : `Deseja inativar a categoria "${confirmState.item?.nome}"? Você poderá reativá-la depois pelo filtro de inativas.`
+        }
+        confirmText={confirmState.action === "delete" ? "Sim, excluir" : "Sim, inativar"}
+        onCancel={() => setConfirmState({ isOpen: false, action: null, item: null })}
+        onConfirm={() =>
+          confirmState.action === "delete"
+            ? executeDelete(confirmState.item)
+            : executeToggleStatus(confirmState.item)
+        }
+      />
+
+      <ModalMensagem
+        visible={modalMsg.visible}
+        mensagem={modalMsg.mensagem}
+        tipo={modalMsg.tipo}
+        onClose={() => setModalMsg({ visible: false, mensagem: "", tipo: "" })}
+      />
     </div>
   );
 };

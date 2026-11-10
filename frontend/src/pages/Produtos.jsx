@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FaBoxOpen, FaSearch } from "react-icons/fa";
-import { FiDownload, FiUploadCloud } from "react-icons/fi";
+import { FiDownload, FiUploadCloud, FiSliders } from "react-icons/fi";
 import ModalProduto from "../components/forms/ModalProduto.jsx";
 import ModalImportarPlanilha from "../components/forms/ModalImportarPlanilha.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
@@ -16,6 +17,8 @@ import { useTenantStore } from "../store/useTenantStore.js";
 // 2 - Suporta filtro por status (ativos, inativos, todos) para compatibilidade com Soft Delete
 
 const Produtos = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusId = searchParams.get("focus");
   const user = useUserStore((state) => state.user);
   const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const canManage = user?.role === "ADMIN" || user?.role === "GERENTE";
@@ -84,6 +87,33 @@ const Produtos = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [search, sortPrice, categoriaFiltro, statusFiltro]);
+
+  // efeito para abrir automaticamente um produto vindo de atalhos do Dashboard (?focus=<id>)
+  // 1 - Quando focusId está na query string, consulta o produto na API e abre o ModalProduto
+  useEffect(() => {
+    if (!focusId) return;
+    let active = true;
+    productsApi
+      .getProductById(focusId)
+      .then((prod) => {
+        if (active && prod) {
+          setProdutoSelecionado({ ...prod, type: "produto" });
+          setEditandoProduto(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setModalMsg({
+            visible: true,
+            mensagem: "Produto vinculado não encontrado na loja atual.",
+            tipo: "erro",
+          });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [focusId]);
 
   // função para atualizar estado local após criação, edição ou alteração de status de um produto
   // 1 - Sincroniza imediatamente o item atualizado na lista e no modal aberto
@@ -213,8 +243,9 @@ const Produtos = () => {
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200 ml-auto"
+            className="btn-secondary px-3.5 py-2 text-xs font-medium flex items-center gap-1.5 ml-auto"
           >
+            <FiSliders size={13} />
             {showFilters ? "Ocultar filtros" : "Mostrar filtros"}
           </button>
         </div>
@@ -314,10 +345,18 @@ const Produtos = () => {
       {produtoSelecionado && !editandoProduto && (
         <ModalProduto
           produtoSelecionado={produtoSelecionado}
-          fecharModal={() => setProdutoSelecionado(null)}
+          fecharModal={() => {
+            setProdutoSelecionado(null);
+            if (focusId) {
+              setSearchParams({}, { replace: true });
+            }
+          }}
           onItemUpdated={atualizarProduto}
           onItemDeleted={() => {
             setProdutoSelecionado(null);
+            if (focusId) {
+              setSearchParams({}, { replace: true });
+            }
             carregarProdutos();
           }}
         />

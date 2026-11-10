@@ -9,6 +9,7 @@ import { useTenantStore } from "../store/useTenantStore.js";
 import { usersApi } from "../services/api/index.js";
 
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
+import ModalConfirmacao from "../components/common/ModalConfirmacao.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
 import { formatImageUrl } from "../utils/imageHelper.js";
@@ -48,6 +49,8 @@ const Usuarios = () => {
   const [totalUsuarios, setTotalUsuarios] = useState(0);
   const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
   const [editarUser, setEditarUser] = useState({ visible: false, userData: null, type: "usuario" });
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -112,18 +115,19 @@ const Usuarios = () => {
     }
   };
 
-  // função para excluir definitivamente o usuário preservando histórico de pedidos e seu antigo ID (vendedorRefId)
-  const handleExcluirUsuario = async (user) => {
-    const confirmacao = window.confirm(
-      `Deseja excluir definitivamente o usuário "${user.nome}" (ID #${user.id})?\n\nA conta será removida e o acesso encerrado na hora, mas todas as vendas anteriores continuarão preservadas e pesquisáveis pelo ID #${user.id} na aba Desempenho.`
-    );
-    if (!confirmacao) return;
+  // função para abrir confirmação estilizada antes de excluir definitivamente o usuário preservando antigo ID
+  const handleExcluirUsuario = (user) => {
+    setConfirmDeleteUser(user);
+  };
 
+  const executeExcluirUsuario = async () => {
+    if (!confirmDeleteUser) return;
+    setDeletingUser(true);
     try {
-      const result = await usersApi.deleteUser(user.id);
+      const result = await usersApi.deleteUser(confirmDeleteUser.id);
       setModal({
         visible: true,
-        mensagem: result?.message || `Usuário "${user.nome}" excluído definitivamente!`,
+        mensagem: result?.message || `Usuário "${confirmDeleteUser.nome}" excluído definitivamente!`,
         tipo: "sucesso",
       });
       await carregarUsuarios();
@@ -133,6 +137,9 @@ const Usuarios = () => {
         mensagem: error.message || "Erro ao excluir o usuário.",
         tipo: "erro",
       });
+    } finally {
+      setDeletingUser(false);
+      setConfirmDeleteUser(null);
     }
   };
 
@@ -367,6 +374,21 @@ const Usuarios = () => {
           onItemUpdated={carregarUsuarios}
         />
       )}
+
+      <ModalConfirmacao
+        isOpen={Boolean(confirmDeleteUser)}
+        variant="danger"
+        loading={deletingUser}
+        title="Excluir colaborador"
+        message={
+          confirmDeleteUser
+            ? `Deseja excluir definitivamente "${confirmDeleteUser.nome}" (ID #${confirmDeleteUser.id})?\n\nA conta e o acesso serão encerrados na hora, mas todas as vendas anteriores continuarão preservadas e pesquisáveis pelo ID #${confirmDeleteUser.id} na aba Desempenho.`
+            : ""
+        }
+        confirmText="Excluir usuário"
+        onCancel={() => setConfirmDeleteUser(null)}
+        onConfirm={executeExcluirUsuario}
+      />
     </div>
   );
 };

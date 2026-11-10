@@ -1,17 +1,27 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { productsApi } from "../../services/api/index.js";
+import { useTenantStore } from "../../store/useTenantStore.js";
+
+// arquivo responsável pelo painel lateral de avisos de baixo estoque com quantidades exatas, percentual e atalho direto
 
 export default function LowStockAlert() {
+  const navigate = useNavigate();
+  const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const [lowStockList, setLowStockList] = useState([]);
+  const [totalLowStock, setTotalLowStock] = useState(0);
 
   useEffect(() => {
-    productsApi.getProductStats()
-      .then((data) => setLowStockList(data.lowStockList || []))
+    productsApi
+      .getProductStats()
+      .then((data) => {
+        setLowStockList((data.lowStockList || []).slice(0, 6));
+        setTotalLowStock(data.lowStock || (data.lowStockList || []).length);
+      })
       .catch(console.error);
-  }, []);
+  }, [selectedLojaId]);
 
-  // Quanto menor a quantidade, mais crítico — usado como % de preenchimento da barra.
-  const maxQty = Math.max(...lowStockList.map((p) => p.quantidade), 1);
+  const MIN_THRESHOLD = 10;
 
   return (
     <div className="glass-card p-6 h-full flex flex-col">
@@ -20,37 +30,47 @@ export default function LowStockAlert() {
           Baixo estoque
         </h2>
         <span className="font-mono text-[11px] text-text-secondary">
-          {lowStockList.length} {lowStockList.length === 1 ? "item" : "itens"}
+          {totalLowStock} {totalLowStock === 1 ? "produto" : "produtos"} (&lt; 10 un.)
         </span>
       </div>
 
       {lowStockList.length > 0 ? (
-        <div className="space-y-4 flex-1">
+        <div className="space-y-3 flex-1">
           {lowStockList.map((prod) => {
-            const severity = 1 - prod.quantidade / maxQty; // 0 a 1, maior = mais crítico
+            const pctOfMin = Math.min(Math.round((prod.quantidade / MIN_THRESHOLD) * 100), 100);
+            const deficitPct = Math.max(100 - pctOfMin, 8);
             return (
-              <div key={prod.id}>
-                <div className="flex items-center justify-between mb-1.5">
+              <button
+                key={prod.id}
+                type="button"
+                onClick={() => navigate(`/dashboard/produtos?focus=${prod.id}`)}
+                className="w-full text-left p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors group"
+                title={`Abrir "${prod.nome}" em Produtos`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1.5">
                   <span
-                    className="text-sm text-text-primary truncate max-w-[140px]"
+                    className="text-sm text-text-primary truncate max-w-[165px] group-hover:text-accent-purple transition-colors"
                     title={prod.nome}
                   >
                     {prod.nome}
                   </span>
-                  <span className="font-mono text-xs text-text-secondary shrink-0">
-                    {prod.quantidade} un.
+                  <span className="font-mono text-[11px] text-text-secondary shrink-0">
+                    <strong className={prod.quantidade <= 3 ? "text-accent-red" : "text-text-primary"}>
+                      {prod.quantidade} un.
+                    </strong>{" "}
+                    ({pctOfMin}%)
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-[var(--color-border-light)] overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-1000 ease-out"
                     style={{
-                      width: `${Math.max(severity * 100, 8)}%`,
-                      backgroundColor: severity > 0.6 ? "var(--color-accent-red)" : "var(--color-accent-pink)",
+                      width: `${deficitPct}%`,
+                      backgroundColor: prod.quantidade <= 3 ? "var(--color-accent-red)" : "var(--color-accent-pink)",
                     }}
                   />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

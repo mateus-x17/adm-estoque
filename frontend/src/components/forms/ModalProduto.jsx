@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import EditarItem from "./EditarItem.jsx";
 import ModalMensagem from "../common/ModalMensagem.jsx";
+import ModalConfirmacao from "../common/ModalConfirmacao.jsx";
 import { formatImageUrl } from "../../utils/imageHelper.js";
 import { productsApi } from "../../services/api/index.js";
 import { useUserStore } from "../../store/userStore.js";
@@ -16,6 +17,7 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
   const [editando, setEditando] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "", closeAfter: false });
+  const [confirmState, setConfirmState] = useState({ isOpen: false, action: null });
 
   const user = useUserStore((state) => state.user);
   const canManage = user?.role === "ADMIN" || user?.role === "GERENTE";
@@ -23,15 +25,10 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
   const isInactive = produtoSelecionado?.ativo === false;
 
   // função para alternar o status lógico (ativo/inativo) do produto via Soft Delete
-  // 1 - Solicita confirmação caso esteja inativando um item do catálogo
+  // 1 - Quando estiver inativando, abre o modal estilizado de confirmação do sistema
   // 2 - Chama productsApi.toggleProductStatus enviando o novo estado booleano
-  // 3 - Atualiza a lista pai e exibe feedback ao usuário
-  const handleToggleStatus = async () => {
+  const executeToggleStatus = async () => {
     const novoStatus = isInactive;
-    if (!novoStatus && !window.confirm(`Deseja inativar o produto "${produtoSelecionado.nome}"?`)) {
-      return;
-    }
-
     setProcessing(true);
     try {
       const updated = await productsApi.toggleProductStatus(produtoSelecionado.id, novoStatus);
@@ -53,22 +50,22 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
       });
     } finally {
       setProcessing(false);
+      setConfirmState({ isOpen: false, action: null });
     }
   };
 
-  // função para excluir ou aplicar Soft Delete automático no produto (exclusivo ADMIN)
-  // 1 - Solicita confirmação explícita antes de chamar DELETE /products/:id
-  // 2 - Quando possuir movimentações históricas, trata softDeleted=true retornando produto inativo
-  // 3 - Recarrega a listagem principal e agenda o fechamento do modal
-  const handleDelete = async () => {
-    if (
-      !window.confirm(
-        `Deseja excluir o produto "${produtoSelecionado.nome}"? Caso possua vendas/reposições registradas, ele será preservado como inativo.`
-      )
-    ) {
+  const handleToggleStatus = () => {
+    if (isInactive) {
+      executeToggleStatus();
       return;
     }
+    setConfirmState({ isOpen: true, action: "inactivate" });
+  };
 
+  // função para excluir ou aplicar Soft Delete automático no produto (exclusivo ADMIN)
+  // 1 - Abre modal de confirmação estilizado antes de chamar DELETE /products/:id
+  // 2 - Quando possuir movimentações históricas, trata softDeleted=true retornando produto inativo
+  const executeDelete = async () => {
     setProcessing(true);
     try {
       const result = await productsApi.deleteProduct(produtoSelecionado.id);
@@ -95,7 +92,12 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
       });
     } finally {
       setProcessing(false);
+      setConfirmState({ isOpen: false, action: null });
     }
+  };
+
+  const handleDelete = () => {
+    setConfirmState({ isOpen: true, action: "delete" });
   };
 
   return createPortal(
@@ -269,6 +271,21 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
           }}
         />
       )}
+
+      <ModalConfirmacao
+        isOpen={confirmState.isOpen}
+        variant={confirmState.action === "delete" ? "danger" : "warning"}
+        loading={processing}
+        title={confirmState.action === "delete" ? "Excluir produto" : "Inativar produto"}
+        message={
+          confirmState.action === "delete"
+            ? `Deseja excluir o produto "${produtoSelecionado.nome}"? Caso possua vendas ou reposições registradas, ele será preservado como inativo.`
+            : `Deseja inativar o produto "${produtoSelecionado.nome}"? Ele não poderá receber novas movimentações até ser reativado.`
+        }
+        confirmText={confirmState.action === "delete" ? "Sim, excluir" : "Sim, inativar"}
+        onCancel={() => setConfirmState({ isOpen: false, action: null })}
+        onConfirm={confirmState.action === "delete" ? executeDelete : executeToggleStatus}
+      />
     </div>,
     document.body
   );
