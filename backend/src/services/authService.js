@@ -1,176 +1,221 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { prisma } from '../config/prismaClient.js';
-import { AppError } from '../utils/errorHandler.js';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { prisma } from "../config/prismaClient.js";
+import { AppError } from "../utils/errorHandler.js";
+import { generateSlug } from "../utils/tenantScope.js";
+import { sanitizeUser } from "../utils/sanitizers.js";
 
-// arquivo responsável pelas regras de autenticação, criação de estabelecimentos (tenants) e gestão de tokens JWT
+// arquivo responsável pelas regras de autenticação (portais Admin e Loja), abertura de Organizações e emissão de JWT
 
-// função utilitária local para gerar um slug limpo e padronizado a partir do nome da loja
-// 1 - Normaliza acentos e caracteres especiais em ASCII simples
-// 2 - Converte tudo para minúsculas, substitui espaços por hífens e remove caracteres inválidos
-// 3 - Garante que o slug resultante não tenha hífens duplicados nem nas pontas
-function generateSlug(text) {
-  return String(text || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+// função auxiliar para construir payload seguro do token JWT e objeto resumido do usuário
+// 1 - Assina token de 8h carregando id, role, organizacaoId e lojaId (null para ADMIN global da rede)
+function buildSessionPayload(user) {
+  const token = jwt.sign(
+    {
+      id: user.id,
+      role: user.role,
+      organizacaoId: user.organizacaoId,
+      organizacaoSlug: user.organizacao.slug,
+      organizacaoNome: user.organizacao.nome,
+      lojaId: user.lojaId,
+      lojaSlug: user.loja?.slug || null,
+      lojaNome: user.loja?.nome || null,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "8h" }
+  );
+
+  return { token, user: sanitizeUser(user) };
 }
 
-// função utilitária local para limpar dados sensíveis antes de retornar ao cliente
-// 1 - Recebe o objeto de usuário completo do banco de dados
-// 2 - Remove a propriedade 'senha' (hash bcrypt) garantindo que nunca vaze na API
-// 3 - Retorna o objeto seguro contendo os dados básicos do usuário e da empresa vinculada
-export function sanitizeUser(user) {
-  if (!user) return null;
-  const { senha, ...safe } = user;
-  return safe;
-}
-
-// serviço responsável por autenticar um usuário em um estabelecimento (suporta e-mail único por loja)
-// 1 - Normaliza o e-mail e valida a presença obrigatória das credenciais
-// 2 - Se o código/slug da loja for informado, busca exatamente o usuário naquela loja específica
-// 3 - Se o slug não for informado, busca contas com aquele e-mail; caso exista em múltiplas lojas com a mesma senha, solicita seleção da loja
-// 4 - Verifica se tanto o usuário quanto a loja estão ativos (regra de Soft Delete)
-// 5 - Gera um token JWT contendo id, role, empresaId, empresaSlug e empresaNome, válido por 8 horas
-export async function authenticateUser(email, senha, lojaSlug = null) {
-  if (!email || !senha) throw new AppError('Email e senha são obrigatórios', 400);
+// serviço para autenticar colaborador ou administrador respeitando portais e múltiplas organizações
+// 1 - Normaliza e-mail e verifica credenciais obrigatórias
+// 2 - Se organizacaoSlug for informado, busca diretamente na organização escolhida; caso contrário localiza todas as contas com o e-mail
+// 3 - Valida senha com bcryptjs; se o usuário atuar em 2+ organizações ativas, retorna requiresOrgSelection
+// 4 - Aplica regra opcional de portal ('admin' exige role ADMIN; 'loja' orienta ADMIN a entrar pelo Portal Admin)
+// 5 - Bloqueia acesso se a Organização ou a Loja do colaborador estiverem inativas (403)
+export async function authenticateUser(email, senha, organizacaoSlug = null, portal = null) {
+  if (!email || !senha) throw new AppError("Email e senha são obrigatórios", 400);
 
   const normalizedEmail = email.trim().toLowerCase();
-  const normalizedSlug = lojaSlug ? generateSlug(lojaSlug) : null;
+  const normalizedOrgSlug = organizacaoSlug ? generateSlug(organizacaoSlug) : null;
+  const normalizedPortal = portal ? String(portal).trim().toLowerCase() : null;
 
-  let matchedUser = null;
+  let candidates = [];
 
-  if (normalizedSlug) {
-    // Busca direta na loja informada
-    const empresa = await prisma.empresa.findUnique({ where: { slug: normalizedSlug } });
-    if (!empresa) throw new AppError('Estabelecimento ou credenciais inválidas', 401);
+  if (normalizedOrgSlug) {
+    const organizacao = await prisma.organizacao.findUnique({ where: { slug: normalizedOrgSlug } });
+    if (!organizacao) throw new AppError("Organização ou credenciais inválidas", 401);
 
     const user = await prisma.usuario.findUnique({
       where: {
-        empresaId_email: {
-          empresaId: empresa.id,
+        organizacaoId_email: {
+          organizacaoId: organizacao.id,
           email: normalizedEmail,
         },
       },
-      include: { empresa: true },
+      include: { organizacao: true, loja: true },
     });
 
-    if (!user) throw new AppError('Credenciais inválidas', 401);
+    if (!user) throw new AppError("Credenciais inválidas", 401);
     const isValid = await bcrypt.compare(senha, user.senha);
-    if (!isValid) throw new AppError('Credenciais inválidas', 401);
+    if (!isValid) throw new AppError("Credenciais inválidas", 401);
 
-    matchedUser = user;
+    candidates = [user];
   } else {
-    // Busca por e-mail considerando que o mesmo e-mail pode existir em mais de uma loja
-    const candidates = await prisma.usuario.findMany({
+    const users = await prisma.usuario.findMany({
       where: { email: normalizedEmail },
-      include: { empresa: true },
+      include: { organizacao: true, loja: true },
     });
 
-    if (candidates.length === 0) throw new AppError('Credenciais inválidas', 401);
+    if (users.length === 0) throw new AppError("Credenciais inválidas", 401);
 
-    // Verifica em quais contas candidatas a senha fornecida é válida
-    const validCandidates = [];
-    for (const candidate of candidates) {
+    for (const candidate of users) {
       const isValid = await bcrypt.compare(senha, candidate.senha);
-      if (isValid) validCandidates.push(candidate);
+      if (isValid) candidates.push(candidate);
     }
 
-    if (validCandidates.length === 0) throw new AppError('Credenciais inválidas', 401);
+    if (candidates.length === 0) throw new AppError("Credenciais inválidas", 401);
+  }
 
-    if (validCandidates.length > 1) {
-      // Usuário possui o mesmo e-mail e senha em múltiplas lojas: retorna as opções ativas para escolha
-      const activeStores = validCandidates
-        .filter((u) => u.ativo && u.empresa?.ativo)
-        .map((u) => ({
-          id: u.empresa.id,
-          nome: u.empresa.nome,
-          slug: u.empresa.slug,
-        }));
-
-      if (activeStores.length === 0) {
-        throw new AppError('Sua conta ou estabelecimento está inativo', 403);
-      }
-
-      if (activeStores.length > 1) {
-        return {
-          requiresStoreSelection: true,
-          stores: activeStores,
-        };
-      }
-
-      // Apenas uma das contas está ativa
-      matchedUser = validCandidates.find((u) => u.ativo && u.empresa?.ativo);
-    } else {
-      matchedUser = validCandidates[0];
+  // Filtragem opcional por portal de login (Portal Admin vs Portal da Loja)
+  if (normalizedPortal === "admin") {
+    const adminCandidates = candidates.filter((u) => u.role === "ADMIN");
+    if (adminCandidates.length === 0) {
+      throw new AppError(
+        "Esta conta não possui privilégio de Administrador. Acesse pelo Portal da Loja (/login).",
+        403
+      );
     }
+    candidates = adminCandidates;
+  } else if (normalizedPortal === "loja") {
+    const staffCandidates = candidates.filter((u) => u.role !== "ADMIN");
+    if (staffCandidates.length === 0) {
+      throw new AppError(
+        "Contas de Administrador da rede devem acessar pelo Portal do Administrador (/admin/login).",
+        403
+      );
+    }
+    candidates = staffCandidates;
   }
 
-  // Checa bloqueios de Soft Delete (usuário ou loja inativados)
-  if (!matchedUser.ativo) {
-    throw new AppError('Esta conta de usuário foi desativada pelo administrador', 403);
-  }
-  if (!matchedUser.empresa || !matchedUser.empresa.ativo) {
-    throw new AppError('O estabelecimento vinculado a esta conta está desativado', 403);
+  let matchedUser = null;
+
+  if (candidates.length > 1) {
+    const activeOrgs = candidates
+      .filter((u) => u.organizacao?.ativo && (u.role === "ADMIN" || u.loja?.ativo))
+      .map((u) => ({
+        id: u.organizacao.id,
+        nome: u.organizacao.nome,
+        slug: u.organizacao.slug,
+        role: u.role,
+        lojaNome: u.loja?.nome || "Todas as Lojas",
+      }));
+
+    if (activeOrgs.length === 0) {
+      throw new AppError("Sua organização ou loja vinculada está inativa", 403);
+    }
+
+    if (activeOrgs.length > 1) {
+      return {
+        requiresOrgSelection: true,
+        organizations: activeOrgs,
+      };
+    }
+
+    matchedUser = candidates.find(
+      (u) => u.organizacao?.ativo && (u.role === "ADMIN" || u.loja?.ativo)
+    );
+  } else {
+    matchedUser = candidates[0];
   }
 
-  const token = jwt.sign(
-    {
-      id: matchedUser.id,
-      role: matchedUser.role,
-      empresaId: matchedUser.empresaId,
-      empresaSlug: matchedUser.empresa.slug,
-      empresaNome: matchedUser.empresa.nome,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '8h' }
-  );
+  if (!matchedUser.organizacao || !matchedUser.organizacao.ativo) {
+    throw new AppError("A organização vinculada a esta conta está desativada", 403);
+  }
 
-  return { token, user: sanitizeUser(matchedUser) };
+  if (matchedUser.role !== "ADMIN" && (!matchedUser.loja || !matchedUser.loja.ativo)) {
+    throw new AppError("A loja vinculada a esta conta está desativada", 403);
+  }
+
+  const session = buildSessionPayload(matchedUser);
+
+  if (matchedUser.role === "ADMIN") {
+    const lojas = await prisma.loja.findMany({
+      where: { organizacaoId: matchedUser.organizacaoId },
+      orderBy: [{ ativo: "desc" }, { nome: "asc" }],
+    });
+    return { ...session, lojas };
+  }
+
+  return session;
 }
 
-// serviço responsável por cadastrar um novo estabelecimento (tenant) e seu usuário administrador inicial
-// 1 - Valida os campos obrigatórios do responsável e da loja (nomeLoja, nome, email, senha)
-// 2 - Gera ou sanitiza o slug único da loja e verifica conflitos no banco
-// 3 - Executa uma transação atômica criando a Empresa e o primeiro Usuário com papel ADMIN
-// 4 - Emite o token JWT inicial da sessão para login automático pós-cadastro
-export async function registerStoreAndAdmin({ nomeLoja, slug, cnpj, telefone, nome, email, senha }) {
-  if (!nome || !email || !senha || !nomeLoja) {
-    throw new AppError('Nome do responsável, nome da loja, email e senha são obrigatórios', 400);
+// serviço para registrar uma nova Organização (Rede), sua 1ª Loja e o usuário fundador ADMIN
+// 1 - Valida presença de nome da organização/loja, responsável, e-mail e senha
+// 2 - Gera slugs únicos para a Organização e para a Loja Matriz inicial
+// 3 - Executa transação atômica criando Organizacao -> Loja -> Usuario (role ADMIN, lojaId null)
+// 4 - Emite o JWT inicial e devolve token, usuário, organização e loja criada
+export async function registerOrganizationAndAdmin({
+  nomeOrganizacao,
+  nomeLoja,
+  slug,
+  cnpj,
+  telefone,
+  endereco,
+  nome,
+  email,
+  senha,
+}) {
+  const orgTitle = String(nomeOrganizacao || nomeLoja || "").trim();
+  const storeTitle = String(nomeLoja || (orgTitle ? `${orgTitle} Matriz` : "")).trim();
+
+  if (!nome || !email || !senha || !orgTitle || !storeTitle) {
+    throw new AppError(
+      "Nome do administrador, nome da organização/loja, e-mail e senha são obrigatórios",
+      400
+    );
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const baseSlug = generateSlug(slug || nomeLoja);
+  const baseOrgSlug = generateSlug(slug || orgTitle);
+  const storeSlug = generateSlug(storeTitle) || "matriz";
 
-  if (!baseSlug) {
-    throw new AppError('Nome da loja inválido para geração do identificador', 400);
+  if (!baseOrgSlug) {
+    throw new AppError("Nome inválido para geração do identificador da organização", 400);
   }
 
-  // Verifica unicidade do slug; se foi gerado automaticamente e colidir, anexa sufixo único
-  let finalSlug = baseSlug;
-  const slugExists = await prisma.empresa.findUnique({ where: { slug: finalSlug } });
-  if (slugExists) {
+  let finalOrgSlug = baseOrgSlug;
+  const orgExists = await prisma.organizacao.findUnique({ where: { slug: finalOrgSlug } });
+  if (orgExists) {
     if (slug) {
-      throw new AppError('Já existe um estabelecimento com este identificador (slug)', 400);
+      throw new AppError("Já existe uma organização registrada com este identificador (slug)", 400);
     }
-    finalSlug = `${baseSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+    finalOrgSlug = `${baseOrgSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
   }
 
   const hashed = await bcrypt.hash(senha, 10);
 
   const created = await prisma.$transaction(async (tx) => {
-    const empresa = await tx.empresa.create({
+    const organizacao = await tx.organizacao.create({
       data: {
-        nome: nomeLoja.trim(),
-        slug: finalSlug,
-        cnpj: cnpj ? cnpj.trim() : null,
-        telefone: telefone ? telefone.trim() : null,
+        nome: orgTitle,
+        slug: finalOrgSlug,
+        cnpj: cnpj ? String(cnpj).trim() : null,
+        telefone: telefone ? String(telefone).trim() : null,
         ativo: true,
+      },
+    });
+
+    const loja = await tx.loja.create({
+      data: {
+        nome: storeTitle,
+        slug: storeSlug,
+        cnpj: cnpj ? String(cnpj).trim() : null,
+        telefone: telefone ? String(telefone).trim() : null,
+        endereco: endereco ? String(endereco).trim() : null,
+        ativo: true,
+        organizacaoId: organizacao.id,
       },
     });
 
@@ -179,31 +224,21 @@ export async function registerStoreAndAdmin({ nomeLoja, slug, cnpj, telefone, no
         nome: nome.trim(),
         email: normalizedEmail,
         senha: hashed,
-        role: 'ADMIN', // Primeiro usuário fundador do estabelecimento sempre é ADMIN
-        ativo: true,
-        empresaId: empresa.id,
+        role: "ADMIN",
+        organizacaoId: organizacao.id,
+        lojaId: null, // Admin gerencia todas as lojas da Organização
       },
-      include: { empresa: true },
+      include: { organizacao: true, loja: true },
     });
 
-    return { empresa, adminUser };
+    return { organizacao, loja, adminUser };
   });
 
-  const token = jwt.sign(
-    {
-      id: created.adminUser.id,
-      role: created.adminUser.role,
-      empresaId: created.empresa.id,
-      empresaSlug: created.empresa.slug,
-      empresaNome: created.empresa.nome,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '8h' }
-  );
+  const session = buildSessionPayload(created.adminUser);
 
   return {
-    token,
-    user: sanitizeUser(created.adminUser),
-    empresa: created.empresa,
+    ...session,
+    organizacao: created.organizacao,
+    lojas: [created.loja],
   };
 }

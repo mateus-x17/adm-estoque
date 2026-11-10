@@ -7,7 +7,7 @@ import {
   listUsers,
   getUser,
   updateUser,
-  toggleUserStatus,
+  transferUserStore,
   deleteUser,
   getMe,
   updateMe,
@@ -15,14 +15,12 @@ import {
 } from "../controllers/userController.js";
 import { upload } from "../config/multerConfig.js";
 
-// arquivo de rotas para gerenciamento de colaboradores do estabelecimento
+// arquivo de rotas para gestão de colaboradores e transferência entre lojas da Organização
 
 const router = express.Router();
 
-// 1 - Autenticação obrigatória com verificação de tenant e status ativo
 router.use(authMiddleware);
 
-// 2 - Rota "Meu Perfil" acessível por qualquer colaborador logado da loja
 router.get("/me", getMe);
 router.put(
   "/me",
@@ -31,10 +29,10 @@ router.put(
   updateMe
 );
 
-// 3 - Lista otimizada de colaboradores da loja para dropdowns (restrita a gerentes e administradores)
+// Lista otimizada de vendedores para filtros/selects (vedada ao OPERADOR por sigilo)
 router.get("/names", permit("ADMIN", "GERENTE"), getUserNames);
 
-// 4 - Barreira administrativa: rotas restritas exclusivamente ao nível ADMIN da loja
+// Gestão completa de equipe exclusiva do ADMIN da Organização
 router.use(permit("ADMIN"));
 
 router.post(
@@ -54,9 +52,10 @@ router.put(
   updateUser
 );
 
-// 5 - Rota de Soft Delete / Reativação rápida de colaborador
-router.patch("/:id/status", validateRequest({ required: ["ativo"] }), toggleUserStatus);
+// Transferência rápida de Gerente ou Operador para outra filial da rede
+router.patch("/:id/store", validateRequest({ required: ["lojaId"] }), transferUserStore);
 
+// Exclusão definitiva do usuário mantendo vendedorRefId e snapshots históricos em Pedidos/Movimentos
 router.delete("/:id", deleteUser);
 
 export default router;

@@ -3,42 +3,62 @@ import * as userService from "../services/userService.js";
 import { AppError } from "../utils/errorHandler.js";
 import { uploadToCloudinary, getTenantFolder } from "../config/cloudinaryConfig.js";
 import { prisma } from "../config/prismaClient.js";
+import { resolveReadScope } from "../utils/tenantScope.js";
 const log = childLogger("userController");
 
-// arquivo responsável por intermediar requisições HTTP para a gestão de usuários isolados por loja
+// arquivo responsável por controlar requisições HTTP de colaboradores isolados por Organização e Loja
 
-// Cache em memória para dropdowns de nomes de usuários indexado por empresaId com TTL de 30s
-const namesCacheByTenant = new Map();
+const namesCacheByScope = new Map();
 const NAMES_CACHE_TTL_MS = 30 * 1000;
 
-// função para invalidar o cache de dropdown de uma loja ou de todas
-export function invalidateUserNamesCache(empresaId = null) {
-  if (empresaId) {
-    namesCacheByTenant.delete(Number(empresaId));
-  } else {
-    namesCacheByTenant.clear();
+// função para invalidar o cache de dropdown de colaboradores de uma Organização inteira
+export function invalidateUserNamesCache(organizacaoId = null) {
+  if (!organizacaoId) {
+    namesCacheByScope.clear();
+    return;
+  }
+  const prefix = `${Number(organizacaoId)}:`;
+  for (const key of namesCacheByScope.keys()) {
+    if (key.startsWith(prefix)) {
+      namesCacheByScope.delete(key);
+    }
   }
 }
 
-// função para criação de novos colaboradores dentro do estabelecimento
-// 1 - Realiza upload de foto de avatar na pasta dedicada do tenant no Cloudinary ('estoque-os/lojas/<loja>/usuarios')
-// 2 - Chama userService.createUser passando os dados validados e o empresaId do administrador logado
-// 3 - Invalida cache de dropdown e retorna status 201 com o novo colaborador
+// função auxiliar para resolver a pasta correta no Cloudinary conforme a loja selecionada para o usuário
+// 1 - Busca slug da loja caso lojaId esteja presente; caso contrário utiliza subpasta 'corporativo'
+async function resolveUserCloudinaryFolder(orgSlug, organizacaoId, lojaId) {
+  if (!lojaId) {
+    return getTenantFolder(orgSlug, "corporativo", "usuarios");
+  }
+  const loja = await prisma.loja.findFirst({
+    where: { id: Number(lojaId), organizacaoId: Number(organizacaoId) },
+    select: { slug: true },
+  });
+  return getTenantFolder(orgSlug, loja?.slug || lojaId, "usuarios");
+}
+
+// função para criar colaborador ou administrador na Organização (exclusivo ADMIN)
+// 1 - Faz upload do avatar para subpasta da organização/loja no Cloudinary quando houver arquivo
+// 2 - Cria usuário via userService.createUser e limpa cache de nomes
 export async function createUser(req, res, next) {
   try {
-    const empresaId = req.user.empresaId;
-    const tenantSlug = req.user.empresaSlug || empresaId;
+    const organizacaoId = req.user.organizacaoId;
+    const orgSlug = req.user.organizacaoSlug || organizacaoId;
 
     let imagem = undefined;
     if (req.file) {
-      const folder = getTenantFolder(tenantSlug, "usuarios");
+      const folder = await resolveUserCloudinaryFolder(orgSlug, organizacaoId, req.body?.lojaId);
       imagem = await uploadToCloudinary(req.file.path, folder);
     }
 
-    const user = await userService.createUser(req.body, imagem, empresaId);
-    invalidateUserNamesCache(empresaId);
+    const user = await userService.createUser(req.body, imagem, organizacaoId);
+    invalidateUserNamesCache(organizacaoId);
 
-    log.info({ user: req.user?.id, empresaId, action: 'CREATE_USER', targetId: user.id }, 'Colaborador criado com sucesso');
+    log.info(
+      { user: req.user?.id, organizacaoId, action: "CREATE_USER", targetId: user.id },
+      "Colaborador criado na organização"
+    );
     res.status(201).json(user);
   } catch (err) {
     log.error({ err }, "Erro ao criar colaborador");
@@ -46,61 +66,54 @@ export async function createUser(req, res, next) {
   }
 }
 
-// função para buscar apenas nomes e IDs dos colaboradores da loja atual (ideal para selects e filtros)
-// 1 - Consulta no cache local em memória pelo empresaId da sessão para entrega em < 1ms
-// 2 - Em caso de cache miss, busca apenas colaboradores ativos daquela loja ordenados por nome
-// 3 - Salva no cache com TTL de 30s e retorna o array para a interface
+// função para listar nomes e IDs de colaboradores ativos para seletores (ADMIN ou GERENTE)
+// 1 - Respeita escopo: GERENTE recebe apenas vendedores da sua loja; ADMIN pode filtrar por loja ou ver rede inteira
+// 2 - Utiliza cache em memória com TTL de 30 segundos por chave organização+loja
 export async function getUserNames(req, res, next) {
   try {
-    const empresaId = req.user.empresaId;
+    const scope = await resolveReadScope(req);
+    const cacheKey = `${scope.organizacaoId}:${scope.lojaId || "all"}`;
     const now = Date.now();
-    const cached = namesCacheByTenant.get(empresaId);
+    const cached = namesCacheByScope.get(cacheKey);
 
-    if (cached && (now - cached.timestamp < NAMES_CACHE_TTL_MS)) {
+    if (cached && now - cached.timestamp < NAMES_CACHE_TTL_MS) {
       return res.json(cached.data);
     }
 
     const users = await prisma.usuario.findMany({
       where: {
-        empresaId: Number(empresaId),
-        ativo: true,
+        organizacaoId: scope.organizacaoId,
+        ...(scope.lojaId ? { lojaId: scope.lojaId } : {}),
       },
-      select: { id: true, nome: true, role: true },
-      orderBy: { nome: 'asc' },
+      select: {
+        id: true,
+        nome: true,
+        role: true,
+        lojaId: true,
+        loja: { select: { id: true, nome: true } },
+      },
+      orderBy: { nome: "asc" },
     });
 
-    namesCacheByTenant.set(empresaId, { data: users, timestamp: now });
-
-    log.info({ user: req.user?.id, empresaId, action: 'GET_USER_NAMES' }, 'Lista de nomes da loja consultada');
+    namesCacheByScope.set(cacheKey, { data: users, timestamp: now });
     res.json(users);
   } catch (err) {
-    log.error({ err }, 'Erro ao buscar nomes de colaboradores');
+    log.error({ err }, "Erro ao buscar nomes de colaboradores");
     next(err);
   }
 }
 
-// função para listar os colaboradores da loja com paginação, busca e filtros de cargo e status
-// 1 - Extrai parâmetros page, limit, search, role e status ('ativos', 'inativos', 'todos')
-// 2 - Delega a listagem ao serviço garantindo a clausula empresaId
-// 3 - Retorna dados sanitizados e metadados de paginação
+// função para listar colaboradores paginados da Organização (exclusivo ADMIN)
 export async function listUsers(req, res, next) {
   try {
-    const empresaId = req.user.empresaId;
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
-    const search = req.query.search || "";
-    const role = req.query.role || "";
-    const status = req.query.status || "todos";
-
     const users = await userService.listUsers({
-      empresaId,
-      page,
-      limit,
-      search,
-      role,
-      status,
+      organizacaoId: req.user.organizacaoId,
+      lojaId: req.query.lojaId || "",
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 10,
+      search: req.query.search || "",
+      role: req.query.role || "",
     });
-
     res.json(users);
   } catch (err) {
     log.error({ err }, "Erro ao listar usuários");
@@ -108,10 +121,10 @@ export async function listUsers(req, res, next) {
   }
 }
 
-// função para buscar dados de um usuário pelo ID garantindo isolamento da loja
+// função para consultar detalhes de um colaborador da Organização
 export async function getUser(req, res, next) {
   try {
-    const user = await userService.getUserById(req.params.id, req.user.empresaId);
+    const user = await userService.getUserById(req.params.id, req.user.organizacaoId);
     res.json(user);
   } catch (err) {
     log.error({ err }, "Erro ao buscar usuário");
@@ -119,18 +132,15 @@ export async function getUser(req, res, next) {
   }
 }
 
-// função para atualizar colaboradores da loja
-// 1 - Salva nova imagem na pasta dedicada do tenant no Cloudinary se houver upload
-// 2 - Repassa dados higienizados e empresaId ao serviço
-// 3 - Invalida cache de dropdown e devolve o usuário atualizado
+// função para atualizar colaborador (incluindo mudança de cargo ou transferência de loja)
 export async function updateUser(req, res, next) {
   try {
-    const empresaId = req.user.empresaId;
-    const tenantSlug = req.user.empresaSlug || empresaId;
+    const organizacaoId = req.user.organizacaoId;
+    const orgSlug = req.user.organizacaoSlug || organizacaoId;
 
     let newImagePath = null;
     if (req.file) {
-      const folder = getTenantFolder(tenantSlug, "usuarios");
+      const folder = await resolveUserCloudinaryFolder(orgSlug, organizacaoId, req.body?.lojaId);
       newImagePath = await uploadToCloudinary(req.file.path, folder);
     }
     const removeImage = req.body.removerImagem === "true";
@@ -140,11 +150,14 @@ export async function updateUser(req, res, next) {
       req.body,
       newImagePath,
       removeImage,
-      empresaId
+      organizacaoId
     );
 
-    invalidateUserNamesCache(empresaId);
-    log.info({ user: req.user?.id, empresaId, action: 'UPDATE_USER', targetId: user.id }, 'Usuário da loja atualizado');
+    invalidateUserNamesCache(organizacaoId);
+    log.info(
+      { user: req.user?.id, organizacaoId, action: "UPDATE_USER", targetId: user.id },
+      "Colaborador atualizado"
+    );
     res.json(user);
   } catch (err) {
     log.error({ err }, "Erro ao atualizar usuário");
@@ -152,45 +165,53 @@ export async function updateUser(req, res, next) {
   }
 }
 
-// função para inativar ou reativar um colaborador (Soft Delete)
-// 1 - Recebe ativo (boolean) do corpo da requisição
-// 2 - Aciona toggleUserStatus validando integridade e impedindo auto-inativação
-// 3 - Invalida caches e retorna o usuário com novo status
-export async function toggleUserStatus(req, res, next) {
+// função rápida para transferir um Gerente ou Operador de uma loja para outra dentro da mesma Organização
+export async function transferUserStore(req, res, next) {
   try {
-    const empresaId = req.user.empresaId;
-    const { ativo } = req.body;
-    const user = await userService.toggleUserStatus(req.params.id, ativo, req.user.id, empresaId);
+    const organizacaoId = req.user.organizacaoId;
+    const { lojaId } = req.body;
+    const user = await userService.transferUserStore(req.params.id, lojaId, organizacaoId);
+    invalidateUserNamesCache(organizacaoId);
 
-    invalidateUserNamesCache(empresaId);
-    log.info({ user: req.user?.id, empresaId, action: 'TOGGLE_USER_STATUS', targetId: user.id, ativo }, 'Status de usuário alterado');
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId,
+        action: "TRANSFER_USER_STORE",
+        targetId: user.id,
+        newLojaId: user.lojaId,
+      },
+      "Colaborador transferido de loja"
+    );
     res.json(user);
   } catch (err) {
+    log.warn({ err }, "Erro ao transferir loja do colaborador");
     next(err);
   }
 }
 
-// função para excluir colaborador da loja
-// 1 - Chama deleteUser: se tiver histórico de movimentações, executa Soft Delete automático preservando auditoria
-// 2 - Retorna resposta informando se foi exclusão física ou inativação lógica
+// função para excluir definitivamente um colaborador preservando vendas/movimentações e antigo ID
 export async function deleteUser(req, res, next) {
   try {
-    const empresaId = req.user.empresaId;
-    const result = await userService.deleteUser(req.params.id, req.user?.id, empresaId);
+    const organizacaoId = req.user.organizacaoId;
+    const result = await userService.deleteUser(req.params.id, req.user?.id, organizacaoId);
 
-    invalidateUserNamesCache(empresaId);
-    log.info({ user: req.user?.id, empresaId, action: 'DELETE_USER', targetId: req.params.id, result }, 'Resultado da exclusão de usuário');
+    invalidateUserNamesCache(organizacaoId);
+    log.info(
+      { user: req.user?.id, organizacaoId, action: "DELETE_USER", targetId: req.params.id },
+      "Exclusão física de usuário concluída com preservação de histórico"
+    );
     res.json(result);
   } catch (err) {
-    log.error({ err }, "Erro ao deletar usuário");
+    log.error({ err }, "Erro ao excluir usuário");
     next(err);
   }
 }
 
-// função para o próprio usuário autenticado buscar suas informações de perfil
+// função para consultar o próprio perfil autenticado
 export async function getMe(req, res, next) {
   try {
-    const user = await userService.getUserById(req.user.id, req.user.empresaId);
+    const user = await userService.getUserById(req.user.id, req.user.organizacaoId);
     res.json(user);
   } catch (err) {
     log.error({ err }, "Erro ao obter perfil logado");
@@ -198,16 +219,20 @@ export async function getMe(req, res, next) {
   }
 }
 
-// função para o próprio colaborador logado atualizar seus dados de perfil
+// função para o próprio usuário atualizar nome, e-mail e avatar (sem autoescalação de cargo)
 export async function updateMe(req, res, next) {
   try {
     const isAdmin = req.user.role === "ADMIN";
-    const empresaId = req.user.empresaId;
-    const tenantSlug = req.user.empresaSlug || empresaId;
+    const organizacaoId = req.user.organizacaoId;
+    const orgSlug = req.user.organizacaoSlug || organizacaoId;
 
     let newImagePath = null;
     if (req.file) {
-      const folder = getTenantFolder(tenantSlug, "usuarios");
+      const folder = getTenantFolder(
+        orgSlug,
+        req.user.lojaSlug || "corporativo",
+        "usuarios"
+      );
       newImagePath = await uploadToCloudinary(req.file.path, folder);
     }
 
@@ -233,14 +258,13 @@ export async function updateMe(req, res, next) {
       updateData,
       newImagePath,
       removeImage,
-      empresaId
+      organizacaoId
     );
 
-    invalidateUserNamesCache(empresaId);
-    log.info({ user: req.user?.id, empresaId, action: 'UPDATE_ME' }, 'Colaborador atualizou o próprio perfil');
+    invalidateUserNamesCache(organizacaoId);
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Erro ao atualizar perfil logado");
+    log.error({ err }, "Erro ao atualizar perfil próprio");
     next(err);
   }
 }

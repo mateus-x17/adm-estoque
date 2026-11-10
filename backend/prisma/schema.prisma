@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Empresa {
+model Organizacao {
   id           Int          @id @default(autoincrement())
   nome         String
   slug         String       @unique
@@ -16,105 +16,198 @@ model Empresa {
   ativo        Boolean      @default(true)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+  lojas        Loja[]
   usuarios     Usuario[]
   produtos     Produto[]
   categorias   Categoria[]
   fornecedores Fornecedor[]
+  pedidos      Pedido[]
   movimentos   Movimento[]
 
   @@index([slug])
   @@index([ativo])
 }
 
-model Usuario {
-  id        Int       @id @default(autoincrement())
-  nome      String
-  email     String
-  senha     String
-  role      Role      @default(OPERADOR)
-  imagem    String?
-  ativo     Boolean   @default(true)
-  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  empresaId Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  movimentos Movimento[]
+model Loja {
+  id            Int          @id @default(autoincrement())
+  nome          String
+  slug          String
+  cnpj          String?
+  telefone      String?
+  endereco      String?
+  ativo         Boolean      @default(true)
+  organizacao   Organizacao  @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  usuarios      Usuario[]
+  produtos      Produto[]
+  categorias    Categoria[]
+  fornecedores  Fornecedor[]
+  pedidos       Pedido[]
+  movimentos    Movimento[]
 
-  @@unique([empresaId, email])
-  @@index([empresaId, email])
-  @@index([empresaId, role])
-  @@index([empresaId, ativo])
+  @@unique([organizacaoId, slug])
+  @@index([organizacaoId, ativo])
+}
+
+model Usuario {
+  id            Int         @id @default(autoincrement())
+  nome          String
+  email         String
+  senha         String
+  role          Role        @default(OPERADOR)
+  imagem        String?
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId Int
+  loja          Loja?       @relation(fields: [lojaId], references: [id], onDelete: SetNull)
+  lojaId        Int?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  pedidos       Pedido[]
+  movimentos    Movimento[]
+
+  @@unique([organizacaoId, email])
+  @@index([organizacaoId, email])
+  @@index([organizacaoId, role])
+  @@index([lojaId])
 }
 
 model Categoria {
-  id        Int       @id @default(autoincrement())
-  nome      String
-  ativo     Boolean   @default(true)
-  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  empresaId Int
-  produtos  Produto[]
+  id            Int         @id @default(autoincrement())
+  nome          String
+  ativo         Boolean     @default(true)
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId Int
+  loja          Loja        @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  lojaId        Int
+  produtos      Produto[]
 
-  @@unique([empresaId, nome])
-  @@index([empresaId])
-  @@index([empresaId, ativo])
+  @@unique([lojaId, nome])
+  @@index([organizacaoId, lojaId, ativo])
 }
 
 model Fornecedor {
-  id        Int       @id @default(autoincrement())
-  nome      String
-  email     String?
-  telefone  String?
-  endereco  String?
-  ativo     Boolean   @default(true)
-  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  empresaId Int
-  produtos  Produto[]
+  id            Int         @id @default(autoincrement())
+  nome          String
+  email         String?
+  telefone      String?
+  endereco      String?
+  ativo         Boolean     @default(true)
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId Int
+  loja          Loja        @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  lojaId        Int
+  produtos      Produto[]
+  pedidos       Pedido[]
 
-  @@index([empresaId])
-  @@index([empresaId, ativo])
+  @@index([organizacaoId, lojaId, ativo])
 }
 
 model Produto {
-  id          Int        @id @default(autoincrement())
-  nome        String
-  descricao   String?
-  preco       Decimal    @db.Decimal(10, 2)
-  quantidade  Int        @default(0)
-  imagem      String?
-  ativo       Boolean    @default(true)
-  empresa     Empresa    @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  empresaId   Int
-  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
-  categoriaId Int?
-  fornecedor  Fornecedor? @relation(fields: [fornecedorId], references: [id])
-  fornecedorId Int?
-  movimentos  Movimento[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id            Int          @id @default(autoincrement())
+  nome          String
+  descricao     String?
+  preco         Decimal      @db.Decimal(10, 2)
+  quantidade    Int          @default(0)
+  imagem        String?
+  ativo         Boolean      @default(true)
+  organizacao   Organizacao  @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId Int
+  loja          Loja         @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  lojaId        Int
+  categoria     Categoria?   @relation(fields: [categoriaId], references: [id])
+  categoriaId   Int?
+  fornecedor    Fornecedor?  @relation(fields: [fornecedorId], references: [id])
+  fornecedorId  Int?
+  itensPedido   ItemPedido[]
+  movimentos    Movimento[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  @@index([empresaId, ativo])
-  @@index([empresaId, categoriaId, quantidade])
-  @@index([empresaId, fornecedorId])
-  @@index([empresaId, quantidade])
-  @@index([empresaId, nome])
+  @@index([organizacaoId, lojaId, ativo])
+  @@index([lojaId, categoriaId, quantidade])
+  @@index([lojaId, fornecedorId])
+  @@index([lojaId, quantidade])
+  @@index([lojaId, nome])
+}
+
+model Pedido {
+  id                    Int           @id @default(autoincrement())
+  codigo                String
+  tipo                  MovimentoTipo @default(VENDA)
+  status                PedidoStatus  @default(CONCLUIDO)
+  valorTotal            Decimal       @db.Decimal(10, 2)
+  observacao            String?
+  clienteNome           String?
+  fornecedor            Fornecedor?   @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+  fornecedorId          Int?
+  organizacao           Organizacao   @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId         Int
+  loja                  Loja          @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  lojaId                Int
+  usuario               Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioId             Int?
+  vendedorRefId         Int
+  vendedorNomeSnapshot  String
+  vendedorEmailSnapshot String
+  canceladoPorRefId     Int?
+  canceladoPorNome      String?
+  canceladoEm           DateTime?
+  motivoCancelamento    String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  itens                 ItemPedido[]
+  movimentos            Movimento[]
+
+  @@unique([organizacaoId, codigo])
+  @@index([organizacaoId, lojaId, createdAt])
+  @@index([organizacaoId, vendedorRefId, createdAt])
+  @@index([lojaId, status, tipo, createdAt])
+}
+
+model ItemPedido {
+  id                  Int     @id @default(autoincrement())
+  pedido              Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  pedidoId            Int
+  produto             Produto @relation(fields: [produtoId], references: [id])
+  produtoId           Int
+  produtoNomeSnapshot String
+  quantidade          Int
+  precoUnitario       Decimal @db.Decimal(10, 2)
+  subtotal            Decimal @db.Decimal(10, 2)
+
+  @@index([pedidoId])
+  @@index([produtoId])
 }
 
 model Movimento {
-  id         Int           @id @default(autoincrement())
-  produto    Produto       @relation(fields: [produtoId], references: [id])
-  produtoId  Int
-  quantidade Int
-  tipo       MovimentoTipo
-  usuario    Usuario       @relation(fields: [usuarioId], references: [id])
-  usuarioId  Int
-  empresa    Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  empresaId  Int
-  data       DateTime      @default(now())
-  observacao String?
+  id                    Int           @id @default(autoincrement())
+  produto               Produto       @relation(fields: [produtoId], references: [id])
+  produtoId             Int
+  quantidade            Int
+  tipo                  MovimentoTipo
+  precoUnitario         Decimal       @db.Decimal(10, 2)
+  valorTotal            Decimal       @db.Decimal(10, 2)
+  estorno               Boolean       @default(false)
+  pedido                Pedido?       @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  pedidoId              Int?
+  usuario               Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioId             Int?
+  vendedorRefId         Int
+  vendedorNomeSnapshot  String
+  vendedorEmailSnapshot String
+  organizacao           Organizacao   @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId         Int
+  loja                  Loja          @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  lojaId                Int
+  data                  DateTime      @default(now())
+  observacao            String?
 
-  @@index([empresaId, usuarioId])
-  @@index([empresaId, produtoId, data])
-  @@index([empresaId, data])
+  @@index([organizacaoId, lojaId, data])
+  @@index([organizacaoId, vendedorRefId, data])
+  @@index([lojaId, produtoId, data])
+  @@index([pedidoId])
 }
 
 enum Role {
@@ -126,4 +219,9 @@ enum Role {
 enum MovimentoTipo {
   REPOSICAO
   VENDA
+}
+
+enum PedidoStatus {
+  CONCLUIDO
+  CANCELADO
 }

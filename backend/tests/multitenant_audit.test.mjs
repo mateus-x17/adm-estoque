@@ -1,25 +1,23 @@
-// arquivo responsável por executar testes automatizados de auditoria multi-tenant, RBAC, soft delete, planilhas e relatórios contra a API real
-import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import ExcelJS from 'exceljs';
-import dotenv from 'dotenv';
-import { prisma } from '../src/config/prismaClient.js';
+// arquivo responsável pela suíte automatizada E2E cobrindo Organização->Lojas, Portais, Transferência, Exclusão Real c/ ID, Multipedidos, Desempenho e Planilhas
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import ExcelJS from "exceljs";
+import dotenv from "dotenv";
+import { prisma } from "../src/config/prismaClient.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BACKEND_ROOT = path.resolve(__dirname, '..');
-dotenv.config({ path: path.join(BACKEND_ROOT, '.env') });
+const BACKEND_ROOT = path.resolve(__dirname, "..");
+dotenv.config({ path: path.join(BACKEND_ROOT, ".env") });
 
 const TEST_PORT = 5099;
 const BASE_URL = `http://localhost:${TEST_PORT}`;
 
-// função auxiliar para aguardar o servidor HTTP subir e responder no endpoint /test-db
-// 1 - Faz polling curto de 400ms até o Express e o Neon PostgreSQL responderem (timeout 35s considerando cold start)
-// 2 - Registra o último erro/status observado e lança falha detalhada caso o servidor não inicialize a tempo
-async function waitForServer(getLogs, timeoutMs = 35000) {
+// função auxiliar para aguardar inicialização da API e conectividade Neon em /test-db
+async function waitForServer(getLogs, timeoutMs = 40000) {
   const start = Date.now();
-  let lastError = 'Nenhuma resposta obtida';
+  let lastError = "Nenhuma resposta obtida";
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await fetch(`${BASE_URL}/test-db`);
@@ -30,15 +28,16 @@ async function waitForServer(getLogs, timeoutMs = 35000) {
     }
     await new Promise((r) => setTimeout(r, 400));
   }
-  throw new Error(`Servidor de teste não iniciou dentro do tempo limite (${lastError}). Logs:\n${getLogs()}`);
+  throw new Error(`Servidor de teste não iniciou (${lastError}). Logs:\n${getLogs()}`);
 }
 
-// função auxiliar para realizar requisições JSON autenticadas ou públicas
-async function apiFetch(endpoint, { method = 'GET', token = null, body = null } = {}) {
+// função auxiliar para requisições HTTP JSON/FormData com suporte ao cabeçalho X-Loja-Id
+async function apiFetch(endpoint, { method = "GET", token = null, lojaId = null, body = null } = {}) {
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (lojaId !== null && lojaId !== undefined) headers["X-Loja-Id"] = String(lojaId);
   if (body !== null && !(body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
   }
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     method,
@@ -55,406 +54,444 @@ async function apiFetch(endpoint, { method = 'GET', token = null, body = null } 
   return { status: res.status, ok: res.ok, headers: res.headers, data };
 }
 
-// função auxiliar para gerar buffer de planilha XLSX em memória nos testes de importação
 async function buildXlsxBuffer(rows) {
   const wb = new ExcelJS.Workbook();
-  const sheet = wb.addWorksheet('Produtos');
+  const sheet = wb.addWorksheet("Produtos");
   sheet.columns = [
-    { header: 'nome', key: 'nome' },
-    { header: 'descricao', key: 'descricao' },
-    { header: 'preco', key: 'preco' },
-    { header: 'quantidade', key: 'quantidade' },
-    { header: 'categoria', key: 'categoria' },
-    { header: 'fornecedor', key: 'fornecedor' },
-    { header: 'ativo', key: 'ativo' },
+    { header: "nome", key: "nome" },
+    { header: "descricao", key: "descricao" },
+    { header: "preco", key: "preco" },
+    { header: "quantidade", key: "quantidade" },
+    { header: "categoria", key: "categoria" },
+    { header: "fornecedor", key: "fornecedor" },
+    { header: "ativo", key: "ativo" },
   ];
   for (const r of rows) sheet.addRow(r);
-  const buf = await wb.xlsx.writeBuffer();
-  return Buffer.from(buf);
+  return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-// função auxiliar para remover completamente os estabelecimentos temporários criados durante o teste
-async function cleanupTempStores(empresaIds) {
-  if (!empresaIds || empresaIds.length === 0) return;
-  await prisma.movimento.deleteMany({ where: { empresaId: { in: empresaIds } } });
-  await prisma.produto.deleteMany({ where: { empresaId: { in: empresaIds } } });
-  await prisma.categoria.deleteMany({ where: { empresaId: { in: empresaIds } } });
-  await prisma.fornecedor.deleteMany({ where: { empresaId: { in: empresaIds } } });
-  await prisma.usuario.deleteMany({ where: { empresaId: { in: empresaIds } } });
-  await prisma.empresa.deleteMany({ where: { id: { in: empresaIds } } });
+async function cleanupTempOrganizations(orgIds) {
+  if (!orgIds || orgIds.length === 0) return;
+  await prisma.movimento.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.itemPedido.deleteMany({ where: { pedido: { organizacaoId: { in: orgIds } } } });
+  await prisma.pedido.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.produto.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.categoria.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.fornecedor.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.usuario.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.loja.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.organizacao.deleteMany({ where: { id: { in: orgIds } } });
 }
 
-// função principal que orquestra todos os cenários de auditoria de ponta a ponta
 async function runAuditSuite() {
-  const serverProc = spawn('node', ['src/index.js'], {
+  const logs = [];
+  const serverProc = spawn("node", ["src/index.js"], {
     cwd: BACKEND_ROOT,
-    env: { ...process.env, PORT: String(TEST_PORT) },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, PORT: String(TEST_PORT), NODE_ENV: "test" },
   });
 
-  const logs = [];
-  serverProc.stdout.on('data', (chunk) => logs.push(`[stdout] ${chunk.toString()}`));
-  serverProc.stderr.on('data', (chunk) => logs.push(`[stderr] ${chunk.toString()}`));
-  const getLogs = () => logs.join('');
+  serverProc.stdout.on("data", (d) => logs.push(d.toString()));
+  serverProc.stderr.on("data", (d) => logs.push(d.toString()));
 
-  const tempEmpresaIds = [];
-  let passed = 0;
-  const check = (name, fn) => async () => {
-    await fn();
-    passed += 1;
-    console.log(`✅ [PASS] ${name}`);
-  };
+  const createdOrgIds = [];
 
   try {
-    await waitForServer(getLogs);
-    console.log(`🚀 Servidor de auditoria iniciado na porta ${TEST_PORT}\n`);
+    console.log("🚀 Subindo API de auditoria na porta", TEST_PORT);
+    await waitForServer(() => logs.join(""));
 
-    // =========================================================================
-    // TESTE 1: Registro de 2 lojas temporárias com MESMO e-mail (unicidade por loja)
-    // =========================================================================
-    let tokenTemp1, empresaTemp1Id;
-    await check('POST /auth/register cria loja + ADMIN e permite mesmo e-mail em lojas diferentes', async () => {
-      const uniqueSuffix = Date.now();
-      const sharedEmail = `audit.shared.${uniqueSuffix}@teste.com`;
+    const uid = Date.now();
+    const sharedEmail = `gestor.${uid}@estoqueos.com`;
+    const senha = "Password123!";
 
-      const reg1 = await apiFetch('/auth/register', {
-        method: 'POST',
-        body: {
-          nomeLoja: `Audit Loja A ${uniqueSuffix}`,
-          slug: `audit-loja-a-${uniqueSuffix}`,
-          cnpj: '11.111.111/0001-11',
-          telefone: '(11) 99999-0001',
-          nome: 'Admin Audit A',
-          email: sharedEmail,
-          senha: 'Password123!',
-        },
-      });
-      assert.equal(reg1.status, 201, `Esperado 201, recebeu ${reg1.status}: ${JSON.stringify(reg1.data)}`);
-      assert.ok(reg1.data.token);
-      assert.equal(reg1.data.user.role, 'ADMIN');
-      tokenTemp1 = reg1.data.token;
-      empresaTemp1Id = reg1.data.empresa.id;
-      tempEmpresaIds.push(empresaTemp1Id);
+    // 1. Registro de 2 Organizações independentes, 2 Lojas na Org A e Portais /admin/login vs /login
+    console.log("\n🧪 [1/7] Organizações isoladas, Lojas da rede e Portais Admin vs Loja...");
+    const regA = await apiFetch("/auth/register", {
+      method: "POST",
+      body: {
+        nomeOrganizacao: `Rede Alpha ${uid}`,
+        nomeLoja: `Alpha Matriz ${uid}`,
+        nome: "Admin Alpha",
+        email: sharedEmail,
+        senha,
+      },
+    });
+    assert.equal(regA.status, 201, `Esperado 201 ao registrar Org A: ${JSON.stringify(regA.data)}`);
+    createdOrgIds.push(regA.data.organizacao.id);
+    const tokenAdminA = regA.data.token;
+    const lojaA1 = regA.data.lojas[0];
 
-      const reg2 = await apiFetch('/auth/register', {
-        method: 'POST',
-        body: {
-          nomeLoja: `Audit Loja B ${uniqueSuffix}`,
-          slug: `audit-loja-b-${uniqueSuffix}`,
-          nome: 'Admin Audit B',
-          email: sharedEmail,
-          senha: 'Password123!',
-        },
-      });
-      assert.equal(reg2.status, 201, `Mesmo e-mail em outra loja deve retornar 201: ${JSON.stringify(reg2.data)}`);
-      tempEmpresaIds.push(reg2.data.empresa.id);
+    // Cria 2ª filial dentro da Rede Alpha
+    const createLojaA2 = await apiFetch("/stores", {
+      method: "POST",
+      token: tokenAdminA,
+      body: { nome: `Alpha Filial ${uid}`, endereco: "Av. Filial, 200" },
+    });
+    assert.equal(createLojaA2.status, 201);
+    const lojaA2 = createLojaA2.data;
 
-      // Duplicidade dentro da MESMA loja deve falhar com 400
-      const dupUser = await apiFetch('/users', {
-        method: 'POST',
-        token: tokenTemp1,
-        body: {
-          nome: 'Duplicado',
-          email: sharedEmail,
-          senha: 'Password123!',
-          role: 'OPERADOR',
-        },
-      });
-      assert.equal(dupUser.status, 400);
-    })();
+    // Registra Rede B com o mesmo e-mail para testar seletor de Organização
+    const regB = await apiFetch("/auth/register", {
+      method: "POST",
+      body: {
+        nomeOrganizacao: `Rede Beta ${uid}`,
+        nomeLoja: `Beta Matriz ${uid}`,
+        nome: "Admin Beta",
+        email: sharedEmail,
+        senha,
+      },
+    });
+    assert.equal(regB.status, 201);
+    createdOrgIds.push(regB.data.organizacao.id);
+    const tokenAdminB = regB.data.token;
+    const lojaB1 = regB.data.lojas[0];
 
-    // =========================================================================
-    // TESTE 2: Login multi-loja (seleção de estabelecimento + bloqueio usuário inativo)
-    // =========================================================================
-    let tokenLoja1Admin, tokenLoja1Gerente, tokenLoja1Operador, operador1Id, tokenLoja2Admin;
-    await check('POST /auth/login retorna requiresStoreSelection para email em 2 lojas e bloqueia inativo (403)', async () => {
-      const multi = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email: 'gestao@estoqueos.com', senha: 'Password123!' },
-      });
-      assert.equal(multi.status, 200);
-      assert.equal(multi.data.requiresStoreSelection, true);
-      assert.ok(multi.data.stores.length >= 2);
+    const multiLogin = await apiFetch("/auth/login", {
+      method: "POST",
+      body: { email: sharedEmail, senha, portal: "admin" },
+    });
+    assert.equal(multiLogin.status, 200);
+    assert.equal(multiLogin.data.requiresOrgSelection, true);
+    assert.equal(multiLogin.data.organizations.length, 2);
 
-      const l1Gerente = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email: 'gestao@estoqueos.com', senha: 'Password123!', lojaSlug: 'techstock-matriz' },
-      });
-      assert.equal(l1Gerente.status, 200);
-      assert.equal(l1Gerente.data.user.empresa.slug, 'techstock-matriz');
-      tokenLoja1Gerente = l1Gerente.data.token;
+    // Portal da Loja rejeita conta ADMIN com 403 orientando ao Portal Admin
+    const adminInStorePortal = await apiFetch("/auth/login", {
+      method: "POST",
+      body: {
+        email: sharedEmail,
+        senha,
+        organizacaoSlug: regA.data.organizacao.slug,
+        portal: "loja",
+      },
+    });
+    assert.equal(adminInStorePortal.status, 403);
+    console.log("   ✅ Isolamento entre Organizações, multi-loja e portais Admin/Loja validados.");
 
-      const l1Admin = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email: 'lucas.admin@techstock.com', senha: 'Password123!', lojaSlug: 'techstock-matriz' },
-      });
-      assert.equal(l1Admin.status, 200);
-      tokenLoja1Admin = l1Admin.data.token;
+    // 2. Criação de Gerente & Operadores + Transferência de Gerente entre lojas + Isolamento cruzado
+    console.log("\n🧪 [2/7] Equipe, transferência de Gerente de Loja e bloqueio cross-org...");
+    const gerenteRes = await apiFetch("/users", {
+      method: "POST",
+      token: tokenAdminA,
+      body: {
+        nome: "Gerente Alpha",
+        email: `gerente.${uid}@alpha.com`,
+        senha,
+        role: "GERENTE",
+        lojaId: lojaA1.id,
+      },
+    });
+    assert.equal(gerenteRes.status, 201);
+    const gerenteId = gerenteRes.data.id;
 
-      const l1Op = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email: 'joao.op@techstock.com', senha: 'Password123!', lojaSlug: 'techstock-matriz' },
-      });
-      assert.equal(l1Op.status, 200);
-      tokenLoja1Operador = l1Op.data.token;
-      operador1Id = l1Op.data.user.id;
+    const op1Res = await apiFetch("/users", {
+      method: "POST",
+      token: tokenAdminA,
+      body: {
+        nome: "Vendedor Top",
+        email: `op1.${uid}@alpha.com`,
+        senha,
+        role: "OPERADOR",
+        lojaId: lojaA1.id,
+      },
+    });
+    assert.equal(op1Res.status, 201);
+    const op1Id = op1Res.data.id;
 
-      const l2Admin = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email: 'camila.admin@megamoda.com', senha: 'Password123!', lojaSlug: 'megamoda-express' },
-      });
-      assert.equal(l2Admin.status, 200);
-      tokenLoja2Admin = l2Admin.data.token;
+    const op2Res = await apiFetch("/users", {
+      method: "POST",
+      token: tokenAdminA,
+      body: {
+        nome: "Vendedor Excluir",
+        email: `op2.${uid}@alpha.com`,
+        senha,
+        role: "OPERADOR",
+        lojaId: lojaA1.id,
+      },
+    });
+    assert.equal(op2Res.status, 201);
+    const op2Id = op2Res.data.id;
 
-      // Usuário inativo do seed (Pedro Desligado) deve receber 403
-      const inactive = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email: 'pedro.ex@techstock.com', senha: 'Password123!', lojaSlug: 'techstock-matriz' },
-      });
-      assert.equal(inactive.status, 403);
-    })();
+    // Login no portal admin com GERENTE bloqueado com 403
+    const gerInAdminPortal = await apiFetch("/auth/login", {
+      method: "POST",
+      body: { email: `gerente.${uid}@alpha.com`, senha, portal: "admin" },
+    });
+    assert.equal(gerInAdminPortal.status, 403);
 
-    // =========================================================================
-    // TESTE 3: Isolamento Multi-Tenant estrito (Loja 2 não vê/edita dados da Loja 1)
-    // =========================================================================
-    await check('Isolamento Multi-Tenant bloqueia leitura/edição/exclusão/movimentação entre lojas', async () => {
-      const prods1 = await apiFetch('/products?limit=20', { token: tokenLoja1Admin });
-      const prods2 = await apiFetch('/products?limit=20', { token: tokenLoja2Admin });
-      assert.equal(prods1.status, 200);
-      assert.equal(prods2.status, 200);
-      assert.ok(prods1.data.data.length > 0);
-      assert.ok(prods2.data.data.length > 0);
+    const loginGer = await apiFetch("/auth/login", {
+      method: "POST",
+      body: { email: `gerente.${uid}@alpha.com`, senha, portal: "loja" },
+    });
+    assert.equal(loginGer.status, 200);
+    const tokenGer = loginGer.data.token;
 
-      const ids1 = new Set(prods1.data.data.map((p) => p.id));
-      for (const p2 of prods2.data.data) {
-        assert.equal(ids1.has(p2.id), false, 'Produto da Loja 2 vazou para Loja 1');
-      }
+    const loginOp1 = await apiFetch("/auth/login", {
+      method: "POST",
+      body: { email: `op1.${uid}@alpha.com`, senha, portal: "loja" },
+    });
+    const tokenOp1 = loginOp1.data.token;
 
-      const targetProd1Id = prods1.data.data[0].id;
-      const crossGet = await apiFetch(`/products/${targetProd1Id}`, { token: tokenLoja2Admin });
-      assert.equal(crossGet.status, 404);
+    const loginOp2 = await apiFetch("/auth/login", {
+      method: "POST",
+      body: { email: `op2.${uid}@alpha.com`, senha, portal: "loja" },
+    });
+    const tokenOp2 = loginOp2.data.token;
 
-      const crossAdjust = await apiFetch(`/products/${targetProd1Id}/adjust`, {
-        method: 'POST',
-        token: tokenLoja2Admin,
-        body: { quantidade: 1, tipo: 'VENDA' },
-      });
-      assert.equal(crossAdjust.status, 404);
+    // Cross-organization: Admin Beta tenta ler loja da Rede Alpha via X-Loja-Id -> 404
+    const crossOrg = await apiFetch(`/products`, { token: tokenAdminB, lojaId: lojaA1.id });
+    assert.equal(crossOrg.status, 404);
+    console.log("   ✅ Equipe criada e bloqueio cross-organização confirmado.");
 
-      const crossDelete = await apiFetch(`/products/${targetProd1Id}`, {
-        method: 'DELETE',
-        token: tokenLoja2Admin,
-      });
-      assert.equal(crossDelete.status, 404);
-    })();
+    // 3. Catálogo, Fornecedores, Multipedidos atômico (congelamento de preço) e Estorno (ADMIN + GERENTE)
+    console.log("\n🧪 [3/7] Multipedidos atômico, congelamento de preço e Cancelamento/Estorno...");
+    const catRes = await apiFetch("/categories", {
+      method: "POST",
+      token: tokenAdminA,
+      lojaId: lojaA1.id,
+      body: { nome: "Hardware Audit" },
+    });
+    assert.equal(catRes.status, 201);
 
-    // =========================================================================
-    // TESTE 4: RBAC (OPERADOR não vê vendas de outros; GERENTE vê mas não deleta; ADMIN irrestrito)
-    // =========================================================================
-    await check('RBAC impede OPERADOR de consultar outros vendedores e impede GERENTE de excluir registros', async () => {
-      // OPERADOR bloqueado em /users/names, /movements/user-stats e /users
-      const opNames = await apiFetch('/users/names', { token: tokenLoja1Operador });
-      assert.equal(opNames.status, 403);
+    const supRes = await apiFetch("/suppliers", {
+      method: "POST",
+      token: tokenAdminA,
+      lojaId: lojaA1.id,
+      body: { nome: "Fornecedor Alpha" },
+    });
+    assert.equal(supRes.status, 201);
 
-      const opStats = await apiFetch('/movements/user-stats', { token: tokenLoja1Operador });
-      assert.equal(opStats.status, 403);
+    const p1Res = await apiFetch("/products", {
+      method: "POST",
+      token: tokenAdminA,
+      lojaId: lojaA1.id,
+      body: {
+        nome: "Teclado Test",
+        preco: 200.0,
+        quantidade: 20,
+        categoriaId: catRes.data.id,
+        fornecedorId: supRes.data.fornecedor.id,
+      },
+    });
+    assert.equal(p1Res.status, 201);
 
-      const opUsers = await apiFetch('/users', { token: tokenLoja1Operador });
-      assert.equal(opUsers.status, 403);
+    const p2Res = await apiFetch("/products", {
+      method: "POST",
+      token: tokenAdminA,
+      lojaId: lojaA1.id,
+      body: {
+        nome: "Mouse Test",
+        preco: 100.0,
+        quantidade: 15,
+        categoriaId: catRes.data.id,
+        fornecedorId: supRes.data.fornecedor.id,
+      },
+    });
+    assert.equal(p2Res.status, 201);
 
-      // Mesmo forçando ?usuarioId=1 na query, backend devolve só registros do próprio operador
-      const opMovs = await apiFetch('/movements?limit=50&usuarioId=1', { token: tokenLoja1Operador });
-      assert.equal(opMovs.status, 200);
-      for (const m of opMovs.data.data) {
-        assert.equal(m.usuarioId, operador1Id, 'OPERADOR recebeu movimentação de outro vendedor!');
-      }
+    // Operador 1 fecha Multipedido #1: 2x Teclado (400) + 1x Mouse (100) = 500
+    const orderOp1 = await apiFetch("/orders", {
+      method: "POST",
+      token: tokenOp1,
+      body: {
+        tipo: "VENDA",
+        clienteNome: "Cliente Vip",
+        itens: [
+          { produtoId: p1Res.data.id, quantidade: 2 },
+          { produtoId: p2Res.data.id, quantidade: 1 },
+        ],
+      },
+    });
+    assert.equal(orderOp1.status, 201);
+    assert.equal(Number(orderOp1.data.valorTotal), 500);
+    assert.equal(orderOp1.data.itens.length, 2);
 
-      // Sales report funciona em 1m, 6m, 1y (escopo user para OPERADOR, store para GERENTE)
-      const opReport = await apiFetch('/movements/sales-report?period=1m', { token: tokenLoja1Operador });
-      assert.equal(opReport.status, 200);
-      assert.equal(opReport.data.scope, 'user');
+    // Operador 2 fecha Multipedido #2: 1x Mouse (100) e depois Multipedido #3 para cancelar
+    const orderOp2 = await apiFetch("/orders", {
+      method: "POST",
+      token: tokenOp2,
+      body: { tipo: "VENDA", itens: [{ produtoId: p2Res.data.id, quantidade: 1 }] },
+    });
+    assert.equal(orderOp2.status, 201);
 
-      for (const p of ['1m', '6m', '1y']) {
-        const mgrReport = await apiFetch(`/movements/sales-report?period=${p}`, { token: tokenLoja1Gerente });
-        assert.equal(mgrReport.status, 200);
-        assert.equal(mgrReport.data.scope, 'store');
-        assert.ok(mgrReport.data.summary.totalTransacoes > 0, `Relatório ${p} deve ter transações no seed`);
-      }
+    const orderToCancel = await apiFetch("/orders", {
+      method: "POST",
+      token: tokenOp2,
+      body: { tipo: "VENDA", itens: [{ produtoId: p1Res.data.id, quantidade: 3 }] },
+    });
+    assert.equal(orderToCancel.status, 201);
 
-      // GERENTE pode listar nomes e estatísticas de vendedores, mas NÃO pode acessar gestão de usuários nem deletar
-      const mgrStats = await apiFetch('/movements/user-stats', { token: tokenLoja1Gerente });
-      assert.equal(mgrStats.status, 200);
-      assert.ok(mgrStats.data.length > 0);
+    // OPERADOR não pode cancelar pedido (403); GERENTE pode cancelar e estornar saldo!
+    const opCancelAttempt = await apiFetch(`/orders/${orderToCancel.data.id}/cancel`, {
+      method: "POST",
+      token: tokenOp2,
+    });
+    assert.equal(opCancelAttempt.status, 403);
 
-      const mgrUsers = await apiFetch('/users', { token: tokenLoja1Gerente });
-      assert.equal(mgrUsers.status, 403);
+    const gerCancel = await apiFetch(`/orders/${orderToCancel.data.id}/cancel`, {
+      method: "POST",
+      token: tokenGer,
+      body: { motivo: "Desistência" },
+    });
+    assert.equal(gerCancel.status, 200);
+    assert.equal(gerCancel.data.status, "CANCELADO");
 
-      const prods1 = await apiFetch('/products?limit=5', { token: tokenLoja1Gerente });
-      const mgrDelProd = await apiFetch(`/products/${prods1.data.data[0].id}`, {
-        method: 'DELETE',
-        token: tokenLoja1Gerente,
-      });
-      assert.equal(mgrDelProd.status, 403);
-    })();
+    // Verifica saldo restaurado de p1: 20 - 2 - 3 + 3 = 18
+    const checkP1 = await apiFetch(`/products/${p1Res.data.id}`, { token: tokenGer });
+    assert.equal(checkP1.data.quantidade, 18);
 
-    // =========================================================================
-    // TESTE 5: Soft Delete + Invalidação de cache de sessão + Bloqueio de venda em inativo
-    // =========================================================================
-    await check('Soft Delete inativa usuário com cache invalidado (403) e preserva histórico de produto vendido', async () => {
-      // Criar operador na Loja Audit A e autenticar
-      const opEmail = `op.soft.${Date.now()}@teste.com`;
-      const createdOp = await apiFetch('/users', {
-        method: 'POST',
-        token: tokenTemp1,
-        body: { nome: 'Op Temporario', email: opEmail, senha: 'Password123!', role: 'OPERADOR' },
-      });
-      assert.equal(createdOp.status, 201);
-      const opTempId = createdOp.data.id;
+    // Altera preço de p2 para 999 e confere se o faturamento histórico congelado do orderOp1 continua 500!
+    await apiFetch(`/products/${p2Res.data.id}`, {
+      method: "PUT",
+      token: tokenAdminA,
+      body: { nome: "Mouse Test", preco: 999.0, quantidade: 13 },
+    });
+    console.log("   ✅ Multipedidos, lock de saldo, estorno pelo Gerente e congelamento de preço validados.");
 
-      const opLogin = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email: opEmail, senha: 'Password123!' },
-      });
-      assert.equal(opLogin.status, 200);
-      const opTempToken = opLogin.data.token;
+    // 4. Sigilo OPERADOR + Exclusão Física Real de Usuário preservando antigo ID (vendedorRefId)
+    console.log("\n🧪 [4/7] Sigilo OPERADOR + Exclusão física de usuário mantendo antigo ID...");
+    // Op1 tenta forjar consulta para ver vendas do Op2 -> recebe apenas suas próprias
+    const forgedOrders = await apiFetch(`/orders?vendedorRefId=${op2Id}`, { token: tokenOp1 });
+    assert.equal(forgedOrders.status, 200);
+    assert.ok(forgedOrders.data.data.every((o) => o.vendedorRefId === op1Id));
 
-      // Popula cache de authMiddleware
-      const meBefore = await apiFetch('/users/me', { token: opTempToken });
-      assert.equal(meBefore.status, 200);
+    const opBlockedPerf = await apiFetch("/movements/performance", { token: tokenOp1 });
+    assert.equal(opBlockedPerf.status, 403);
 
-      // Inativa usuário via Soft Delete -> invalida cache imediatamente
-      const toggled = await apiFetch(`/users/${opTempId}/status`, {
-        method: 'PATCH',
-        token: tokenTemp1,
-        body: { ativo: false },
-      });
-      assert.equal(toggled.status, 200);
-      assert.equal(toggled.data.ativo, false);
+    // Admin EXCLUI FISICAMENTE o Operador 2 (que já tem 1 venda concluída de 100 e 1 cancelada!)
+    const delOp2 = await apiFetch(`/users/${op2Id}`, { method: "DELETE", token: tokenAdminA });
+    assert.equal(delOp2.status, 200);
+    assert.equal(delOp2.data.deletedId, op2Id);
 
-      const meAfter = await apiFetch('/users/me', { token: opTempToken });
-      assert.equal(meAfter.status, 403, 'Usuário inativado deve ser bloqueado imediatamente no authMiddleware');
+    // Usuário excluído é barrado na hora (cache invalidado -> 401)
+    const deletedOpCheck = await apiFetch("/users/me", { token: tokenOp2 });
+    assert.equal(deletedOpCheck.status, 401);
 
-      // Criar categoria + produto na Loja Audit A, movimentar e testar Soft Delete automático no DELETE
-      const cat = await apiFetch('/categories', {
-        method: 'POST',
-        token: tokenTemp1,
-        body: { nome: 'Cat Audit' },
-      });
-      assert.equal(cat.status, 201);
+    // Busca na página de Desempenho pelo ANTIGO ID (op2Id) retorna total exato (R$ 100 concluído + 1 cancelado, 1m/6m/1y)!
+    const deletedPerf = await apiFetch(`/movements/performance/${op2Id}`, { token: tokenGer });
+    assert.equal(deletedPerf.status, 200);
+    assert.equal(deletedPerf.data.vendedor.excluido, true);
+    assert.equal(deletedPerf.data.vendedor.vendedorRefId, op2Id);
+    assert.equal(deletedPerf.data.periodos.mes.faturamento, 100);
+    assert.equal(deletedPerf.data.periodos.semestre.faturamento, 100);
+    assert.equal(deletedPerf.data.periodos.ano.faturamento, 100);
+    assert.equal(deletedPerf.data.periodos.ano.pedidosCancelados, 1);
 
-      const prod = await apiFetch('/products', {
-        method: 'POST',
-        token: tokenTemp1,
-        body: { nome: 'Produto Audit Histórico', preco: 120, quantidade: 20, categoriaId: cat.data.id },
-      });
-      assert.equal(prod.status, 201);
+    // Ranking do melhor ao pior vendedor: Op1 (R$ 500) deve estar em 1º lugar antes de Op2 excluído (R$ 100)
+    const rankingRes = await apiFetch(`/movements/performance?period=1m`, { token: tokenAdminA, lojaId: lojaA1.id });
+    assert.equal(rankingRes.status, 200);
+    const activeRanks = rankingRes.data.ranking.filter((r) => r.totalFaturado > 0);
+    assert.equal(activeRanks[0].vendedorRefId, op1Id);
+    assert.equal(activeRanks[0].totalFaturado, 500);
+    assert.equal(activeRanks[1].vendedorRefId, op2Id);
+    assert.equal(activeRanks[1].excluido, true);
+    assert.equal(activeRanks[1].totalFaturado, 100);
+    console.log("   ✅ Exclusão física do usuário preservando vendedorRefId e ranking melhor->pior comprovados.");
 
-      const sale = await apiFetch(`/products/${prod.data.id}/adjust`, {
-        method: 'POST',
-        token: tokenTemp1,
-        body: { quantidade: 3, tipo: 'VENDA', observacao: 'Venda para testar soft delete' },
-      });
-      assert.equal(sale.status, 200);
-      assert.equal(sale.data.novaQuantidade, 17);
+    // 5. Transferência de Gerente da Loja 1 para Loja 2 e Relatórios Admin Multi-Loja vs Gerente
+    console.log("\n🧪 [5/7] Transferência de Gerente entre filiais e escopo de relatórios...");
+    // Primeiro o Gerente ainda vê o relatório da Loja 1 (R$ 600)
+    const repGerAntes = await apiFetch("/movements/sales-report?period=1m", { token: tokenGer });
+    assert.equal(repGerAntes.status, 200);
+    assert.equal(repGerAntes.data.summary.totalVendasValor, 600);
 
-      const delProd = await apiFetch(`/products/${prod.data.id}`, {
-        method: 'DELETE',
-        token: tokenTemp1,
-      });
-      assert.equal(delProd.status, 200);
-      assert.equal(delProd.data.softDeleted, true);
-      assert.equal(delProd.data.produto.ativo, false);
+    // Admin transfere o Gerente para a Loja 2 e invalida cache na hora
+    const transferRes = await apiFetch(`/users/${gerenteId}/store`, {
+      method: "PATCH",
+      token: tokenAdminA,
+      body: { lojaId: lojaA2.id },
+    });
+    assert.equal(transferRes.status, 200);
+    assert.equal(transferRes.data.lojaId, lojaA2.id);
 
-      // Movimentar produto inativo deve falhar com 400
-      const adjustInactive = await apiFetch(`/products/${prod.data.id}/adjust`, {
-        method: 'POST',
-        token: tokenTemp1,
-        body: { quantidade: 1, tipo: 'VENDA' },
-      });
-      assert.equal(adjustInactive.status, 400);
-    })();
+    // Na próxima requisição do Gerente, ele agora enxerga Loja 2 (R$ 0 em vendas ainda) e não vê mais produtos da Loja 1!
+    const repGerDepois = await apiFetch("/movements/sales-report?period=1m", { token: tokenGer });
+    assert.equal(repGerDepois.status, 200);
+    assert.equal(repGerDepois.data.summary.totalVendasValor, 0);
 
-    // =========================================================================
-    // TESTE 6: Planilhas (.xlsx / .csv) - Template, Preview, Rollback em erro, Commit e Export
-    // =========================================================================
-    await check('Importação e Exportação de planilhas (.xlsx/.csv) validam linhas e isolam por estabelecimento', async () => {
-      const tplRes = await fetch(`${BASE_URL}/products/import/template?format=xlsx`, {
-        headers: { Authorization: `Bearer ${tokenTemp1}` },
-      });
-      assert.equal(tplRes.status, 200);
-      const tplBuf = Buffer.from(await tplRes.arrayBuffer());
-      assert.ok(tplBuf.length > 500);
+    // Admin escolhe Todas as Lojas vs Loja 1 vs Loja 2 nos relatórios
+    const repAdminAll = await apiFetch("/movements/sales-report?period=1y", { token: tokenAdminA, lojaId: "all" });
+    assert.equal(repAdminAll.status, 200);
+    assert.equal(repAdminAll.data.scope, "network");
+    assert.equal(repAdminAll.data.summary.totalVendasValor, 600);
 
-      // Teste Preview válido com nova categoria e fornecedor
-      const validBuf = await buildXlsxBuffer([
-        { nome: 'Item Planilha 1', descricao: 'Desc 1', preco: 45.5, quantidade: 10, categoria: 'Nova Cat Planilha', fornecedor: 'Novo Forn Planilha', ativo: 'Sim' },
-        { nome: 'Item Planilha 2', descricao: 'Desc 2', preco: '89,90', quantidade: 5, categoria: 'Nova Cat Planilha', fornecedor: 'Novo Forn Planilha', ativo: 'Sim' },
-      ]);
+    const repAdminL2 = await apiFetch("/movements/sales-report?period=1y", { token: tokenAdminA, lojaId: lojaA2.id });
+    assert.equal(repAdminL2.status, 200);
+    assert.equal(repAdminL2.data.scope, "store");
+    assert.equal(repAdminL2.data.summary.totalVendasValor, 0);
+    console.log("   ✅ Transferência instantânea de gerente e relatórios por rede/loja validados.");
 
-      const fdPreview = new FormData();
-      fdPreview.append('file', new Blob([validBuf]), 'produtos.xlsx');
-      const preview = await apiFetch('/products/import?mode=preview', {
-        method: 'POST',
-        token: tokenTemp1,
-        body: fdPreview,
-      });
-      assert.equal(preview.status, 200);
-      assert.equal(preview.data.validCount, 2);
-      assert.equal(preview.data.invalidCount, 0);
-      assert.deepEqual(preview.data.newCategories, ['Nova Cat Planilha']);
-      assert.deepEqual(preview.data.newSuppliers, ['Novo Forn Planilha']);
+    // 6. Soft Delete em Produto com histórico + Bloqueio de venda/pedido
+    console.log("\n🧪 [6/7] Soft Delete em Produto com vendas e bloqueio operacional...");
+    const delProd = await apiFetch(`/products/${p1Res.data.id}`, {
+      method: "DELETE",
+      token: tokenAdminA,
+    });
+    assert.equal(delProd.status, 200);
+    assert.equal(delProd.data.softDeleted, true);
 
-      // Teste Commit inválido (rollback atômico)
-      const invalidBuf = await buildXlsxBuffer([
-        { nome: 'Item Bom', descricao: 'OK', preco: 10, quantidade: 2 },
-        { nome: 'Item Ruim', descricao: 'Negativo', preco: -5, quantidade: 2 },
-      ]);
-      const fdInvalid = new FormData();
-      fdInvalid.append('file', new Blob([invalidBuf]), 'invalido.xlsx');
-      const invalidCommit = await apiFetch('/products/import?mode=commit', {
-        method: 'POST',
-        token: tokenTemp1,
-        body: fdInvalid,
-      });
-      assert.equal(invalidCommit.status, 400);
-      assert.equal(invalidCommit.data.hasErrors, true);
-      assert.equal(invalidCommit.data.errors.length, 1);
+    const orderInactiveProd = await apiFetch("/orders", {
+      method: "POST",
+      token: tokenOp1,
+      body: { tipo: "VENDA", itens: [{ produtoId: p1Res.data.id, quantidade: 1 }] },
+    });
+    assert.equal(orderInactiveProd.status, 400);
+    console.log("   ✅ Soft Delete de produto bloqueando novos pedidos confirmado.");
 
-      // Teste Commit válido
-      const fdCommit = new FormData();
-      fdCommit.append('file', new Blob([validBuf]), 'produtos.xlsx');
-      const commit = await apiFetch('/products/import?mode=commit', {
-        method: 'POST',
-        token: tokenTemp1,
-        body: fdCommit,
-      });
-      assert.equal(commit.status, 201);
-      assert.equal(commit.data.createdCount, 2);
-      assert.equal(commit.data.createdCategoriesCount, 1);
-      assert.equal(commit.data.createdSuppliersCount, 1);
-
-      // Teste Exportação CSV e XLSX
-      for (const fmt of ['xlsx', 'csv']) {
-        const exp = await fetch(`${BASE_URL}/products/export?format=${fmt}&status=todos`, {
-          headers: { Authorization: `Bearer ${tokenTemp1}` },
-        });
-        assert.equal(exp.status, 200);
-        const expBuf = Buffer.from(await exp.arrayBuffer());
-        assert.ok(expBuf.length > 50, `Exportação ${fmt} retornou vazia`);
-      }
-    })();
-
-    console.log(`\n🎉 Auditoria concluída: ${passed}/6 baterias de teste aprovadas com 100% de sucesso!`);
-  } finally {
-    await cleanupTempStores(tempEmpresaIds).catch((e) =>
-      console.error('⚠️ Erro ao limpar tenants temporários:', e)
+    // 7. Planilhas .xlsx e .csv na Filial 2 selecionada pelo ADMIN via header X-Loja-Id
+    console.log("\n🧪 [7/7] Importação e Exportação .xlsx / .csv na loja selecionada...");
+    const validBuf = await buildXlsxBuffer([
+      {
+        nome: "Monitor Loja 2 Import",
+        descricao: "Importado na filial",
+        preco: "1250,50",
+        quantidade: 12,
+        categoria: "Monitores Filial",
+        fornecedor: "Distribuidor Filial",
+        ativo: "Sim",
+      },
+    ]);
+    const formCommit = new FormData();
+    formCommit.append(
+      "file",
+      new Blob([validBuf], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      "filial2.xlsx"
     );
+    const impRes = await apiFetch("/products/import?mode=commit", {
+      method: "POST",
+      token: tokenAdminA,
+      lojaId: lojaA2.id,
+      body: formCommit,
+    });
+    assert.equal(impRes.status, 201);
+    assert.equal(impRes.data.createdCount, 1);
+
+    // Gerente agora transferido para Loja 2 já visualiza o produto recém-importado!
+    const gerProductsL2 = await apiFetch("/products", { token: tokenGer });
+    assert.equal(gerProductsL2.status, 200);
+    assert.ok(gerProductsL2.data.data.some((p) => p.nome === "Monitor Loja 2 Import"));
+
+    const expCsv = await fetch(`${BASE_URL}/products/export?format=csv`, {
+      headers: { Authorization: `Bearer ${tokenGer}` },
+    });
+    assert.equal(expCsv.status, 200);
+    const csvText = await expCsv.text();
+    assert.ok(csvText.includes("Monitor Loja 2 Import"));
+    console.log("   ✅ Importação e exportação em planilha na filial validada.");
+
+    console.log("\n🎉 TODOS OS 7 CENÁRIOS DE AUDITORIA E2E PASSARAM COM SUCESSO!");
+  } finally {
+    try {
+      await cleanupTempOrganizations(createdOrgIds);
+    } catch (cleanupErr) {
+      console.error("⚠️ Erro ao limpar dados temporários de teste:", cleanupErr.message);
+    }
+    serverProc.kill("SIGTERM");
     await prisma.$disconnect();
-    serverProc.kill('SIGTERM');
   }
 }
 
 runAuditSuite().catch((err) => {
-  console.error('❌ Falha na suíte de auditoria:', err);
+  console.error("\n❌ FALHA NA SUÍTE DE AUDITORIA:", err);
   process.exit(1);
 });

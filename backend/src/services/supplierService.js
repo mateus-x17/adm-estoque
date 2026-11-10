@@ -1,18 +1,18 @@
-import { prisma } from '../config/prismaClient.js';
-import { AppError } from '../utils/errorHandler.js';
-import { parseBooleanFlag } from '../utils/sanitizers.js';
+import { prisma, Prisma } from "../config/prismaClient.js";
+import { AppError } from "../utils/errorHandler.js";
+import { parseBooleanFlag } from "../utils/sanitizers.js";
 
-// arquivo responsável pelas regras de negócio e persistência de fornecedores isolados por estabelecimento
+// arquivo responsável pelas regras de negócio e métricas de fornecedores isolados por Organização e Loja
 
-// função para criar um novo fornecedor vinculado ao tenant da sessão
-// 1 - Valida nome obrigatório e empresaId
-// 2 - Persiste o fornecedor no banco vinculado à empresaId como ativo = true
-export async function createSupplier(data, empresaId) {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função para criar novo fornecedor vinculado à loja alvo
+export async function createSupplier(data, storeScope) {
+  if (!storeScope?.organizacaoId || !storeScope?.lojaId) {
+    throw new AppError("Loja ou organização não identificada", 400);
+  }
 
   const { nome, email, telefone, endereco } = data;
-  if (!nome || typeof nome !== 'string' || nome.trim() === '') {
-    throw new AppError('Nome de fornecedor é obrigatório', 400);
+  if (!nome || typeof nome !== "string" || nome.trim() === "") {
+    throw new AppError("Nome de fornecedor é obrigatório", 400);
   }
 
   return prisma.fornecedor.create({
@@ -22,45 +22,51 @@ export async function createSupplier(data, empresaId) {
       telefone: telefone || null,
       endereco: endereco || null,
       ativo: true,
-      empresaId: Number(empresaId),
+      organizacaoId: Number(storeScope.organizacaoId),
+      lojaId: Number(storeScope.lojaId),
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
     },
   });
 }
 
-// função para listar os fornecedores da empresa atual filtrados por status
-// 1 - Filtra estritamente por empresaId e pelo status ('ativos', 'inativos', 'todos')
-// 2 - Inclui a contagem de produtos associados para visualização administrativa
-export async function listSuppliers(empresaId, status = 'ativos') {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função para listar fornecedores da Organização ou Loja com suporte a filtro de status
+export async function listSuppliers(scope, status = "ativos") {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
 
   const statusFilter =
-    status === 'ativos' ? { ativo: true } : status === 'inativos' ? { ativo: false } : {};
+    status === "ativos" ? { ativo: true } : status === "inativos" ? { ativo: false } : {};
 
   return prisma.fornecedor.findMany({
     where: {
-      empresaId: Number(empresaId),
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
       ...statusFilter,
     },
     include: {
+      loja: { select: { id: true, nome: true, slug: true } },
       _count: {
         select: { produtos: true },
       },
     },
-    orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+    orderBy: [{ ativo: "desc" }, { nome: "asc" }],
   });
 }
 
-// função para atualizar os dados cadastrais de um fornecedor pertencente à loja
-// 1 - Busca garantindo que pertence à empresaId (impede manipulação cruzada entre lojas)
-// 2 - Atualiza campos permitidos e devolve o objeto atualizado
-export async function updateSupplier(id, data, empresaId) {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função para atualizar fornecedor garantindo isolamento por Organização (e Loja para não-ADMIN)
+export async function updateSupplier(id, data, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
   const { nome, email, telefone, endereco, ativo } = data;
 
   const supplier = await prisma.fornecedor.findFirst({
-    where: { id: parseInt(id), empresaId: Number(empresaId) },
+    where: {
+      id: parseInt(id),
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.restrictToUserStore && scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
   });
-  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
 
   return prisma.fornecedor.update({
     where: { id: parseInt(id) },
@@ -71,47 +77,54 @@ export async function updateSupplier(id, data, empresaId) {
       endereco: endereco !== undefined ? endereco : undefined,
       ativo: ativo !== undefined ? parseBooleanFlag(ativo) : undefined,
     },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
   });
 }
 
-// função para inativar ou reativar um fornecedor (Soft Delete)
-export async function toggleSupplierStatus(id, ativo, empresaId) {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função para inativar ou reativar logicamente um fornecedor (Soft Delete)
+export async function toggleSupplierStatus(id, ativo, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
   const supplierId = parseInt(id);
 
   const supplier = await prisma.fornecedor.findFirst({
-    where: { id: supplierId, empresaId: Number(empresaId) },
+    where: {
+      id: supplierId,
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.restrictToUserStore && scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
   });
-  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
 
   return prisma.fornecedor.update({
     where: { id: supplierId },
     data: { ativo: parseBooleanFlag(ativo) },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
   });
 }
 
-// função para excluir um fornecedor (com fallback automático para Soft Delete caso haja produtos vinculados)
-// 1 - Verifica pertencimento ao empresaId e contabiliza produtos vinculados
-// 2 - Se houver produtos vinculados, inativa logicamente (ativo = false) preservando integridade
-// 3 - Se não houver vínculo, exclui definitivamente do banco
-export async function deleteSupplier(id, empresaId) {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função exclusiva de ADMIN para excluir ou aplicar Soft Delete automático caso haja produtos/pedidos associados
+export async function deleteSupplier(id, organizacaoId) {
+  if (!organizacaoId) throw new AppError("Organização não identificada", 400);
   const supplierId = parseInt(id);
 
   const supplier = await prisma.fornecedor.findFirst({
-    where: { id: supplierId, empresaId: Number(empresaId) },
-    include: { _count: { select: { produtos: true } } },
+    where: { id: supplierId, organizacaoId: Number(organizacaoId) },
+    include: { _count: { select: { produtos: true, pedidos: true } } },
   });
-  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
 
-  if (supplier._count.produtos > 0) {
+  if (supplier._count.produtos > 0 || supplier._count.pedidos > 0) {
     const inactivated = await prisma.fornecedor.update({
       where: { id: supplierId },
       data: { ativo: false },
     });
     return {
       softDeleted: true,
-      message: `Fornecedor "${supplier.nome}" possui ${supplier._count.produtos} produto(s) vinculado(s) e foi inativado logicamente.`,
+      message: `Fornecedor "${supplier.nome}" possui histórico ou produtos vinculados e foi inativado logicamente.`,
       fornecedor: inactivated,
     };
   }
@@ -123,52 +136,74 @@ export async function deleteSupplier(id, empresaId) {
   };
 }
 
-// função para recuperar dados de um único fornecedor isolado por loja
-export async function getSupplierById(id, empresaId) {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função para consultar detalhes de um único fornecedor dentro do escopo
+export async function getSupplierById(id, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
   const supplierId = parseInt(id);
-  if (isNaN(supplierId)) throw new AppError('ID de fornecedor inválido', 400);
+  if (isNaN(supplierId)) throw new AppError("ID de fornecedor inválido", 400);
 
   const supplier = await prisma.fornecedor.findFirst({
-    where: { id: supplierId, empresaId: Number(empresaId) },
+    where: {
+      id: supplierId,
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
   });
 
-  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
   return supplier;
 }
 
-// função para contar apenas fornecedores ativos do estabelecimento
-export async function countSuppliers(empresaId) {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função para contar fornecedores ativos no escopo selecionado
+export async function countSuppliers(scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
   return prisma.fornecedor.count({
-    where: { empresaId: Number(empresaId), ativo: true },
+    where: {
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+      ativo: true,
+    },
   });
 }
 
-// função para levantar estatísticas agregadas por fornecedor restritas aos dados da empresa
-// 1 - Executa query SQL nativa filtrando f."empresaId" e apenas fornecedores ativos
-// 2 - Soma entradas e saídas para cada parceiro com zero N+1 queries
-export async function getSupplierStats(empresaId) {
-  if (!empresaId) throw new AppError('Estabelecimento não identificado', 400);
+// função SQL nativa para consolidar reposições e vendas por fornecedor ativo (excluindo estornos e pedidos cancelados)
+// 1 - Filtra por organizacaoId e opcionalmente por lojaId
+// 2 - Considera apenas movimentações válidas (m.estorno = false e pedido inexistente ou CONCLUIDO)
+export async function getSupplierStats(scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+
+  const lojaFilter = scope.lojaId
+    ? Prisma.sql`AND f."lojaId" = ${Number(scope.lojaId)}`
+    : Prisma.empty;
 
   const rawResults = await prisma.$queryRaw`
     SELECT
       f.id AS "id",
       f.nome AS "nome",
+      l.nome AS "lojaNome",
       COALESCE(SUM(CASE WHEN m.tipo = 'REPOSICAO' THEN m.quantidade ELSE 0 END), 0)::int AS "totalReposicoes",
       COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade ELSE 0 END), 0)::int AS "totalVendas",
       COALESCE(SUM(m.quantidade), 0)::int AS "totalMovimentacoes"
     FROM "Fornecedor" f
-    LEFT JOIN "Produto" p ON p."fornecedorId" = f.id AND p."empresaId" = f."empresaId"
-    LEFT JOIN "Movimento" m ON m."produtoId" = p.id AND m."empresaId" = f."empresaId"
-    WHERE f."empresaId" = ${Number(empresaId)} AND f."ativo" = true
-    GROUP BY f.id, f.nome
+    JOIN "Loja" l ON l.id = f."lojaId"
+    LEFT JOIN "Produto" p ON p."fornecedorId" = f.id
+    LEFT JOIN "Movimento" m ON m."produtoId" = p.id AND m."estorno" = false
+    LEFT JOIN "Pedido" ped ON ped.id = m."pedidoId"
+    WHERE f."organizacaoId" = ${Number(scope.organizacaoId)}
+      AND f."ativo" = true
+      ${lojaFilter}
+      AND (m.id IS NULL OR m."pedidoId" IS NULL OR ped."status" = 'CONCLUIDO')
+    GROUP BY f.id, f.nome, l.nome
     ORDER BY f.nome ASC
   `;
 
   return rawResults.map((sup) => ({
     id: Number(sup.id),
     nome: sup.nome,
+    lojaNome: sup.lojaNome,
     totalReposicoes: Number(sup.totalReposicoes || 0),
     totalVendas: Number(sup.totalVendas || 0),
     totalEntradas: Number(sup.totalReposicoes || 0),

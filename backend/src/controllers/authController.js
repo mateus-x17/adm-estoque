@@ -1,26 +1,36 @@
-import { authenticateUser, registerStoreAndAdmin } from '../services/authService.js';
-import { childLogger } from '../config/logger.js';
-const log = childLogger('authController');
+import { authenticateUser, registerOrganizationAndAdmin } from "../services/authService.js";
+import { childLogger } from "../config/logger.js";
+const log = childLogger("authController");
 
-// arquivo responsável por controlar as requisições de autenticação e abertura de contas de estabelecimentos
+// arquivo responsável por controlar requisições de autenticação (Portal Admin e Loja) e abertura de redes
 
-// função responsável por autenticar (fazer login) de um usuário em seu estabelecimento
-// 1 - Extrai email, senha e o identificador opcional da loja (lojaSlug) do corpo da requisição
-// 2 - Chama authenticateUser; se houver múltiplos tenants para o mesmo email/senha, retorna lista para seleção
-// 3 - Registra log de auditoria quando o login é concluído e responde com token JWT e usuário sanitizado
+// função para autenticar usuário em sua Organização/Loja
+// 1 - Extrai email, senha, organizacaoSlug (ou alias lojaSlug) e portal ('admin' ou 'loja')
+// 2 - Se houver múltiplas organizações para o mesmo e-mail/senha, retorna lista para seleção
+// 3 - Devolve JWT, perfil sanitizado e lojas da rede quando aplicável
 export async function loginController(req, res, next) {
   try {
-    const { email, senha, lojaSlug } = req.body;
-    const result = await authenticateUser(email, senha, lojaSlug);
+    const { email, senha, organizacaoSlug, lojaSlug, portal } = req.body;
+    const result = await authenticateUser(
+      email,
+      senha,
+      organizacaoSlug || lojaSlug || null,
+      portal || null
+    );
 
-    if (result.requiresStoreSelection) {
-      log.info({ email }, 'Multiple stores found for user credentials, requesting selection');
+    if (result.requiresOrgSelection) {
+      log.info({ email }, "Multiple organizations found for user credentials, requesting selection");
       return res.json(result);
     }
 
     log.info(
-      { userId: result.user?.id, empresaId: result.user?.empresaId, email: result.user?.email },
-      'User logged in successfully'
+      {
+        userId: result.user?.id,
+        organizacaoId: result.user?.organizacaoId,
+        lojaId: result.user?.lojaId,
+        role: result.user?.role,
+      },
+      "User logged in successfully"
     );
     res.json(result);
   } catch (err) {
@@ -28,26 +38,42 @@ export async function loginController(req, res, next) {
   }
 }
 
-// função responsável por registrar uma nova loja (tenant) e seu usuário administrador fundador
-// 1 - Extrai os dados da loja (nomeLoja, slug, cnpj, telefone) e do administrador (nome, email, senha)
-// 2 - Executa a criação transacional via registerStoreAndAdmin atribuindo automaticamente a role ADMIN ao fundador
-// 3 - Registra evento no logger e devolve status 201 com token de acesso, empresa e usuário criados
+// função para registrar uma nova Organização (Rede), sua 1ª Loja e usuário ADMIN fundador
+// 1 - Extrai dados corporativos (nomeOrganizacao, nomeLoja, slug, cnpj, telefone, endereco) e do administrador
+// 2 - Executa criação transacional via registerOrganizationAndAdmin atribuindo role ADMIN
+// 3 - Responde HTTP 201 com token de acesso, organização, loja inicial e usuário fundador
 export async function registerController(req, res, next) {
   try {
-    const { nomeLoja, slug, cnpj, telefone, nome, email, senha } = req.body;
-    const result = await registerStoreAndAdmin({ nomeLoja, slug, cnpj, telefone, nome, email, senha });
+    const { nomeOrganizacao, nomeLoja, slug, cnpj, telefone, endereco, nome, email, senha } =
+      req.body;
+    const result = await registerOrganizationAndAdmin({
+      nomeOrganizacao,
+      nomeLoja,
+      slug,
+      cnpj,
+      telefone,
+      endereco,
+      nome,
+      email,
+      senha,
+    });
 
     log.info(
-      { userId: result.user.id, empresaId: result.empresa.id, slug: result.empresa.slug },
-      'New store and admin user registered'
+      {
+        userId: result.user.id,
+        organizacaoId: result.organizacao.id,
+        slug: result.organizacao.slug,
+      },
+      "New organization, first store and admin user registered"
     );
 
     res.status(201).json({
-      message: 'Estabelecimento e conta administradora criados com sucesso',
+      message: "Organização, primeira loja e conta administradora criadas com sucesso",
       token: result.token,
       user: result.user,
       usuario: result.user,
-      empresa: result.empresa,
+      organizacao: result.organizacao,
+      lojas: result.lojas,
     });
   } catch (err) {
     next(err);

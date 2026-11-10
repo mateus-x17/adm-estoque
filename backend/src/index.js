@@ -10,6 +10,8 @@ import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import movementRoutes from "./routes/movementRoutes.js";
+import storeRoutes from "./routes/storeRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
 import { requestLogger } from "./middlewares/requestLogger.js";
 import { errorHandler } from "./utils/errorHandler.js";
 import { logger } from './config/logger.js';
@@ -75,9 +77,11 @@ app.get("/test-db", async (req, res) => {
 // 8 - Montagem de todos os módulos de rotas sob seus respectivos prefixos
 app.use("/users", userRoutes);
 app.use('/auth', authRoutes);
+app.use("/stores", storeRoutes);
 app.use("/products", productRoutes);
 app.use("/categories", categoryRoutes);
 app.use("/suppliers", supplierRoutes);
+app.use("/orders", orderRoutes);
 app.use("/movements", movementRoutes);
 
 // 9 - Middleware global de captura e tratamento de Erros

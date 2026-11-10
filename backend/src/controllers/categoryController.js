@@ -1,54 +1,77 @@
-import { childLogger } from '../config/logger.js';
-import * as categoryService from '../services/categoryService.js';
-const log = childLogger('categoryController');
+import { childLogger } from "../config/logger.js";
+import * as categoryService from "../services/categoryService.js";
+import { resolveReadScope, resolveWriteStore } from "../utils/tenantScope.js";
+const log = childLogger("categoryController");
 
-// arquivo responsável por intermediar requisições HTTP para a gestão de categorias do tenant
+// arquivo responsável por intermediar requisições HTTP de categorias isoladas por Organização e Loja
 
-// função para listar as categorias da loja com suporte a filtro de status
-// 1 - Extrai status opcional da query (padrão 'ativos') e o empresaId do token
-// 2 - Chama o serviço listCategories e retorna o JSON
+// função para listar categorias do escopo atual (rede ou loja selecionada)
 export async function listCategories(req, res, next) {
   try {
-    const status = req.query.status || 'ativos';
-    const cats = await categoryService.listCategories(req.user.empresaId, status);
+    const scope = await resolveReadScope(req);
+    const status = req.query.status || "ativos";
+    const cats = await categoryService.listCategories(scope, status);
     res.json(cats);
   } catch (err) {
-    log.error({ err }, 'Erro ao listar categorias');
+    log.error({ err }, "Erro ao listar categorias");
     next(err);
   }
 }
 
-// função para contar as categorias ativas da loja
+// função para contar categorias ativas do escopo selecionado
 export async function countCategories(req, res, next) {
   try {
-    const count = await categoryService.countCategories(req.user.empresaId);
+    const scope = await resolveReadScope(req);
+    const count = await categoryService.countCategories(scope);
     res.json({ count });
   } catch (err) {
-    log.error({ err }, 'Erro ao contar categorias');
+    log.error({ err }, "Erro ao contar categorias");
     next(err);
   }
 }
 
-// função para criar uma nova categoria vinculada ao estabelecimento
+// função para criar nova categoria vinculada à loja resolvida pelo escopo
 export async function createCategory(req, res, next) {
   try {
-    const c = await categoryService.createCategory(req.body.nome, req.user.empresaId);
-    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'CREATE_CATEGORY', targetId: c.id }, 'Categoria criada');
+    const storeScope = await resolveWriteStore(req);
+    const c = await categoryService.createCategory(req.body.nome, storeScope);
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId: storeScope.organizacaoId,
+        lojaId: storeScope.lojaId,
+        action: "CREATE_CATEGORY",
+        targetId: c.id,
+      },
+      "Categoria criada"
+    );
     res.status(201).json(c);
   } catch (err) {
-    log.error({ err }, 'Erro ao criar categoria');
+    log.error({ err }, "Erro ao criar categoria");
     next(err);
   }
 }
 
-// função para atualizar uma categoria da loja
+// função para atualizar uma categoria respeitando o escopo do usuário
 export async function updateCategory(req, res, next) {
   try {
-    const updated = await categoryService.updateCategory(req.params.id, req.body.nome, req.user.empresaId);
-    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'UPDATE_CATEGORY', targetId: updated.id }, 'Categoria atualizada');
+    const updated = await categoryService.updateCategory(req.params.id, req.body.nome, {
+      organizacaoId: req.user.organizacaoId,
+      lojaId: req.user.lojaId,
+      restrictToUserStore: req.user.role !== "ADMIN",
+    });
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId: req.user.organizacaoId,
+        action: "UPDATE_CATEGORY",
+        targetId: updated.id,
+      },
+      "Categoria atualizada"
+    );
     res.json(updated);
   } catch (err) {
-    log.error({ err }, 'Erro ao atualizar categoria');
+    log.error({ err }, "Erro ao atualizar categoria");
     next(err);
   }
 }
@@ -57,22 +80,34 @@ export async function updateCategory(req, res, next) {
 export async function toggleCategoryStatus(req, res, next) {
   try {
     const { ativo } = req.body;
-    const updated = await categoryService.toggleCategoryStatus(req.params.id, ativo, req.user.empresaId);
-    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'TOGGLE_CATEGORY_STATUS', targetId: updated.id, ativo }, 'Status de categoria alterado');
+    const updated = await categoryService.toggleCategoryStatus(req.params.id, ativo, {
+      organizacaoId: req.user.organizacaoId,
+      lojaId: req.user.lojaId,
+      restrictToUserStore: req.user.role !== "ADMIN",
+    });
     res.json(updated);
   } catch (err) {
     next(err);
   }
 }
 
-// função para deletar categoria (ou inativação lógica se possuir produtos vinculados)
+// função exclusiva de ADMIN para excluir ou inativar categoria
 export async function deleteCategory(req, res, next) {
   try {
-    const result = await categoryService.deleteCategory(req.params.id, req.user.empresaId);
-    log.info({ user: req.user?.id, empresaId: req.user.empresaId, action: 'DELETE_CATEGORY', targetId: req.params.id, result }, 'Resultado da exclusão de categoria');
+    const result = await categoryService.deleteCategory(req.params.id, req.user.organizacaoId);
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId: req.user.organizacaoId,
+        action: "DELETE_CATEGORY",
+        targetId: req.params.id,
+        result,
+      },
+      "Resultado da exclusão de categoria"
+    );
     res.json(result);
   } catch (err) {
-    log.error({ err }, 'Erro ao deletar categoria');
+    log.error({ err }, "Erro ao deletar categoria");
     next(err);
   }
 }

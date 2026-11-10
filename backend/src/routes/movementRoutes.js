@@ -1,24 +1,31 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { permit } from "../middlewares/roleMiddleware.js";
-import { listMovements, getUserStats, getSalesReport } from "../controllers/movementController.js";
+import {
+  listMovements,
+  getUserStats,
+  getSalesReport,
+  getPerformanceRanking,
+  getPerformanceDetail,
+} from "../controllers/movementController.js";
 
-// arquivo de rotas para leitura de movimentações e relatórios de vendas isolados por estabelecimento
+// arquivo de rotas para extrato unitário de movimentações, relatórios de vendas e desempenho de vendedores
 
 const router = express.Router();
 
-// 1 - Protege todas as rotas exigindo token JWT ativo e verificação de empresa/usuário ativo
 router.use(authMiddleware);
 
-// 2 - Rota de relatório consolidado de vendas (/sales-report)
-// GERENTE e ADMIN visualizam as vendas de toda a loja; OPERADOR visualiza apenas suas próprias vendas
+// Relatório executivo (ADMIN escolhe rede/loja; GERENTE vê sua loja; OPERADOR vê apenas suas vendas)
 router.get("/sales-report", permit("ADMIN", "GERENTE", "OPERADOR"), getSalesReport);
 
-// 3 - Rota estatística /user-stats (restrita a ADMIN e GERENTE; bloqueada para OPERADOR por regra de sigilo entre vendedores)
+// Ranking do melhor ao pior vendedor e raio-X individual (incluindo busca por ID antigo de ex-funcionários)
+router.get("/performance", permit("ADMIN", "GERENTE"), getPerformanceRanking);
+router.get("/performance/:refId", permit("ADMIN", "GERENTE"), getPerformanceDetail);
+
+// Estatísticas agregadas de vendas por vendedor no Dashboard (vedado ao OPERADOR)
 router.get("/user-stats", permit("ADMIN", "GERENTE"), getUserStats);
 
-// 4 - Rota base de listagem de histórico com paginação
-// OPERADOR recebe exclusivamente seus próprios registros; GERENTE e ADMIN enxergam todo o estabelecimento
+// Listagem paginada do extrato item a item (OPERADOR recebe estritamente seus registros)
 router.get("/", permit("ADMIN", "GERENTE", "OPERADOR"), listMovements);
 
 export default router;

@@ -1,63 +1,89 @@
-import { childLogger } from '../config/logger.js';
+import { childLogger } from "../config/logger.js";
 import {
   listMovementsPaginated,
   getUserStatsAggregated,
   getSalesReportData,
-} from '../services/movementService.js';
-const log = childLogger('movementController');
+  getSellerPerformanceRanking,
+  getSellerPerformanceDetail,
+} from "../services/movementService.js";
+import { resolveReadScope } from "../utils/tenantScope.js";
+const log = childLogger("movementController");
 
-// arquivo responsável por controlar requisições de movimentações, métricas por vendedor e relatório de vendas por loja
+// arquivo responsável por controlar requisições HTTP de extrato unitário, estatísticas, relatórios e desempenho de vendedores
 
-// função para listar movimentações da loja (OPERADOR recebe automaticamente apenas suas próprias movimentações)
-// 1 - Repassa req.query, req.user.empresaId e req.user ao serviço listMovementsPaginated
-// 2 - Retorna a lista paginada respeitando isolamento por loja e por perfil RBAC
+// função para listar movimentações do livro-razão (OPERADOR recebe apenas as suas; filtro aceita antigo ID)
 export async function listMovements(req, res, next) {
   try {
-    const result = await listMovementsPaginated(
-      req.query,
-      req.user.empresaId,
-      req.user
-    );
+    const scope = await resolveReadScope(req);
+    const result = await listMovementsPaginated(req.query, scope, req.user);
     res.json(result);
   } catch (err) {
-    log.error({ err, user: req.user?.id, empresaId: req.user?.empresaId }, 'Erro ao listar movimentações');
+    log.error({ err, organizacaoId: req.user?.organizacaoId }, "Erro ao listar movimentações");
     next(err);
   }
 }
 
-// função para obter o montante e volume de movimentações por vendedor da loja (restrita a ADMIN e GERENTE)
-// 1 - Extrai intervalo opcional from/to da query string e o empresaId do token
-// 2 - Consulta query agregada SQL sem N+1 e devolve os resultados
+// função para estatísticas consolidadas de vendas por vendedor no Dashboard (ADMIN e GERENTE)
 export async function getUserStats(req, res, next) {
   try {
+    const scope = await resolveReadScope(req);
     const { from, to } = req.query;
-    const results = await getUserStatsAggregated({ from, to }, req.user.empresaId);
-    log.info(
-      { user: req.user?.id, empresaId: req.user.empresaId, action: 'GET_USER_STATS', from, to },
-      'Estatísticas por vendedor consultadas'
-    );
+    const results = await getUserStatsAggregated({ from, to }, scope);
     res.json(results);
   } catch (err) {
-    log.error({ err, empresaId: req.user?.empresaId }, 'Erro ao obter estatísticas por usuário');
+    log.error({ err }, "Erro ao obter estatísticas por usuário");
     next(err);
   }
 }
 
-// função para entregar o relatório consolidado de vendas (escopo da loja para ADMIN/GERENTE, ou individual para OPERADOR)
-// 1 - Extrai o período desejado ('1m', '6m' ou '1y')
-// 2 - Invoca getSalesReportData passando empresaId e req.user para aplicar filtro de privacidade de operador
-// 3 - Registra auditoria e devolve JSON estruturado para o gerador de PDF nativo
+// função para gerar relatório executivo consolidado de vendas (1m, 6m, 1y) com suporte a rede ou loja
 export async function getSalesReport(req, res, next) {
   try {
-    const { period = '1m' } = req.query;
-    const report = await getSalesReportData(period, req.user.empresaId, req.user);
+    const scope = await resolveReadScope(req);
+    const { period = "1m" } = req.query;
+    const report = await getSalesReportData(period, scope, req.user);
     log.info(
-      { user: req.user?.id, empresaId: req.user.empresaId, action: 'GET_SALES_REPORT', period, scope: report.scope },
-      'Relatório de vendas consultado'
+      {
+        user: req.user?.id,
+        organizacaoId: scope.organizacaoId,
+        lojaId: scope.lojaId,
+        action: "GET_SALES_REPORT",
+        period,
+        scope: report.scope,
+      },
+      "Relatório de vendas consultado"
     );
     res.json(report);
   } catch (err) {
-    log.error({ err, period: req.query.period, empresaId: req.user?.empresaId }, 'Erro ao gerar relatório de vendas');
+    log.error({ err, period: req.query.period }, "Erro ao gerar relatório de vendas");
+    next(err);
+  }
+}
+
+// função para obter o ranking completo de vendedores do melhor ao pior (ativos e excluídos via vendedorRefId)
+export async function getPerformanceRanking(req, res, next) {
+  try {
+    const scope = await resolveReadScope(req);
+    const { period = "1m", from, to, search = "", includeDeleted = "true" } = req.query;
+    const result = await getSellerPerformanceRanking(
+      { period, from, to, search, includeDeleted },
+      scope
+    );
+    res.json(result);
+  } catch (err) {
+    log.error({ err }, "Erro ao consultar ranking de desempenho de vendedores");
+    next(err);
+  }
+}
+
+// função para obter o raio-X detalhado (1m, 6m, 1y, gráfico e pedidos) de um colaborador ativo ou excluído pelo ID
+export async function getPerformanceDetail(req, res, next) {
+  try {
+    const scope = await resolveReadScope(req);
+    const result = await getSellerPerformanceDetail(req.params.refId, scope);
+    res.json(result);
+  } catch (err) {
+    log.warn({ err, refId: req.params.refId }, "Erro ao consultar desempenho individual");
     next(err);
   }
 }
