@@ -1,9 +1,22 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { FiX, FiUserCheck, FiPauseCircle, FiSun, FiUserX, FiEdit2, FiPhone, FiMail, FiCalendar, FiMapPin, FiBriefcase } from "react-icons/fi";
+import {
+  FiX,
+  FiUserCheck,
+  FiPauseCircle,
+  FiSun,
+  FiUserX,
+  FiEdit2,
+  FiPhone,
+  FiMail,
+  FiCalendar,
+  FiMapPin,
+  FiBriefcase,
+  FiFileText,
+} from "react-icons/fi";
 import { formatImageUrl } from "../../utils/imageHelper.js";
 
-// arquivo responsável pelo popup de ficha completa do colaborador e ações de suspensão, férias, reativação e demissão
+// arquivo responsável pelo popup de ficha completa do colaborador (ativos, suspensos, férias e desligados c/ data de demissão)
 
 const SITUACAO_LABELS = {
   ATIVO: {
@@ -18,6 +31,10 @@ const SITUACAO_LABELS = {
     label: "Em Férias",
     badge: "bg-sky-500/15 text-sky-400 border-sky-500/30",
   },
+  DESLIGADO: {
+    label: "Desligado (Matrícula Cancelada)",
+    badge: "bg-accent-red/15 text-accent-red border-accent-red/30",
+  },
 };
 
 const getInitials = (name = "") =>
@@ -29,9 +46,9 @@ const getInitials = (name = "") =>
     .join("")
     .toUpperCase();
 
-// função para exibir ficha detalhada do colaborador com controles de situação funcional e desligamento
-// 1 - Mostra nome, e-mail, matrícula, telefone, situação, cargo, filial e data de admissão
-// 2 - Quando suspenso ou de férias, destaca ações para Reativar ou Demitir (Cancelar Matrícula c/ Relatório)
+// função para exibir ficha detalhada do colaborador com controles de situação funcional, data de demissão e desligamento
+// 1 - Mostra nome, e-mail, matrícula, telefone, situação, cargo, filial, admissão e data de demissão (quando desligado)
+// 2 - Quando suspenso/férias destaca Reativar ou Demitir; quando desligado permite reabrir o Relatório Final de Vendas
 const ModalInfoUsuario = ({
   user,
   isSelf = false,
@@ -40,17 +57,26 @@ const ModalInfoUsuario = ({
   onEdit,
   onChangeSituation,
   onDismiss,
+  onOpenReport,
 }) => {
   if (!user) return null;
 
   const situacaoKey = user.situacao || "ATIVO";
   const sitInfo = SITUACAO_LABELS[situacaoKey] || SITUACAO_LABELS.ATIVO;
+  const isDismissed = situacaoKey === "DESLIGADO" || Boolean(user.excluido);
   const matriculaDisplay =
-    user.matricula || `MAT-${String(user.id).padStart(5, "0")}`;
+    user.matriculaDisplay ||
+    (isDismissed
+      ? `${user.matricula || `MAT-${String(user.id).padStart(5, "0")}`} (CANCELADA)`
+      : user.matricula || `MAT-${String(user.id).padStart(5, "0")}`);
   const isSuspendedOrLeave = situacaoKey === "SUSPENSO" || situacaoKey === "FERIAS";
   const dataAdmissaoFormatted = user.dataAdmissao
     ? new Date(user.dataAdmissao).toLocaleDateString("pt-BR")
     : new Date(user.createdAt).toLocaleDateString("pt-BR");
+  const dataDemissaoRaw = user.dataDemissao || user.dataTermino;
+  const dataDemissaoFormatted = dataDemissaoRaw
+    ? new Date(dataDemissaoRaw).toLocaleDateString("pt-BR")
+    : null;
 
   return createPortal(
     <div
@@ -84,7 +110,13 @@ const ModalInfoUsuario = ({
                 {user.email}
               </p>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-accent-purple/15 text-accent-purple border border-accent-purple/30">
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono border ${
+                    isDismissed
+                      ? "bg-accent-red/15 text-accent-red border-accent-red/30"
+                      : "bg-accent-purple/15 text-accent-purple border-accent-purple/30"
+                  }`}
+                >
                   {matriculaDisplay}
                 </span>
                 <span
@@ -127,7 +159,7 @@ const ModalInfoUsuario = ({
 
             <div className="p-3.5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)]">
               <span className="text-[10px] font-mono uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
-                <FiMapPin size={11} /> Loja / Unidade
+                <FiMapPin size={11} /> {isDismissed ? "Última Loja / Unidade" : "Loja / Unidade"}
               </span>
               <p className="text-sm font-medium text-text-primary mt-1">
                 {user.role === "ADMIN" ? "Todas as Lojas (Rede)" : user.loja?.nome || "Sem filial"}
@@ -142,6 +174,22 @@ const ModalInfoUsuario = ({
                 {dataAdmissaoFormatted}
               </p>
             </div>
+
+            {isDismissed && (
+              <div className="sm:col-span-2 p-3.5 rounded-2xl bg-accent-red/10 border border-accent-red/30">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-accent-red flex items-center gap-1.5">
+                  <FiCalendar size={11} /> Data de Demissão (Desligamento)
+                </span>
+                <p className="text-sm font-bold text-text-primary mt-1">
+                  {dataDemissaoFormatted || "Não informada"}
+                </p>
+                {user.motivo && (
+                  <p className="text-xs text-text-secondary mt-1">
+                    Motivo: {user.motivo}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {isSuspendedOrLeave && (
@@ -149,68 +197,99 @@ const ModalInfoUsuario = ({
               <strong>Acesso temporariamente bloqueado:</strong> Este colaborador está marcado como{" "}
               <span className="font-semibold underline">{sitInfo.label}</span>. Você pode{" "}
               <strong>Reativar</strong> o acesso imediato ou <strong>Demitir (Cancelar Matrícula)</strong>{" "}
-              para gerar o relatório final de vendas pelos meses trabalhados.
+              registrando a Data de Demissão e gerando o relatório final de vendas pelos meses trabalhados.
+            </div>
+          )}
+
+          {isDismissed && (
+            <div className="p-3.5 rounded-2xl border border-accent-red/30 bg-accent-red/10 text-xs text-text-secondary leading-relaxed">
+              <strong>Conta desligada e acesso encerrado:</strong> A matrícula{" "}
+              <span className="font-mono text-accent-red font-semibold">{matriculaDisplay}</span> permanece
+              preservada para consulta histórica de vendas, admissão e demissão.
             </div>
           )}
         </div>
 
         {/* Rodapé com ações trabalhistas */}
         <div className="p-4 sm:p-5 border-t border-[var(--color-border-light)] bg-[var(--color-surface)]/30 flex flex-wrap items-center justify-between gap-2.5">
-          <button
-            type="button"
-            disabled={actionLoading}
-            onClick={() => onEdit(user)}
-            className="btn-secondary py-2 px-3.5 text-xs font-semibold flex items-center gap-1.5"
-          >
-            <FiEdit2 size={13} />
-            Editar Cadastro
-          </button>
-
-          {!isSelf && (
-            <div className="flex flex-wrap items-center gap-2">
-              {isSuspendedOrLeave ? (
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => onChangeSituation(user, "ATIVO")}
-                  className="py-2 px-3.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <FiUserCheck size={13} />
-                  Reativar Colaborador
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => onChangeSituation(user, "SUSPENSO")}
-                    className="py-2 px-3 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <FiPauseCircle size={13} />
-                    Suspender
-                  </button>
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => onChangeSituation(user, "FERIAS")}
-                    className="py-2 px-3 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-400 border border-sky-500/30 hover:bg-sky-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <FiSun size={13} />
-                    Férias
-                  </button>
-                </>
-              )}
-
+          {isDismissed ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-secondary py-2 px-4 text-xs font-semibold"
+              >
+                Fechar
+              </button>
               <button
                 type="button"
                 disabled={actionLoading}
-                onClick={() => onDismiss(user)}
-                className="py-2 px-3.5 rounded-full text-xs font-semibold bg-accent-red/15 text-accent-red border border-accent-red/30 hover:bg-accent-red/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                onClick={() => onOpenReport?.(user)}
+                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
               >
-                <FiUserX size={13} />
-                Demitir / Cancelar Matrícula
+                <FiFileText size={13} />
+                Ver Relatório Final de Vendas
               </button>
-            </div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => onEdit(user)}
+                className="btn-secondary py-2 px-3.5 text-xs font-semibold flex items-center gap-1.5"
+              >
+                <FiEdit2 size={13} />
+                Editar Cadastro
+              </button>
+
+              {!isSelf && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {isSuspendedOrLeave ? (
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={() => onChangeSituation(user, "ATIVO")}
+                      className="py-2 px-3.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <FiUserCheck size={13} />
+                      Reativar Colaborador
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => onChangeSituation(user, "SUSPENSO")}
+                        className="py-2 px-3 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <FiPauseCircle size={13} />
+                        Suspender
+                      </button>
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => onChangeSituation(user, "FERIAS")}
+                        className="py-2 px-3 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-400 border border-sky-500/30 hover:bg-sky-500/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <FiSun size={13} />
+                        Férias
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => onDismiss(user)}
+                    className="py-2 px-3.5 rounded-full text-xs font-semibold bg-accent-red/15 text-accent-red border border-accent-red/30 hover:bg-accent-red/25 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <FiUserX size={13} />
+                    Demitir / Cancelar Matrícula
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

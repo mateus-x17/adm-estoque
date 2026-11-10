@@ -25,6 +25,12 @@ const getRoleStyle = (role) => {
 };
 
 const getSituationBadge = (situacao) => {
+  if (situacao === "DESLIGADO") {
+    return {
+      label: "Desligado",
+      cls: "bg-accent-red/15 text-accent-red border-accent-red/30",
+    };
+  }
   if (situacao === "SUSPENSO") {
     return {
       label: "Suspenso",
@@ -42,6 +48,8 @@ const getSituationBadge = (situacao) => {
     cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
   };
 };
+
+const getTodayYMD = () => new Date().toISOString().slice(0, 10);
 
 const getInitials = (name = "") =>
   name
@@ -74,6 +82,8 @@ const Usuarios = () => {
   const [infoUser, setInfoUser] = useState(null);
   const [situationLoading, setSituationLoading] = useState(false);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState(null);
+  const [dismissalDate, setDismissalDate] = useState(getTodayYMD);
+  const [dismissalReason, setDismissalReason] = useState("");
   const [deletingUser, setDeletingUser] = useState(false);
   const [dismissalReport, setDismissalReport] = useState(null);
 
@@ -170,9 +180,11 @@ const Usuarios = () => {
     }
   };
 
-  // função para abrir confirmação estilizada antes de cancelar matrícula e excluir definitivamente o usuário preservando vendas
+  // função para abrir confirmação estilizada com seleção da Data de Demissão e justificativa opcional
   const handleExcluirUsuario = (user) => {
     setInfoUser(null);
+    setDismissalDate(getTodayYMD());
+    setDismissalReason("");
     setConfirmDeleteUser(user);
   };
 
@@ -180,7 +192,10 @@ const Usuarios = () => {
     if (!confirmDeleteUser) return;
     setDeletingUser(true);
     try {
-      const result = await usersApi.deleteUser(confirmDeleteUser.id);
+      const result = await usersApi.deleteUser(confirmDeleteUser.id, {
+        dataDemissao: dismissalDate || getTodayYMD(),
+        motivo: dismissalReason.trim() || null,
+      });
       setModal({
         visible: true,
         mensagem: result?.message || `Matrícula cancelada e usuário "${confirmDeleteUser.nome}" desligado!`,
@@ -199,6 +214,25 @@ const Usuarios = () => {
     } finally {
       setDeletingUser(false);
       setConfirmDeleteUser(null);
+    }
+  };
+
+  // função para reabrir o Relatório Final de Desligamento direto do card ou do modal Info
+  const handleOpenDismissalReport = async (user) => {
+    setSituationLoading(true);
+    try {
+      const refTarget = user.matricula || user.vendedorRefId || user.id;
+      const relatorio = await usersApi.getDismissalReport(refTarget);
+      setInfoUser(null);
+      setDismissalReport(relatorio);
+    } catch (error) {
+      setModal({
+        visible: true,
+        mensagem: error.message || "Erro ao carregar relatório de desligamento.",
+        tipo: "erro",
+      });
+    } finally {
+      setSituationLoading(false);
     }
   };
 
@@ -266,10 +300,11 @@ const Usuarios = () => {
                 onChange={(e) => setFilterSituacao(e.target.value)}
                 className="w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none"
               >
-                <option value="todos">Todas as Situações</option>
+                <option value="todos">Todas (Ativos e Desligados)</option>
                 <option value="ATIVO">Contratado (Atuando)</option>
                 <option value="SUSPENSO">Suspenso</option>
                 <option value="FERIAS">Em Férias</option>
+                <option value="DESLIGADO">Desligado (Matrícula Cancelada)</option>
               </select>
 
               <select
@@ -330,12 +365,21 @@ const Usuarios = () => {
             {usuarios.map((user) => {
               const isSelf = currentUser?.id === user.id;
               const isAdminRow = user.role === "ADMIN";
+              const isDismissed = user.situacao === "DESLIGADO" || Boolean(user.excluido);
               const sitBadge = getSituationBadge(user.situacao);
               const matriculaDisplay =
-                user.matricula || `MAT-${String(user.id).padStart(5, "0")}`;
+                user.matriculaDisplay ||
+                (isDismissed
+                  ? `${user.matricula || `MAT-${String(user.id).padStart(5, "0")}`} (CANCELADA)`
+                  : user.matricula || `MAT-${String(user.id).padStart(5, "0")}`);
 
               return (
-                <div key={user.id} className="glass-card hover-card flex flex-col p-5">
+                <div
+                  key={`${isDismissed ? "del" : "act"}-${user.id}`}
+                  className={`glass-card hover-card flex flex-col p-5 ${
+                    isDismissed ? "border-accent-red/30 opacity-95" : ""
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-2 mb-4">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-12 h-12 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-primary flex items-center justify-center font-semibold text-sm shrink-0">
@@ -359,7 +403,7 @@ const Usuarios = () => {
                     <button
                       type="button"
                       onClick={() => setInfoUser(user)}
-                      title="Ver ficha completa, telefone, situação e opções trabalhistas"
+                      title="Ver ficha completa, admissão/demissão e opções"
                       className="p-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-secondary hover:text-accent-purple hover:border-accent-purple/40 transition-colors shrink-0"
                     >
                       <FiInfo size={14} />
@@ -388,8 +432,8 @@ const Usuarios = () => {
                     </span>
                   </div>
 
-                  {/* Troca rápida de filial para Gerente / Operador */}
-                  {!isAdminRow && stores.length > 1 && (
+                  {/* Troca rápida de filial apenas para ativos/suspensos/férias */}
+                  {!isDismissed && !isAdminRow && stores.length > 1 && (
                     <div className="mb-3">
                       <label className="text-[10px] font-mono uppercase text-text-secondary block mb-1">
                         Transferir de Filial
@@ -411,37 +455,64 @@ const Usuarios = () => {
                   <div className="font-mono text-[11px] text-text-secondary space-y-1 mb-4">
                     <p>
                       Matrícula:{" "}
-                      <span className="text-text-primary font-semibold">{matriculaDisplay}</span>{" "}
+                      <span
+                        className={`font-semibold ${
+                          isDismissed ? "text-accent-red" : "text-text-primary"
+                        }`}
+                      >
+                        {matriculaDisplay}
+                      </span>{" "}
                       <span className="opacity-60">(#{user.id})</span>
                     </p>
                     <p>
-                      Criado:{" "}
+                      Admissão:{" "}
                       <span className="text-text-primary">
-                        {new Date(user.createdAt).toLocaleDateString()}
+                        {new Date(user.dataAdmissao || user.createdAt).toLocaleDateString("pt-BR")}
                       </span>
                     </p>
+                    {isDismissed && (user.dataDemissao || user.dataTermino) && (
+                      <p>
+                        Demissão:{" "}
+                        <span className="text-accent-red font-semibold">
+                          {new Date(user.dataDemissao || user.dataTermino).toLocaleDateString("pt-BR")}
+                        </span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="mt-auto flex flex-wrap gap-2 pt-4 border-t border-[var(--color-border)]">
-                    <button
-                      onClick={() => abrirEditarUsuario(user, "usuario")}
-                      className="flex-1 btn-secondary py-2 px-3 text-xs font-semibold"
-                    >
-                      Editar
-                    </button>
+                    {isDismissed ? (
+                      <button
+                        type="button"
+                        disabled={situationLoading}
+                        onClick={() => handleOpenDismissalReport(user)}
+                        className="flex-1 btn-secondary py-2 px-3 text-xs font-semibold"
+                      >
+                        Ver Relatório Final
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => abrirEditarUsuario(user, "usuario")}
+                          className="flex-1 btn-secondary py-2 px-3 text-xs font-semibold"
+                        >
+                          Editar
+                        </button>
 
-                    <button
-                      disabled={isSelf}
-                      onClick={() => handleExcluirUsuario(user)}
-                      title={
-                        isSelf
-                          ? "Você não pode excluir a si mesmo"
-                          : "Excluir definitivamente preservando vendas no ID antigo"
-                      }
-                      className="flex-1 py-2 px-3 rounded-full text-xs font-semibold bg-accent-red/10 text-accent-red hover:bg-accent-red/20 transition-all duration-300 disabled:opacity-40"
-                    >
-                      Excluir
-                    </button>
+                        <button
+                          disabled={isSelf}
+                          onClick={() => handleExcluirUsuario(user)}
+                          title={
+                            isSelf
+                              ? "Você não pode excluir a si mesmo"
+                              : "Demitir colaborador cancelando matrícula e gerando relatório"
+                          }
+                          className="flex-1 py-2 px-3 rounded-full text-xs font-semibold bg-accent-red/10 text-accent-red hover:bg-accent-red/20 transition-all duration-300 disabled:opacity-40"
+                        >
+                          Demitir
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -478,6 +549,7 @@ const Usuarios = () => {
         }}
         onChangeSituation={handleChangeSituation}
         onDismiss={handleExcluirUsuario}
+        onOpenReport={handleOpenDismissalReport}
       />
 
       <ModalConfirmacao
@@ -489,9 +561,18 @@ const Usuarios = () => {
           confirmDeleteUser
             ? `Deseja demitir "${confirmDeleteUser.nome}" (${
                 confirmDeleteUser.matricula || `MAT-${String(confirmDeleteUser.id).padStart(5, "0")}`
-              })?\n\nA matrícula será marcada como CANCELADA no histórico, o acesso será encerrado na hora e um Relatório Final com todas as vendas filtradas pelos meses trabalhados (início e término) será gerado.`
+              })?\n\nA matrícula será marcada como CANCELADA, o acesso será encerrado na hora, a data de demissão ficará registrada no histórico e o Relatório Final mensal será gerado.`
             : ""
         }
+        withDateInput={true}
+        dateLabel="Data de Demissão"
+        dateValue={dismissalDate}
+        onDateChange={setDismissalDate}
+        withInput={true}
+        inputLabel="Motivo do desligamento (opcional)"
+        inputPlaceholder="Ex: Término de contrato, pedido de demissão..."
+        inputValue={dismissalReason}
+        onInputChange={setDismissalReason}
         confirmText="Demitir e Gerar Relatório"
         onCancel={() => setConfirmDeleteUser(null)}
         onConfirm={executeExcluirUsuario}

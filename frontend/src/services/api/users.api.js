@@ -5,14 +5,14 @@ import { apiClient } from "./apiClient.js";
 export const usersApi = {
   getMe: async () => apiClient.get("/users/me"),
 
-  // função para listar usuários da Organização com filtro opcional por lojaId, cargo, situação e busca por matrícula/nome/e-mail/ID
+  // função para listar usuários da Organização (incl. desligados quando situacao='DESLIGADO' ou 'todos')
   getUsers: async ({ page = 1, limit = 10, search = "", role = "", situacao = "", lojaId = "" } = {}) => {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
       ...(search ? { search } : {}),
       ...(role && role !== "todos" ? { role } : {}),
-      ...(situacao && situacao !== "todos" ? { situacao } : {}),
+      ...(situacao ? { situacao } : {}),
       ...(lojaId && lojaId !== "todos" && lojaId !== "all" ? { lojaId: String(lojaId) } : {}),
     });
     return apiClient.get(`/users?${params.toString()}`);
@@ -33,6 +33,11 @@ export const usersApi = {
   // função exclusiva de ADMIN para alterar situação funcional (ATIVO, SUSPENSO, FERIAS)
   changeUserSituation: (id, situacao) => apiClient.patch(`/users/${id}/situation`, { situacao }),
 
-  // função para demitir (cancelar matrícula e excluir colaborador) preservando vendedorRefId e gerando relatório de vendas
-  deleteUser: (id) => apiClient.delete(`/users/${id}`),
+  // função para demitir (cancelar matrícula e excluir colaborador) informando dataDemissao e motivo opcionais
+  deleteUser: (id, data = null) =>
+    apiClient.delete(`/users/${id}`, data ? { body: JSON.stringify(data) } : {}),
+
+  // função para consultar/reemitir o Relatório Final de Desligamento por Matrícula ou ID
+  getDismissalReport: (refId) =>
+    apiClient.get(`/users/${encodeURIComponent(String(refId))}/dismissal-report`),
 };

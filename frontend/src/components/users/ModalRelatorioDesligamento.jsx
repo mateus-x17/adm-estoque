@@ -81,8 +81,8 @@ function printDismissalReportPdf(relatorio) {
     </div>
 
     <div class="dates-box">
-      <div class="kpi"><small>Data de Início</small><strong>${formatDateBR(vendedor.dataInicio)}</strong></div>
-      <div class="kpi"><small>Data de Término</small><strong>${formatDateBR(vendedor.dataTermino)}</strong></div>
+      <div class="kpi"><small>Data de Início (Admissão)</small><strong>${formatDateBR(vendedor.dataInicio)}</strong></div>
+      <div class="kpi"><small>Data de Demissão (Término)</small><strong>${formatDateBR(vendedor.dataTermino)}</strong></div>
     </div>
 
     <div class="kpis">
@@ -182,21 +182,30 @@ const ModalRelatorioDesligamento = ({ relatorio, onClose }) => {
             </div>
           </div>
 
-          {/* Data de Início e Data de Término */}
+          {/* Data de Início e Data de Demissão */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-2xl bg-[var(--color-surface)]/60 border border-[var(--color-border-light)]">
-              <span className="text-[10px] font-mono uppercase text-text-secondary">Data de Início</span>
+              <span className="text-[10px] font-mono uppercase text-text-secondary">
+                Data de Início (Admissão)
+              </span>
               <p className="text-sm font-bold text-text-primary mt-1">
                 {formatDateBR(vendedor.dataInicio)}
               </p>
             </div>
             <div className="p-3.5 rounded-2xl bg-[var(--color-surface)]/60 border border-[var(--color-border-light)]">
-              <span className="text-[10px] font-mono uppercase text-text-secondary">Data de Término</span>
+              <span className="text-[10px] font-mono uppercase text-text-secondary">
+                Data de Demissão (Término)
+              </span>
               <p className="text-sm font-bold text-text-primary mt-1">
                 {formatDateBR(vendedor.dataTermino)}
               </p>
             </div>
           </div>
+          {vendedor.motivo && (
+            <div className="px-4 py-2.5 rounded-xl bg-[var(--color-surface)]/40 border border-[var(--color-border-light)] text-xs text-text-secondary">
+              <strong>Motivo registrado:</strong> {vendedor.motivo}
+            </div>
+          )}
 
           {/* KPIs consolidados */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

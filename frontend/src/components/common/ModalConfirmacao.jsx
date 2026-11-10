@@ -46,6 +46,10 @@ const ModalConfirmacao = ({
   inputPlaceholder = "",
   inputValue = "",
   onInputChange = null,
+  withDateInput = false,
+  dateLabel = "",
+  dateValue = "",
+  onDateChange = null,
 }) => {
   useEffect(() => {
     if (!isOpen) return;
@@ -92,6 +96,22 @@ const ModalConfirmacao = ({
             {message}
           </p>
         </div>
+
+        {withDateInput && (
+          <div className="mb-4 text-left">
+            {dateLabel && (
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-text-secondary mb-1.5">
+                {dateLabel}
+              </label>
+            )}
+            <input
+              type="date"
+              value={dateValue}
+              onChange={(e) => onDateChange?.(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+            />
+          </div>
+        )}
 
         {withInput && (
           <div className="mb-5 text-left">

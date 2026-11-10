@@ -189,8 +189,8 @@ const DesempenhoVendedores = () => {
         </div>
 
         <div class="dates-grid">
-          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Início</small><div style="font-weight:700;margin-top:2px;">${formatDateBR(vendedor.dataInicio)}</div></div>
-          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Término</small><div style="font-weight:700;margin-top:2px;">${vendedor.dataTermino ? formatDateBR(vendedor.dataTermino) : "Em atividade"}</div></div>
+          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Início (Admissão)</small><div style="font-weight:700;margin-top:2px;">${formatDateBR(vendedor.dataInicio)}</div></div>
+          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Demissão (Término)</small><div style="font-weight:700;margin-top:2px;">${vendedor.dataTermino ? formatDateBR(vendedor.dataTermino) : "Em atividade"}</div></div>
         </div>
 
         <div class="grid3">
@@ -533,10 +533,10 @@ const DesempenhoVendedores = () => {
                   <p className="text-xs text-text-secondary mt-1">
                     {detailData.vendedor.email} • {detailData.vendedor.lojaAtualNome}
                     {detailData.vendedor.dataInicio
-                      ? ` • Início: ${new Date(detailData.vendedor.dataInicio).toLocaleDateString("pt-BR")}`
+                      ? ` • Admissão: ${new Date(detailData.vendedor.dataInicio).toLocaleDateString("pt-BR")}`
                       : ""}
                     {detailData.vendedor.dataTermino
-                      ? ` • Término: ${new Date(detailData.vendedor.dataTermino).toLocaleDateString("pt-BR")}`
+                      ? ` • Demissão: ${new Date(detailData.vendedor.dataTermino).toLocaleDateString("pt-BR")}`
                       : ""}
                   </p>
                 </div>
@@ -612,7 +612,7 @@ const DesempenhoVendedores = () => {
                       Vendas por Mês Trabalhado
                     </h3>
                     <span className="font-mono text-[11px] text-text-secondary">
-                      Início: {new Date(detailData.vendedor.dataInicio).toLocaleDateString("pt-BR")} · Término:{" "}
+                      Admissão: {new Date(detailData.vendedor.dataInicio).toLocaleDateString("pt-BR")} · Demissão:{" "}
                       {detailData.vendedor.dataTermino
                         ? new Date(detailData.vendedor.dataTermino).toLocaleDateString("pt-BR")
                         : "Em atividade"}
