@@ -1,51 +1,51 @@
 import { apiClient } from "./apiClient.js";
 
-/**
- * Products API
- */
+// arquivo responsável pelas requisições HTTP de produtos, soft delete e planilhas .xlsx/.csv
+
 export const productsApi = {
-    /**
-     * Get all products
-     */
-    getProducts: async (params = {}) => {
-        const cleanParams = {};
-        for (const [key, val] of Object.entries(params)) {
-            if (val !== undefined && val !== null && val !== '') {
-                cleanParams[key] = val;
-            }
-        }
-        const queryString = new URLSearchParams(cleanParams).toString();
-        const endpoint = queryString ? `/products?${queryString}` : "/products";
-        const response = await apiClient.get(endpoint);
-        
-        // If query parameters are provided, return the full response (with pagination details).
-        // If no parameters are provided, return the raw data array for backwards compatibility.
-        if (Object.keys(cleanParams).length > 0) {
-            return response;
-        }
-        return response.data || response;
-    },
+  getProducts: async (params = {}) => {
+    const cleanParams = {};
+    for (const [key, val] of Object.entries(params)) {
+      if (val !== undefined && val !== null && val !== "") {
+        cleanParams[key] = val;
+      }
+    }
+    const queryString = new URLSearchParams(cleanParams).toString();
+    const endpoint = queryString ? `/products?${queryString}` : "/products";
+    const response = await apiClient.get(endpoint);
 
-    /**
-     * Get product statistics (total, low stock, etc.)
-     */
-    getProductStats: async () => {
-        const response = await apiClient.get("/products/stats");
-        return response.data || response;
-    },
+    if (Object.keys(cleanParams).length > 0) return response;
+    return response.data || response;
+  },
 
-    /**
-     * Create a new product
-     */
-    createProduct: (productData) => apiClient.post("/products", productData),
+  getProductStats: async () => {
+    const response = await apiClient.get("/products/stats");
+    return response.data || response;
+  },
 
-    /**
-     * Update an existing product
-     */
-    updateProduct: (id, productData) => apiClient.put(`/products/${id}`, productData),
+  createProduct: (productData) => apiClient.post("/products", productData),
 
-    /**
-     * Delete a product
-     */
-    deleteProduct: (id) => apiClient.delete(`/products/${id}`),
+  updateProduct: (id, productData) => apiClient.put(`/products/${id}`, productData),
+
+  toggleProductStatus: (id, ativo) => apiClient.patch(`/products/${id}/status`, { ativo }),
+
+  deleteProduct: (id) => apiClient.delete(`/products/${id}`),
+
+  exportProducts: (format = "xlsx", status = "ativos") =>
+    apiClient.downloadBlob(`/products/export?format=${format}&status=${status}`),
+
+  downloadImportTemplate: (format = "xlsx") =>
+    apiClient.downloadBlob(`/products/import/template?format=${format}`),
+
+  importProducts: (file, mode = "commit", targetLojaId = null) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("mode", mode);
+    if (targetLojaId) formData.append("lojaId", String(targetLojaId));
+    return apiClient.postFormData(
+      `/products/import?mode=${mode}`,
+      formData,
+      targetLojaId ? { "X-Loja-Id": String(targetLojaId) } : {}
+    );
+  },
 };

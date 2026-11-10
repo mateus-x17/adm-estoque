@@ -1,207 +1,120 @@
 # 📑 RELATÓRIO TÉCNICO 04 — MODELS, ESTRUTURAS DE DADOS E BANCO DE DADOS
-## Projeto: Estoque.OS — Mapeamento e Diagnóstico da Camada de Persistência (Fase 1.5 e 1.6)
-**Data da Auditoria:** 2026-11-08  
-**Classificação do Projeto:** Nível de Refinamento `MEDIUM`  
-**Responsável Técnico:** Senior Software Architect / Lead Auditor  
-**Documento de Origem:** `PROMPT_MASTER_UNIFICADO.md`  
+## Projeto: Estoque.OS — Modelagem Multi-Organização, Multipedidos & Preservação Histórica (Fase H)
+**Data da Atualização:** 2026-11-10  
+**Branch Auditada:** `feature/multitenant`  
 
 ---
 
-## 1. Topologia do Banco de Dados e ORM
+## 1. Topologia do Banco de Dados e Histórico de Migrações `[IMPLEMENTADO (verificado)]`
 
-- **SGBD Primário:** PostgreSQL (hospedado na nuvem no **Neon Database**, AWS us-east-1).
-- **Mecanismo de Conexão:** Connection Pooler gerenciado pelo Neon via endpoint TCP PgBouncer (`ep-bold-poetry-...-pooler.c-2.us-east-1.aws.neon.tech`).
-- **ORM / Query Builder:** **Prisma ORM v6.16.2** (`@prisma/client`).
-- **Arquivo de Configuração de Esquema:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma).
-- **Estratégia de Migrações:** Prisma Migrate (`backend/prisma/migrations/`), com 4 migrações versionadas registradas.
+- **SGBD Primário:** PostgreSQL (Neon Cloud Database).
+- **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2 na última checagem).
+- **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma) (227 linhas).
+- **6 Migrações Versionadas em `backend/prisma/migrations/`:**
+  1. `20250918051748_init` — Esquema base inicial.
+  2. `20251012223132_add_field_imagem_usuario` — Avatar em usuários.
+  3. `20260601063115_upd_tabela_fornecedores` — Expansão de fornecedores.
+  4. `20261022_alter_enum_reposicao_venda` — Enum canônico `REPOSICAO` / `VENDA`.
+  5. `20261110_multitenant_softdelete` — Introdução de `Empresa` + `ativo`.
+  6. `20261110_organizacao_multipedidos` — Evolução de `Empresa` → `Organizacao` + `Loja` (com backfill seguro preservando IDs), criação de `PedidoStatus`, `Pedido` e `ItemPedido`, remoção de `Usuario.ativo`, e inclusão de `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `precoUnitario`, `valorTotal`, `estorno` e `pedidoId` em `Movimento`.
 
 ---
 
-## 2. Diagrama Entidade-Relacionamento (ERD Real)
-
-O diagrama abaixo reflete com fidelidade matemática a modelagem física atual no PostgreSQL:
+## 2. Diagrama Entidade-Relacionamento Real (`schema.prisma`)
 
 ```mermaid
 erDiagram
-    Usuario ||--o{ Movimento : "registra (1:N)"
-    Categoria ||--o{ Produto : "classifica (1:N)"
+    Organizacao ||--o{ Loja : "possui filiais (Cascade)"
+    Organizacao ||--o{ Usuario : "possui equipe (Cascade)"
+    Organizacao ||--o{ Categoria : "possui"
+    Organizacao ||--o{ Fornecedor : "possui"
+    Organizacao ||--o{ Produto : "possui"
+    Organizacao ||--o{ Pedido : "possui"
+    Organizacao ||--o{ Movimento : "possui"
+
+    Loja ||--o{ Usuario : "vincula GERENTE/OPERADOR (SetNull)"
+    Loja ||--o{ Categoria : "escopa catálogo (Cascade)"
+    Loja ||--o{ Fornecedor : "escopa parceiros (Cascade)"
+    Loja ||--o{ Produto : "detém saldo (Cascade)"
+    Loja ||--o{ Pedido : "registra pedidos (Cascade)"
+    Loja ||--o{ Movimento : "registra livro-razão (Cascade)"
+
+    Usuario ||--o{ Pedido : "emite (SetNull ao excluir usuário)"
+    Usuario ||--o{ Movimento : "registra (SetNull ao excluir usuário)"
     Fornecedor ||--o{ Produto : "fornece (1:N)"
-    Produto ||--o{ Movimento : "sofre (1:N)"
+    Fornecedor ||--o{ Pedido : "abastece reposições (SetNull)"
+    Categoria ||--o{ Produto : "classifica (1:N)"
 
-    Usuario {
-        int id PK "autoincrement"
-        string nome "NOT NULL"
-        string email "UNIQUE, NOT NULL"
-        string senha "NOT NULL (bcrypt)"
-        Role role "DEFAULT 'OPERADOR'"
-        string imagem "NULL"
-        datetime createdAt "now()"
-        datetime updatedAt "updatedAt"
+    Pedido ||--o{ ItemPedido : "contém itens (Cascade)"
+    Pedido ||--o{ Movimento : "gera espelho contábil (SetNull)"
+    Produto ||--o{ ItemPedido : "compõe (Restrict)"
+    Produto ||--o{ Movimento : "movimenta (Restrict)"
+
+    Organizacao {
+        int id PK
+        string nome
+        string slug UK
+        boolean ativo "Soft Delete na rede"
     }
-
-    Categoria {
-        int id PK "autoincrement"
-        string nome "UNIQUE, NOT NULL"
-    }
-
-    Fornecedor {
-        int id PK "autoincrement"
-        string nome "NOT NULL"
-        string email "NULL"
-        string telefone "NULL"
+    Loja {
+        int id PK
+        int organizacaoId FK
+        string nome
+        string slug "Unique(organizacaoId, slug)"
         string endereco "NULL"
+        boolean ativo "Soft Delete na filial"
     }
-
-    Produto {
-        int id PK "autoincrement"
-        string nome "NOT NULL"
-        string descricao "NULL"
-        float preco "NOT NULL (PROBLEMA I7)"
-        int quantidade "DEFAULT 0, NOT NULL"
-        string imagem "NULL"
-        int categoriaId FK "NULL (Restrict)"
-        int fornecedorId FK "NULL (Restrict)"
-        datetime createdAt "now()"
-        datetime updatedAt "updatedAt"
+    Usuario {
+        int id PK "Preservado em vendedorRefId após DELETE"
+        int organizacaoId FK
+        int lojaId FK "NULL para ADMIN; FK ativa para equipe"
+        string email "Unique(organizacaoId, email)"
+        Role role "ADMIN | GERENTE | OPERADOR"
     }
-
+    Pedido {
+        int id PK
+        string codigo "Unique(organizacaoId, codigo)"
+        MovimentoTipo tipo "VENDA | REPOSICAO"
+        PedidoStatus status "CONCLUIDO | CANCELADO"
+        decimal valorTotal "Decimal(10,2)"
+        int usuarioId FK "NULL se conta for excluída"
+        int vendedorRefId "ID imutável do autor"
+        string vendedorNomeSnapshot
+        string vendedorEmailSnapshot
+        int canceladoPorRefId "NULL"
+    }
+    ItemPedido {
+        int id PK
+        int pedidoId FK
+        int produtoId FK
+        string produtoNomeSnapshot
+        int quantidade
+        decimal precoUnitario "Decimal(10,2) congelado"
+        decimal subtotal "Decimal(10,2)"
+    }
     Movimento {
-        int id PK "autoincrement"
-        int produtoId FK "NOT NULL (Restrict)"
-        int quantidade "NOT NULL"
-        MovimentoTipo tipo "ENUM (REPOSICAO, VENDA)"
-        int usuarioId FK "NOT NULL (Restrict)"
-        datetime data "now()"
-        string observacao "NULL"
+        int id PK
+        int produtoId FK
+        int pedidoId FK "NULL se ajuste avulso"
+        int usuarioId FK "NULL se conta for excluída"
+        int vendedorRefId "ID imutável para busca histórica"
+        string vendedorNomeSnapshot
+        decimal precoUnitario "Decimal(10,2)"
+        decimal valorTotal "Decimal(10,2)"
+        boolean estorno "DEFAULT false"
     }
 ```
 
 ---
 
-## 3. Mapeamento Detalhado das Entidades e Campos
+## 3. Decisões Críticas de Integridade & Índices `[IMPLEMENTADO (verificado)]`
 
-### 3.1 Entidade `Usuario`
-* **Tabela Física:** `"Usuario"`
-* **Finalidade:** Armazena identidades, credenciais criptografadas e papéis operacionais.
-* **Campos:**
-  - `id` (`Int`, PK, `@default(autoincrement())`): Identificador sequencial.
-  - `nome` (`String`, obrigatório): Nome completo de exibição.
-  - `email` (`String`, obrigatório, `@unique`): Chave única natural para autenticação.
-  - `senha` (`String`, obrigatório): Hash criptográfico Bcrypt (salt cost 10).
-  - `role` (`Enum Role`: `ADMIN`, `GERENTE`, `OPERADOR`, `@default(OPERADOR)`): Papel para controle de acesso RBAC.
-  - `imagem` (`String?`, opcional): URL segura HTTPS da foto hospedada no Cloudinary (ou caminho relativo em `/uploads/usuarios/`).
-  - `createdAt` (`DateTime`, `@default(now())`): Timestamp de auditoria de criação.
-  - `updatedAt` (`DateTime`, `@updatedAt`): Timestamp de última alteração.
-* **Índices Definidos:**
-  - `@@index([email])`: **Índice redundante** (`PROBLEMA I6`). O PostgreSQL já cria automaticamente um índice B-Tree exclusivo para campos `@unique`. O índice explícito ocupa espaço desnecessário e sobrecarrega inserções.
-  - `@@index([role])`: Índice B-Tree para agilizar o filtro administrativo por cargo em `GET /users?role=OPERADOR`.
-
-### 3.2 Entidade `Categoria`
-* **Tabela Física:** `"Categoria"`
-* **Finalidade:** Organização taxonômica dos produtos no catálogo.
-* **Campos:**
-  - `id` (`Int`, PK, `@default(autoincrement())`).
-  - `nome` (`String`, obrigatório, `@unique`): Nome da categoria (ex.: "Periféricos", "Monitores").
-* **Lacunas Identificadas:**
-  - Ausência de campos de auditoria temporal (`createdAt`, `updatedAt`).
-
-### 3.3 Entidade `Fornecedor`
-* **Tabela Física:** `"Fornecedor"`
-* **Finalidade:** Dados cadastrais dos parceiros comerciais distribuidores.
-* **Campos:**
-  - `id` (`Int`, PK, `@default(autoincrement())`).
-  - `nome` (`String`, obrigatório): Razão social ou nome fantasia.
-  - `email` (`String?`, opcional): E-mail corporativo.
-  - `telefone` (`String?`, opcional): Contato telefônico.
-  - `endereco` (`String?`, opcional): Endereço físico.
-* **Lacunas Identificadas:**
-  - Sem restrição de unicidade em `nome` ou `email` (permite fornecedores duplicados).
-  - Sem campos de timestamp de auditoria (`createdAt`, `updatedAt`).
-
-### 3.4 Entidade `Produto`
-* **Tabela Física:** `"Produto"`
-* **Finalidade:** Mercadorias registradas para controle físico e financeiro.
-* **Campos:**
-  - `id` (`Int`, PK, `@default(autoincrement())`).
-  - `nome` (`String`, obrigatório): Nome comercial do item.
-  - `descricao` (`String?`, opcional): Detalhes técnicos.
-  - `preco` (`Float`, obrigatório): Preço unitário de venda/aquisição.  
-    > **⚠️ FALHA CRÍTICA DE MODELAGEM (`PROBLEMA I7`):** Uso do tipo **`Float` (ponto flutuante IEEE 754 de precisão dupla)** para representação de dinheiro. Ponto flutuante binário acumula erros de arredondamento em somatórios e multiplicações financeiras (ex.: `0.1 + 0.2 = 0.30000000000000004`). O correto e mandatório para finanças é **`Decimal(10, 2)`** no PostgreSQL e Prisma.
-  - `quantidade` (`Int`, obrigatório, `@default(0)`): Saldo físico disponível em estoque.
-  - `imagem` (`String?`, opcional): URL no Cloudinary ou path local.
-  - `categoriaId` (`Int?`, opcional, FK referenciando `Categoria.id`).
-  - `fornecedorId` (`Int?`, opcional, FK referenciando `Fornecedor.id`).
-  - `createdAt` / `updatedAt` (`DateTime`).
-* **Índices Definidos:**
-  - `@@index([categoriaId])`: Otimiza joins e filtros por categoria.
-  - `@@index([fornecedorId])`: Otimiza joins por fornecedor.
-  - `@@index([quantidade])`: Otimiza a consulta de baixo estoque (`quantidade < 10`).
-  - `@@index([nome])`: Índice B-Tree para buscas exatas e prefixadas. *Nota:* Para buscas parciais (`contains` case-insensitive), o PostgreSQL realiza *Seq Scan* a menos que se utilize extensão `pg_trgm` com índice GIN.
-
-### 3.5 Entidade `Movimento`
-* **Tabela Física:** `"Movimento"`
-* **Finalidade:** Livro-razão imutável de todas as entradas e saídas de estoque.
-* **Campos:**
-  - `id` (`Int`, PK, `@default(autoincrement())`).
-  - `produtoId` (`Int`, obrigatório, FK referenciando `Produto.id`).
-  - `quantidade` (`Int`, obrigatório): Unidades movimentadas (sempre inteiro positivo).
-  - `tipo` (`Enum MovimentoTipo`: `REPOSICAO`, `VENDA`): Tipo da transação.
-  - `usuarioId` (`Int`, obrigatório, FK referenciando `Usuario.id`): Operador responsável.
-  - `data` (`DateTime`, `@default(now())`): Timestamp da ocorrência.
-  - `observacao` (`String?`, opcional): Justificativa operacional, número de pedido ou lote.
-* **Índices Definidos:**
-  - `@@index([usuarioId])`: Otimiza filtros por operador.
-  - `@@index([produtoId])`: Otimiza histórico por produto.
-  - `@@index([data])`: Otimiza ordenação e filtros de intervalo temporal.
-* **Lacuna de Índices Compostos:** O sistema filtra frequentemente por `[data, tipo]` e `[usuarioId, data]`. A ausência de um índice composto faz com que o PostgreSQL combine múltiplos Bitmap Index Scans ou recorra a ordenação custosa em disco.
-
----
-
-## 4. Avaliação Arquitetural do Banco de Dados
-
-### 4.1 Normalização e Cardinalidade
-* O modelo encontra-se na **3ª Forma Normal (3FN)**: não há atributos multivalorados, todas as chaves dependem diretamente da chave primária e não há dependências transitivas.
-* A separação entre `Produto` e `Movimento` garante que o histórico de movimentações permaneça imutável mesmo se o saldo atual do produto for alterado.
-* Cardinalidades adequadas: `Categoria (1) ── (N) Produto`, `Fornecedor (1) ── (N) Produto`, `Produto (1) ── (N) Movimento`, `Usuario (1) ── (N) Movimento`.
-
-### 4.2 Integridade Referencial e Comportamento `ON DELETE`
-* **Comportamento Padrão no Prisma:** Todas as chaves estrangeiras (`categoriaId`, `fornecedorId`, `produtoId`, `usuarioId`) estão configuradas sem cláusula explícita `onDelete: Cascade` ou `onDelete: SetNull`.
-* Por padrão no Prisma/Postgres, o comportamento é **`Restrict` / `NoAction`**.
-* O backend compensa essa restrição com verificações preventivas em nível de serviço:
-  - `deleteUser`: verifica `user._count.movimentos > 0` antes de deletar (`userService.js` L209).
-  - `deleteProduct`: verifica `movementsCount > 0` antes de deletar (`productService.js` L156).
-  - `deleteCategory`: verifica `category._count.produtos > 0` antes de deletar (`categoryService.js` L66).
-  - `deleteSupplier`: verifica `supplier._count.produtos > 0` antes de deletar (`supplierService.js` L56).
-* **Diagnóstico:** A integridade referencial está preservada contra quebras e registros órfãos.
-
----
-
-## 5. Mapeamento das Consultas e Identificação de Gargalos
-
-| Consulta / Endpoint | Implementação | Padrão de Execução no PostgreSQL | Diagnóstico e Severidade |
-| :--- | :--- | :--- | :--- |
-| **Cálculo Patrimonial (`/products/stats`)** | `SELECT COALESCE(SUM(preco * quantidade), 0) FROM "Produto"` | **Index Scan / Aggregation nativa** | `IMPLEMENTADO (verificado)` — Alta performance, executado no banco com baixo uso de memória. |
-| **Baixo Estoque (`/products/stats`)** | `prisma.produto.findMany({ where: { quantidade: { lt: 10 } }, take: 5 })` | **Index Scan** no índice `quantidade` | `IMPLEMENTADO (verificado)` — Rápido e limitado. |
-| **Ajuste de Estoque (`/products/:id/adjust`)** | Transação interativa: `tx.findUnique` → cálculo em memória → `tx.update` | **Read Committed sem lock de linha** | `PROBLEMA I1` — Risco de Lost Update e saldo negativo sob concorrência simultânea. |
-| **Estatísticas de Operador (`/movements/user-stats`)** | `groupBy` + `Promise.all(findUnique + findMany)` | **N+1 queries sequenciais repetidas** | `PROBLEMA I3` — Gera 2N+1 roundtrips de rede ao PostgreSQL. |
-| **Fluxo por Fornecedor (`/suppliers/stats`)** | `findMany({ include: { produtos: { include: { movimentos } } } })` | **Join triplo total sem paginação** | `PROBLEMA I4` — Agregação de todo o banco executada na CPU/memória do Node.js. |
-| **Gráficos de Movimentações (`/movements?limit=all`)** | `prisma.movimento.findMany({ include: { produto, usuario } })` | **Full Table Scan sem teto** | `PROBLEMA I4 / B10` — Carga desnecessária de toda a base a cada navegação de tela. |
-| **Listagem de Categorias e Fornecedores** | `prisma.categoria.findMany()` e `prisma.fornecedor.findMany()` | **Seq Scan sem paginação** | `PROBLEMA B10` — Ausência de `skip`/`take` nas listagens auxiliares. |
-
----
-
-## 6. Conclusão Técnica sobre o Banco de Dados: Manter ou Modificar?
-
-### Veredito: **MODIFICAR PONTUALMENTE**
-
-1. **Alterar tipo do campo `Produto.preco` de `Float` para `Decimal(10, 2)`:**
-   - *Justificativa:* Erradicar erros de precisão monetária acumulados em cálculos de faturamento e montante patrimonial.
-2. **Eliminar índice redundante `@@index([email])` em `Usuario`:**
-   - *Justificativa:* O constraint `@unique` já gera índice B-Tree equivalente.
-3. **Criar índices compostos em `Movimento`:**
-   - `@@index([data, tipo])` e `@@index([usuarioId, data])` para acelerar os relatórios temporais do Dashboard e da tela de Movimentações.
-4. **Adicionar campos de auditoria (`createdAt`, `updatedAt`) em `Categoria` e `Fornecedor`:**
-   - *Justificativa:* Conformidade corporativa e rastreabilidade temporal.
-5. **Introduzir `SELECT FOR UPDATE` ou atualização atômica (`decrement`/`increment`) em `adjustProductQuantity`:**
-   - *Justificativa:* Garantir atomicidade e consistência estrita (ACID) sob múltiplos operadores simultâneos (+100 usuários).
-
+1. **Exclusão Física de `Usuario` Sem Quebrar Histórico:**
+   - Diferente de `Produto`, `Categoria`, `Fornecedor` e `Loja` (que usam `ativo: Boolean` pois itens podem ser descontinuados), `Usuario` foi projetado **sem `ativo`**.
+   - Quando um `Usuario` é excluído (`DELETE /users/:id`), as chaves estrangeiras `Pedido.usuarioId` e `Movimento.usuarioId` possuem `onDelete: SetNull`, tornando-se `NULL`, enquanto `vendedorRefId` (inteiro obrigatório), `vendedorNomeSnapshot` e `vendedorEmailSnapshot` permanecem intactos e indexados (`@@index([organizacaoId, vendedorRefId, createdAt])` em `Pedido` e `@@index([organizacaoId, vendedorRefId, data])` em `Movimento`).
+2. **Precisão Monetária Congelada (`Decimal(10, 2)`):**
+   - `Produto.preco`, `Pedido.valorTotal`, `ItemPedido.precoUnitario`, `ItemPedido.subtotal`, `Movimento.precoUnitario` e `Movimento.valorTotal` utilizam `@db.Decimal(10, 2)` (`numeric(10,2)`), garantindo que reajustes futuros no preço de um produto nunca alterem o faturamento histórico passado.
+3. **Seed Realista Multi-Organização (`backend/prisma/seed.js`):**
+   - **Organização 1 — `Grupo TechStock Varejo` (`grupo-techstock`):** Lojas `TechStock Centro` (`techstock-centro`) e `TechStock Shopping` (`techstock-shopping`), `ADMIN` (`admin@techstock.com`), 2 `GERENTE`s, 4 `OPERADOR`es ativos e **1 ex-funcionário fisicamente excluído (`Marcos Antunes`)** cujo `vendedorRefId` permanece auditável.
+   - **Organização 2 — `CyberForge Geek Store` (`cyberforge-geek`):** Loja `CyberForge Matriz` (`cyberforge-matriz`), `admin@cyberforge.com`, `gerente1@cyberforge.com`, `op1/op2@cyberforge.com`. Senha unificada: `Password123!`.
+   - Gera **12 meses** de multipedidos de compra e venda, cancelamento/estorno demonstrativo no mês atual e SKUs inativos com histórico (`Cabo VGA Analógico Legado`, `Hub USB 2.0 Antigo`, `Box Edição Limitada Convenção 2024`).

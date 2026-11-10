@@ -1,113 +1,214 @@
-import { prisma } from '../config/prismaClient.js';
-import { AppError } from '../utils/errorHandler.js';
+import { prisma, Prisma } from "../config/prismaClient.js";
+import { AppError } from "../utils/errorHandler.js";
+import { parseBooleanFlag } from "../utils/sanitizers.js";
 
-// serviço responsável por criar um novo fornecedor
-// 1 - Desestrutura nome, email, telefone e endereco dos dados fornecidos
-// 2 - Valida se o nome foi fornecido e é do tipo texto válido
-// 3 - Retorna um erro 400 (Bad Request) caso a validação falhe
-// 4 - Cria o fornecedor no banco de dados, aplicando trim() no nome
-export async function createSupplier(data) {
+// arquivo responsável pelas regras de negócio e métricas de fornecedores isolados por Organização e Loja
+
+// função para criar novo fornecedor vinculado à loja alvo
+export async function createSupplier(data, storeScope) {
+  if (!storeScope?.organizacaoId || !storeScope?.lojaId) {
+    throw new AppError("Loja ou organização não identificada", 400);
+  }
+
   const { nome, email, telefone, endereco } = data;
-  if (!nome || typeof nome !== 'string' || nome.trim() === '') {
-    throw new AppError('Nome de fornecedor é obrigatório', 400);
+  if (!nome || typeof nome !== "string" || nome.trim() === "") {
+    throw new AppError("Nome de fornecedor é obrigatório", 400);
   }
 
   return prisma.fornecedor.create({
-    data: { nome: nome.trim(), email, telefone, endereco }
+    data: {
+      nome: nome.trim(),
+      email: email || null,
+      telefone: telefone || null,
+      endereco: endereco || null,
+      ativo: true,
+      organizacaoId: Number(storeScope.organizacaoId),
+      lojaId: Number(storeScope.lojaId),
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
   });
 }
 
-// serviço responsável por listar todos os fornecedores
-// 1 - Executa a função findMany do Prisma na tabela fornecedor
-// 2 - Retorna o array de fornecedores obtido
-export async function listSuppliers() {
-  return prisma.fornecedor.findMany();
+// função para listar fornecedores da Organização ou Loja com suporte a filtro de status
+export async function listSuppliers(scope, status = "ativos") {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+
+  const statusFilter =
+    status === "ativos" ? { ativo: true } : status === "inativos" ? { ativo: false } : {};
+
+  return prisma.fornecedor.findMany({
+    where: {
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+      ...statusFilter,
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+      _count: {
+        select: { produtos: true },
+      },
+    },
+    orderBy: [{ ativo: "desc" }, { nome: "asc" }],
+  });
 }
 
-// serviço responsável por atualizar os dados de um fornecedor
-// 1 - Desestrutura os campos do fornecedor
-// 2 - Busca o fornecedor pelo ID (convertido para inteiro) para checar a existência
-// 3 - Se não encontrar, lança o erro 404
-// 4 - Atualiza os campos fornecidos, garantindo que o nome, se vier, passe pelo trim()
-export async function updateSupplier(id, data) {
-  const { nome, email, telefone, endereco } = data;
+// função para atualizar fornecedor garantindo isolamento por Organização (e Loja para não-ADMIN)
+export async function updateSupplier(id, data, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+  const { nome, email, telefone, endereco, ativo } = data;
 
-  const supplier = await prisma.fornecedor.findUnique({ where: { id: parseInt(id) } });
-  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
+  const supplier = await prisma.fornecedor.findFirst({
+    where: {
+      id: parseInt(id),
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.restrictToUserStore && scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
+  });
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
 
   return prisma.fornecedor.update({
     where: { id: parseInt(id) },
-    data: { nome: nome ? nome.trim() : undefined, email, telefone, endereco }
+    data: {
+      nome: nome ? nome.trim() : undefined,
+      email: email !== undefined ? email : undefined,
+      telefone: telefone !== undefined ? telefone : undefined,
+      endereco: endereco !== undefined ? endereco : undefined,
+      ativo: ativo !== undefined ? parseBooleanFlag(ativo) : undefined,
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
   });
 }
 
-// serviço responsável por deletar um fornecedor
-// 1 - Busca o fornecedor no banco com base no ID passado
-// 2 - Valida se existem produtos vinculados antes da exclusão (prevenção de erro P2003)
-// 3 - Remove o registro do fornecedor do banco
-export async function deleteSupplier(id) {
+// função para inativar ou reativar logicamente um fornecedor (Soft Delete)
+export async function toggleSupplierStatus(id, ativo, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
   const supplierId = parseInt(id);
-  const supplier = await prisma.fornecedor.findUnique({
-    where: { id: supplierId },
-    include: { _count: { select: { produtos: true } } },
-  });
-  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
 
-  if (supplier._count.produtos > 0) {
-    throw new AppError(
-      `Não é possível excluir o fornecedor "${supplier.nome}" porque ele possui ${supplier._count.produtos} produto(s) vinculado(s).`,
-      400
-    );
+  const supplier = await prisma.fornecedor.findFirst({
+    where: {
+      id: supplierId,
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.restrictToUserStore && scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
+  });
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
+
+  return prisma.fornecedor.update({
+    where: { id: supplierId },
+    data: { ativo: parseBooleanFlag(ativo) },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
+  });
+}
+
+// função exclusiva de ADMIN para excluir ou aplicar Soft Delete automático caso haja produtos/pedidos associados
+export async function deleteSupplier(id, organizacaoId) {
+  if (!organizacaoId) throw new AppError("Organização não identificada", 400);
+  const supplierId = parseInt(id);
+
+  const supplier = await prisma.fornecedor.findFirst({
+    where: { id: supplierId, organizacaoId: Number(organizacaoId) },
+    include: { _count: { select: { produtos: true, pedidos: true } } },
+  });
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
+
+  if (supplier._count.produtos > 0 || supplier._count.pedidos > 0) {
+    const inactivated = await prisma.fornecedor.update({
+      where: { id: supplierId },
+      data: { ativo: false },
+    });
+    return {
+      softDeleted: true,
+      message: `Fornecedor "${supplier.nome}" possui histórico ou produtos vinculados e foi inativado logicamente.`,
+      fornecedor: inactivated,
+    };
   }
 
-  return prisma.fornecedor.delete({ where: { id: supplierId } });
+  await prisma.fornecedor.delete({ where: { id: supplierId } });
+  return {
+    softDeleted: false,
+    message: `Fornecedor "${supplier.nome}" deletado permanentemente com sucesso.`,
+  };
 }
 
-// serviço responsável por recuperar um fornecedor por ID
-export async function getSupplierById(id) {
+// função para consultar detalhes de um único fornecedor dentro do escopo
+export async function getSupplierById(id, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
   const supplierId = parseInt(id);
-  if (isNaN(supplierId)) throw new AppError('ID de fornecedor inválido', 400);
+  if (isNaN(supplierId)) throw new AppError("ID de fornecedor inválido", 400);
 
-  const supplier = await prisma.fornecedor.findUnique({
-    where: { id: supplierId }
+  const supplier = await prisma.fornecedor.findFirst({
+    where: {
+      id: supplierId,
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
   });
 
-  if (!supplier) throw new AppError('Fornecedor não encontrado', 404);
+  if (!supplier) throw new AppError("Fornecedor não encontrado", 404);
   return supplier;
 }
 
-// serviço responsável pela contagem de fornecedores
-// 1 - Chama o método count() na entidade fornecedor
-// 2 - Retorna a quantidade numérica exata de registros
-export async function countSuppliers() {
-  return prisma.fornecedor.count();
+// função para contar fornecedores ativos no escopo selecionado
+export async function countSuppliers(scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+  return prisma.fornecedor.count({
+    where: {
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+      ativo: true,
+    },
+  });
 }
 
-// serviço responsável por levantar a estatística de fluxo por fornecedor
-// Otimizado com agregação SQL direta no PostgreSQL (I4), eliminando triplo include e loops em memória
-export async function getSupplierStats() {
+// função SQL nativa para consolidar reposições e vendas por fornecedor ativo (excluindo estornos e pedidos cancelados)
+// 1 - Filtra por organizacaoId e opcionalmente por lojaId
+// 2 - Considera apenas movimentações válidas (m.estorno = false e pedido inexistente ou CONCLUIDO)
+export async function getSupplierStats(scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+
+  const lojaFilter = scope.lojaId
+    ? Prisma.sql`AND f."lojaId" = ${Number(scope.lojaId)}`
+    : Prisma.empty;
+
   const rawResults = await prisma.$queryRaw`
     SELECT
       f.id AS "id",
       f.nome AS "nome",
+      l.nome AS "lojaNome",
       COALESCE(SUM(CASE WHEN m.tipo = 'REPOSICAO' THEN m.quantidade ELSE 0 END), 0)::int AS "totalReposicoes",
       COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade ELSE 0 END), 0)::int AS "totalVendas",
       COALESCE(SUM(m.quantidade), 0)::int AS "totalMovimentacoes"
     FROM "Fornecedor" f
+    JOIN "Loja" l ON l.id = f."lojaId"
     LEFT JOIN "Produto" p ON p."fornecedorId" = f.id
-    LEFT JOIN "Movimento" m ON m."produtoId" = p.id
-    GROUP BY f.id, f.nome
+    LEFT JOIN "Movimento" m ON m."produtoId" = p.id AND m."estorno" = false
+    LEFT JOIN "Pedido" ped ON ped.id = m."pedidoId"
+    WHERE f."organizacaoId" = ${Number(scope.organizacaoId)}
+      AND f."ativo" = true
+      ${lojaFilter}
+      AND (m.id IS NULL OR m."pedidoId" IS NULL OR ped."status" = 'CONCLUIDO')
+    GROUP BY f.id, f.nome, l.nome
     ORDER BY f.nome ASC
   `;
 
   return rawResults.map((sup) => ({
     id: Number(sup.id),
     nome: sup.nome,
+    lojaNome: sup.lojaNome,
     totalReposicoes: Number(sup.totalReposicoes || 0),
     totalVendas: Number(sup.totalVendas || 0),
     totalEntradas: Number(sup.totalReposicoes || 0),
     totalSaidas: Number(sup.totalVendas || 0),
     totalMovimentacoes: Number(sup.totalMovimentacoes || 0),
-    produtoMaisMovimentado: "Geral"
+    produtoMaisMovimentado: "Geral",
   }));
 }

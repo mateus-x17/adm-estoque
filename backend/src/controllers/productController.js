@@ -1,139 +1,258 @@
-import { childLogger } from '../config/logger.js';
-import * as productService from '../services/productService.js';
-import { uploadToCloudinary } from '../config/cloudinaryConfig.js';
-const log = childLogger('productController');
+import { childLogger } from "../config/logger.js";
+import * as productService from "../services/productService.js";
+import * as spreadsheetService from "../services/productSpreadsheetService.js";
+import { uploadToCloudinary, getTenantFolder } from "../config/cloudinaryConfig.js";
+import { resolveReadScope, resolveWriteStore } from "../utils/tenantScope.js";
+import { prisma } from "../config/prismaClient.js";
+const log = childLogger("productController");
 
-// função para listar produtos com filtros e paginação
-// 1 - Recebe req, res, next
-// 2 - Chama o serviço passando os query params (busca, categoria, paginação)
-// 3 - Retorna os dados ao cliente
+// arquivo responsável por controlar requisições HTTP de produtos, ajustes rápidos e planilhas
+
+// função para listar produtos no escopo selecionado (rede inteira ou loja específica)
 export async function listProducts(req, res, next) {
   try {
-    const result = await productService.listProductsPaginated(req.query);
+    const scope = await resolveReadScope(req);
+    const result = await productService.listProductsPaginated(req.query, scope);
     res.json(result);
   } catch (err) {
-    log.error({ err }, 'Error listing products');
+    log.error({ err, organizacaoId: req.user?.organizacaoId }, "Erro ao listar produtos");
     next(err);
   }
 }
 
-// função para contar o total de produtos cadastrados
-// 1 - Chama o serviço respectivo
-// 2 - Retorna um objeto JSON contendo o campo "count"
+// função para contar produtos ativos no escopo selecionado
 export async function countProducts(req, res, next) {
   try {
-    const count = await productService.countProducts();
+    const scope = await resolveReadScope(req);
+    const count = await productService.countProducts(scope);
     res.json({ count });
   } catch (err) {
-    log.error({ err }, 'Error counting products');
+    log.error({ err }, "Erro ao contar produtos");
     next(err);
   }
 }
 
-// função para obter estatísticas do estoque (valor total, contagem de ativos, etc)
-// 1 - Invoca o serviço que calcula as estatísticas de produto
-// 2 - Retorna os dados sumarizados
+// função para consultar estatísticas de patrimônio e baixo estoque
 export async function getProductStats(req, res, next) {
   try {
-    const stats = await productService.getProductStats();
+    const scope = await resolveReadScope(req);
+    const stats = await productService.getProductStats(scope);
     res.json(stats);
   } catch (err) {
-    log.error({ err }, 'Error getting product stats');
+    log.error({ err }, "Erro ao obter estatísticas de produtos");
     next(err);
   }
 }
 
-// função para buscar um produto específico pelo ID
-// 1 - Extrai o ID dos parâmetros da rota (req.params.id)
-// 2 - Solicita ao serviço os dados daquele produto
-// 3 - Retorna os dados em formato JSON
+// função para obter detalhes de um produto dentro do escopo do usuário
 export async function getProduct(req, res, next) {
   try {
-    const product = await productService.getProductById(req.params.id);
+    const scope = await resolveReadScope(req);
+    const product = await productService.getProductById(req.params.id, scope);
     res.json(product);
   } catch (err) {
-    log.error({ err }, 'Error getting product');
+    log.error({ err }, "Erro ao buscar produto");
     next(err);
   }
 }
 
-// função para criar um novo produto
-// 1 - Verifica se foi enviado um arquivo (imagem) através do req.file (gerado pelo Multer)
-// 2 - Se houver imagem, faz o upload para o Cloudinary na pasta específica
-// 3 - Chama o serviço passando os dados do corpo (req.body) e a URL da imagem (se houver)
-// 4 - Registra a ação bem-sucedida e retorna status 201
+// função para cadastrar produto na loja alvo com upload isolado em pasta da Organização/Loja no Cloudinary
 export async function createProduct(req, res, next) {
   try {
+    const storeScope = await resolveWriteStore(req);
+    const orgSlug = req.user.organizacaoSlug || storeScope.organizacaoId;
+
     let imagem = null;
-    if (req.file) { // arquivo processado pelo multer
-      imagem = await uploadToCloudinary(req.file.path, "ADM-estoque/produtos");
+    if (req.file) {
+      const folder = getTenantFolder(orgSlug, storeScope.lojaSlug, "produtos");
+      imagem = await uploadToCloudinary(req.file.path, folder);
     }
-    const product = await productService.createProduct(req.body, imagem);
-    log.info({ user: req.user?.id, action: 'CREATE_PRODUCT', targetId: product.id }, 'User created a product');
+
+    const product = await productService.createProduct(req.body, imagem, storeScope);
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId: storeScope.organizacaoId,
+        lojaId: storeScope.lojaId,
+        action: "CREATE_PRODUCT",
+        targetId: product.id,
+      },
+      "Produto criado"
+    );
     res.status(201).json(product);
   } catch (err) {
-    log.warn({ err }, 'Error creating product');
+    log.warn({ err }, "Erro ao criar produto");
     next(err);
   }
 }
 
-// função para atualizar os dados de um produto existente
-// 1 - Verifica se uma nova imagem foi enviada; se sim, faz upload para o Cloudinary
-// 2 - Verifica se há flag "removerImagem" vinda do frontend (quando o usuário clica para apagar a foto)
-// 3 - Chama o serviço passando os dados e as informações sobre as imagens
-// 4 - Retorna o produto atualizado
+// função para atualizar produto garantindo upload na subpasta da própria loja do produto
 export async function updateProduct(req, res, next) {
   try {
+    const orgSlug = req.user.organizacaoSlug || req.user.organizacaoId;
+    let storeSlugForMedia = req.user.lojaSlug || "geral";
+
+    if (req.file && req.user.role === "ADMIN") {
+      const targetProd = await prisma.produto.findFirst({
+        where: { id: Number(req.params.id), organizacaoId: Number(req.user.organizacaoId) },
+        include: { loja: { select: { slug: true } } },
+      });
+      if (targetProd?.loja?.slug) {
+        storeSlugForMedia = targetProd.loja.slug;
+      }
+    }
+
     let newImagePath = null;
     if (req.file) {
-      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/produtos");
+      const folder = getTenantFolder(orgSlug, storeSlugForMedia, "produtos");
+      newImagePath = await uploadToCloudinary(req.file.path, folder);
     }
+
     const removeImage = req.body.removerImagem === "true";
-    const product = await productService.updateProduct(req.params.id, req.body, newImagePath, removeImage);
-    log.info({ user: req.user?.id, action: 'UPDATE_PRODUCT', targetId: product.id }, 'User updated a product');
+    const product = await productService.updateProduct(
+      req.params.id,
+      req.body,
+      newImagePath,
+      removeImage,
+      {
+        organizacaoId: req.user.organizacaoId,
+        lojaId: req.user.lojaId,
+        restrictToUserStore: req.user.role !== "ADMIN",
+      }
+    );
+
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId: req.user.organizacaoId,
+        action: "UPDATE_PRODUCT",
+        targetId: product.id,
+      },
+      "Produto atualizado"
+    );
     res.json(product);
   } catch (err) {
-    log.warn({ err }, 'Error updating product');
+    log.warn({ err }, "Erro ao atualizar produto");
     next(err);
   }
 }
 
-// função para excluir um produto do banco de dados
-// 1 - Obtém o ID da rota
-// 2 - Solicita exclusão ao serviço (que possivelmente cuidará de checar se pode excluir e de apagar a imagem da nuvem)
-// 3 - Retorna { ok: true }
+// função para inativar ou reativar logicamente um produto (Soft Delete)
+export async function toggleProductStatus(req, res, next) {
+  try {
+    const { ativo } = req.body;
+    const product = await productService.toggleProductStatus(req.params.id, ativo, {
+      organizacaoId: req.user.organizacaoId,
+      lojaId: req.user.lojaId,
+      restrictToUserStore: req.user.role !== "ADMIN",
+    });
+    res.json(product);
+  } catch (err) {
+    log.error({ err }, "Erro ao alterar status do produto");
+    next(err);
+  }
+}
+
+// função exclusiva de ADMIN para excluir ou aplicar Soft Delete automático em um produto
 export async function deleteProduct(req, res, next) {
   try {
-    await productService.deleteProduct(req.params.id);
-    log.info({ user: req.user?.id, action: 'DELETE_PRODUCT', targetId: req.params.id }, 'User deleted a product');
-    res.json({ ok: true });
+    const result = await productService.deleteProduct(req.params.id, req.user.organizacaoId);
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId: req.user.organizacaoId,
+        action: "DELETE_PRODUCT",
+        targetId: req.params.id,
+        result,
+      },
+      "Resultado exclusão/inativação de produto"
+    );
+    res.json(result);
   } catch (err) {
-    log.error({ err }, 'Error deleting product');
+    log.error({ err }, "Erro ao excluir produto");
     next(err);
   }
 }
 
-// função para realizar uma movimentação manual (ajuste) de estoque
-// 1 - Recebe ID do produto via rota
-// 2 - Recebe quantidade, tipo (REPOSICAO/VENDA) e observação via corpo da requisição
-// 3 - Usa o req.user.id injetado pelo middleware de autenticação para vincular a quem fez a ação
-// 4 - Chama o serviço responsável por descontar/adicionar no estoque do produto e registrar o log de movimentação simultaneamente
-// 5 - Retorna o resultado
+// função para ajuste unitário rápido de estoque (gera registro no livro-razão com snapshot de vendedor)
 export async function adjustQuantity(req, res, next) {
   try {
-    const idempotencyKey = req.headers['idempotency-key'] || req.headers['x-idempotency-key'] || req.body.idempotencyKey;
+    const idempotencyKey =
+      req.headers["idempotency-key"] ||
+      req.headers["x-idempotency-key"] ||
+      req.body.idempotencyKey;
+
     const result = await productService.adjustProductQuantity(
       req.params.id,
       req.body.quantidade,
       req.body.tipo,
-      req.user.id,
+      req.user,
       req.body.observacao,
       idempotencyKey
     );
-    log.info({ user: req.user?.id, action: 'ADJUST_PRODUCT_QUANTITY', targetId: req.params.id, quantity: req.body.quantidade, type: req.body.tipo }, 'User adjusted product quantity');
+
     res.json(result);
   } catch (err) {
-    log.error({ err }, 'Error adjusting quantity');
+    log.error({ err }, "Erro ao ajustar quantidade");
+    next(err);
+  }
+}
+
+// função para exportar catálogo do escopo atual em .xlsx ou .csv
+export async function exportProducts(req, res, next) {
+  try {
+    const scope = await resolveReadScope(req);
+    const { format = "xlsx", status = "ativos" } = req.query;
+    const { buffer, filename, contentType } = await spreadsheetService.exportProductsSpreadsheet(
+      scope,
+      req.user.organizacaoSlug,
+      format,
+      status
+    );
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    log.error({ err }, "Erro ao exportar planilha de produtos");
+    next(err);
+  }
+}
+
+// função para gerar e baixar a planilha modelo oficial (.xlsx ou .csv)
+export async function downloadImportTemplate(req, res, next) {
+  try {
+    const { format = "xlsx" } = req.query;
+    const { buffer, filename, contentType } = await spreadsheetService.generateImportTemplate(format);
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    log.error({ err }, "Erro ao gerar planilha modelo");
+    next(err);
+  }
+}
+
+// função para validar (preview) ou importar atomicamente (commit) planilhas de produtos na loja alvo
+export async function importProducts(req, res, next) {
+  try {
+    const storeScope = await resolveWriteStore(req);
+    const mode = req.query.mode || req.body?.mode || "commit";
+    const result = await spreadsheetService.importProductsSpreadsheet(
+      req.file?.buffer,
+      req.file?.originalname,
+      storeScope,
+      mode
+    );
+
+    if (result.mode === "commit" && result.hasErrors) {
+      return res.status(400).json({ error: result.message, ...result });
+    }
+
+    res.status(result.mode === "commit" ? 201 : 200).json(result);
+  } catch (err) {
+    log.error({ err }, "Erro ao importar planilha de produtos");
     next(err);
   }
 }

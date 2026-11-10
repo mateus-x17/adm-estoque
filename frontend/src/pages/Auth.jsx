@@ -1,133 +1,108 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import LoginForm from "../components/forms/LoginForm.jsx";
-import RegisterForm from "../components/forms/RegisterForm.jsx";
 import { useThemeStore } from "../store/useThemeStore.js";
-import { FiSun, FiMoon, FiArrowLeft } from "react-icons/fi";
+import { FiSun, FiMoon, FiArrowLeft, FiShoppingBag, FiShield } from "react-icons/fi";
+
+// arquivo responsável pelo Portal da Loja (login de Gerentes e Operadores vinculados às filiais)
 
 const Auth = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
-  const [isLogin, setIsLogin] = useState(true);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
+  if (searchParams.get("mode") === "register") {
+    return <Navigate to="/admin/login?mode=register" replace />;
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-24 md:pt-10 pb-10 transition-colors duration-300 relative overflow-x-hidden overflow-y-auto md:overflow-hidden">
-      {/* Elementos decorativos de fundo otimizados para GPU */}
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-20 pb-10 transition-colors duration-300 relative overflow-x-hidden overflow-y-auto">
       <div
         className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, transparent 70%)' }}
+        style={{ background: "radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, transparent 70%)" }}
       />
       <div
         className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(236, 72, 153, 0.20) 0%, transparent 70%)' }}
+        style={{ background: "radial-gradient(circle, rgba(236, 72, 153, 0.20) 0%, transparent 70%)" }}
       />
 
       {/* Barra superior */}
-      <div className="fixed top-0 left-0 w-full flex items-center justify-between px-6 py-4 z-30">
+      <div className="fixed top-0 left-0 w-full flex items-center justify-between px-4 sm:px-6 py-4 z-30 bg-background/60 backdrop-blur-md md:bg-transparent md:backdrop-blur-none">
         <Link
           to="/"
-          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
+          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
         >
           <FiArrowLeft size={16} />
           Voltar
         </Link>
 
-        <button
-          onClick={toggleDarkMode}
-          aria-label="Alternar tema"
-          className="rounded-full border border-[var(--color-border)] p-2.5 text-text-secondary hover:border-accent-purple hover:text-accent-purple bg-[var(--color-surface)] transition-all duration-300"
-        >
-          {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/admin/login"
+            className="flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full border border-accent-purple/30 bg-accent-purple/10 text-accent-purple hover:bg-accent-purple hover:text-white transition-all"
+          >
+            <FiShield size={13} />
+            Portal Admin
+          </Link>
+          <button
+            onClick={toggleDarkMode}
+            aria-label="Alternar tema"
+            className="rounded-full border border-[var(--color-border)] p-2.5 text-text-secondary hover:border-accent-purple hover:text-accent-purple bg-[var(--color-surface)] transition-all"
+          >
+            {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
-      {/* Card principal */}
-      <div className="relative w-full md:w-[820px] h-auto md:h-[560px] rounded-3xl overflow-hidden glass-card shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
-        {/* Painel lateral animado */}
-        <div
-          className={`
-            bg-gradient-to-br from-accent-purple to-accent-pink text-white flex flex-col items-center justify-center p-10 z-20 text-center
-            md:absolute md:top-0 md:left-0 md:w-1/2 md:h-full w-full h-auto
-            transition-transform duration-700 ease-in-out relative overflow-hidden
-            ${isLogin ? "md:translate-x-full" : "md:translate-x-0"}
-          `}
-        >
-          {/* Noise overlay opcional em telas grandes */}
-          <div className="hidden md:block absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
-
-          <div className="relative z-10 flex flex-col items-center">
-            <span className="font-mono text-xs tracking-[0.2em] uppercase text-white/70 mb-3">
-              {isLogin ? "Novo acesso" : "Já tem conta"}
+      {/* Card principal Portal da Loja */}
+      <div className="relative w-full max-w-[820px] rounded-3xl overflow-hidden glass-card shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] grid grid-cols-1 md:grid-cols-2">
+        {/* Formulário Equipe */}
+        <div className="flex flex-col items-center justify-center p-7 sm:p-10">
+          <div className="w-full max-w-xs flex flex-col items-center">
+            <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-accent-pink mb-2">
+              Operação da Filial
             </span>
+            <h1 className="font-display text-2xl font-bold mb-1 text-text-primary text-center">
+              Portal da Loja
+            </h1>
+            <p className="text-xs text-text-secondary mb-6 text-center">
+              Acesso exclusivo para Gerentes e Operadores cadastrados pelo administrador
+            </p>
 
-            {isLogin ? (
-              <>
-                <h2 className="font-display text-3xl font-bold mb-3 tracking-tight">Novo por aqui?</h2>
-                <p className="mb-8 text-sm text-white/80 max-w-xs leading-relaxed">
-                  Crie um acesso para começar a gerenciar seu estoque de forma inteligente.
-                </p>
-                <button
-                  onClick={() => setIsLogin(false)}
-                  className="rounded-full border border-white/40 px-8 py-3 text-sm font-semibold hover:bg-white hover:text-accent-purple transition-all duration-300 shadow-lg hover:shadow-white/20"
-                >
-                  Criar conta
-                </button>
-              </>
-            ) : (
-              <>
-                <h2 className="font-display text-3xl font-bold mb-3 tracking-tight">Bem-vindo de volta!</h2>
-                <p className="mb-8 text-sm text-white/80 max-w-xs leading-relaxed">
-                  Já tem uma conta? Entre para continuar de onde parou.
-                </p>
-                <button
-                  onClick={() => setIsLogin(true)}
-                  className="rounded-full border border-white/40 px-8 py-3 text-sm font-semibold hover:bg-white hover:text-accent-pink transition-all duration-300 shadow-lg hover:shadow-white/20"
-                >
-                  Entrar
-                </button>
-              </>
-            )}
+            <LoginForm portal="loja" />
+
+            <p className="text-[11px] text-text-secondary mt-5 text-center">
+              É administrador da rede?{" "}
+              <Link to="/admin/login" className="text-accent-purple font-semibold hover:underline">
+                Entrar no Portal Admin
+              </Link>
+            </p>
           </div>
         </div>
 
-        {/* VIEWPORT dos formulários */}
-        <div
-          className={`
-            md:absolute md:top-0 md:h-full md:w-1/2 w-full h-auto overflow-hidden z-10
-            ${isLogin ? "md:left-0" : "md:right-0"}
-          `}
-        >
-          <div
-            className={`
-              flex md:flex-row flex-col md:w-[200%] w-full h-full transition-transform duration-700 ease-in-out
-              ${isLogin ? "md:translate-x-0" : "md:-translate-x-1/2"}
-            `}
-          >
-            {/* Login */}
-            <div className={`w-full md:w-1/2 flex flex-col items-center justify-center p-10 h-full ${isLogin ? "block" : "hidden"} md:block`}>
-              <div className="flex flex-col justify-center items-center h-full w-full max-w-xs mx-auto">
-                <h2 className="font-display text-3xl font-bold text-text-primary mb-2 tracking-tight">Acesso ao Sistema</h2>
-                <p className="text-sm text-text-secondary mb-8 text-center">
-                  Insira suas credenciais para entrar.
-                </p>
-                <LoginForm />
-              </div>
-            </div>
-
-            {/* Registro */}
-            <div className={`w-full md:w-1/2 flex flex-col items-center justify-center p-10 h-full ${!isLogin ? "block" : "hidden"} md:block`}>
-              <div className="flex flex-col justify-center items-center h-full w-full max-w-xs mx-auto">
-                <h2 className="font-display text-3xl font-bold text-text-primary mb-2 tracking-tight">Crie sua conta</h2>
-                <p className="text-sm text-text-secondary mb-8 text-center">
-                  Preencha os dados abaixo para se registrar.
-                </p>
-                <RegisterForm />
-              </div>
-            </div>
+        {/* Painel Informativo */}
+        <div className="bg-gradient-to-br from-accent-purple to-accent-pink text-white flex flex-col items-center justify-center p-8 sm:p-10 text-center">
+          <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center mb-3">
+            <FiShoppingBag size={20} />
           </div>
+          <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/80 mb-2">
+            Gerentes &amp; Operadores
+          </span>
+          <h2 className="font-display text-2xl font-bold mb-3 tracking-tight">
+            Operação Unificada
+          </h2>
+          <p className="mb-6 text-xs sm:text-sm text-white/85 max-w-xs leading-relaxed">
+            Gerentes acompanham relatórios e vendedores da sua filial; Operadores lançam pedidos multi-item e acompanham suas próprias vendas com total sigilo.
+          </p>
+          <Link
+            to="/admin/login?mode=register"
+            className="rounded-full border border-white/40 px-6 py-2.5 text-xs font-semibold hover:bg-white hover:text-accent-purple transition-all shadow-lg"
+          >
+            Criar Minha Organização (Admin)
+          </Link>
         </div>
       </div>
     </div>

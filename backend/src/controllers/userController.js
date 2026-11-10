@@ -1,184 +1,249 @@
 import { childLogger } from "../config/logger.js";
 import * as userService from "../services/userService.js";
 import { AppError } from "../utils/errorHandler.js";
-import { uploadToCloudinary } from "../config/cloudinaryConfig.js";
+import { uploadToCloudinary, getTenantFolder } from "../config/cloudinaryConfig.js";
 import { prisma } from "../config/prismaClient.js";
+import { resolveReadScope } from "../utils/tenantScope.js";
 const log = childLogger("userController");
 
-// função para criação de novos usuários (admin/gerente criando para operadores)
-// 1 - Checa se há arquivo anexado na requisição (req.file) via Multer
-// 2 - Se sim, faz o upload para o Cloudinary na pasta 'usuarios'
-// 3 - Chama o userService com os dados do corpo e o link da foto para salvar no banco
-// 4 - Registra a ação log e retorna com status 201 (Created)
+// arquivo responsável por controlar requisições HTTP de colaboradores isolados por Organização e Loja
+
+const namesCacheByScope = new Map();
+const NAMES_CACHE_TTL_MS = 30 * 1000;
+
+// função para invalidar o cache de dropdown de colaboradores de uma Organização inteira
+export function invalidateUserNamesCache(organizacaoId = null) {
+  if (!organizacaoId) {
+    namesCacheByScope.clear();
+    return;
+  }
+  const prefix = `${Number(organizacaoId)}:`;
+  for (const key of namesCacheByScope.keys()) {
+    if (key.startsWith(prefix)) {
+      namesCacheByScope.delete(key);
+    }
+  }
+}
+
+// função auxiliar para resolver a pasta correta no Cloudinary conforme a loja selecionada para o usuário
+// 1 - Busca slug da loja caso lojaId esteja presente; caso contrário utiliza subpasta 'corporativo'
+async function resolveUserCloudinaryFolder(orgSlug, organizacaoId, lojaId) {
+  if (!lojaId) {
+    return getTenantFolder(orgSlug, "corporativo", "usuarios");
+  }
+  const loja = await prisma.loja.findFirst({
+    where: { id: Number(lojaId), organizacaoId: Number(organizacaoId) },
+    select: { slug: true },
+  });
+  return getTenantFolder(orgSlug, loja?.slug || lojaId, "usuarios");
+}
+
+// função para criar colaborador ou administrador na Organização (exclusivo ADMIN)
+// 1 - Faz upload do avatar para subpasta da organização/loja no Cloudinary quando houver arquivo
+// 2 - Cria usuário via userService.createUser e limpa cache de nomes
 export async function createUser(req, res, next) {
   try {
+    const organizacaoId = req.user.organizacaoId;
+    const orgSlug = req.user.organizacaoSlug || organizacaoId;
+
     let imagem = undefined;
     if (req.file) {
-      imagem = await uploadToCloudinary(req.file.path, "usuarios");
+      const folder = await resolveUserCloudinaryFolder(orgSlug, organizacaoId, req.body?.lojaId);
+      imagem = await uploadToCloudinary(req.file.path, folder);
     }
-    const user = await userService.createUser(req.body, imagem);
-    log.info({ user: req.user?.id, action: 'CREATE_USER', targetId: user.id }, 'User created a new user');
+
+    const user = await userService.createUser(req.body, imagem, organizacaoId);
+    invalidateUserNamesCache(organizacaoId);
+
+    log.info(
+      { user: req.user?.id, organizacaoId, action: "CREATE_USER", targetId: user.id },
+      "Colaborador criado na organização"
+    );
     res.status(201).json(user);
   } catch (err) {
-    log.error({ err }, "Error creating user");
+    log.error({ err }, "Erro ao criar colaborador");
     next(err);
   }
 }
 
-// Cache em memória para dropdowns de nomes de usuários com TTL de 30s
-let cachedUserNames = null;
-let cachedUserNamesTimestamp = 0;
-const NAMES_CACHE_TTL_MS = 30 * 1000;
-
-export function invalidateUserNamesCache() {
-  cachedUserNames = null;
-  cachedUserNamesTimestamp = 0;
-}
-
-// função simplificada para buscar apenas os nomes e IDs dos usuários (ótima para selects e dropdowns, reduzindo payload)
-// Otimizada com cache em memória (TTL 30s): responde em < 1ms para a interface
+// função para listar nomes e IDs de colaboradores ativos para seletores (ADMIN ou GERENTE)
+// 1 - Respeita escopo: GERENTE recebe apenas vendedores da sua loja; ADMIN pode filtrar por loja ou ver rede inteira
+// 2 - Utiliza cache em memória com TTL de 30 segundos por chave organização+loja
 export async function getUserNames(req, res, next) {
   try {
+    const scope = await resolveReadScope(req);
+    const cacheKey = `${scope.organizacaoId}:${scope.lojaId || "all"}`;
     const now = Date.now();
-    if (cachedUserNames && (now - cachedUserNamesTimestamp < NAMES_CACHE_TTL_MS)) {
-      return res.json(cachedUserNames);
+    const cached = namesCacheByScope.get(cacheKey);
+
+    if (cached && now - cached.timestamp < NAMES_CACHE_TTL_MS) {
+      return res.json(cached.data);
     }
 
     const users = await prisma.usuario.findMany({
-      select: { id: true, nome: true },
-      orderBy: { nome: 'asc' },
+      where: {
+        organizacaoId: scope.organizacaoId,
+        ...(scope.lojaId ? { lojaId: scope.lojaId } : {}),
+      },
+      select: {
+        id: true,
+        nome: true,
+        role: true,
+        lojaId: true,
+        loja: { select: { id: true, nome: true } },
+      },
+      orderBy: { nome: "asc" },
     });
 
-    cachedUserNames = users;
-    cachedUserNamesTimestamp = now;
-
-    log.info({ user: req.user?.id, action: 'GET_USER_NAMES' }, 'User fetched user names list');
+    namesCacheByScope.set(cacheKey, { data: users, timestamp: now });
     res.json(users);
   } catch (err) {
-    log.error({ err }, 'Error fetching user names');
+    log.error({ err }, "Erro ao buscar nomes de colaboradores");
     next(err);
   }
 }
 
-// função para listagem rica de usuários com paginação e filtros de busca/role
-// 1 - Extrai da string de busca parâmetros page, limit, search e role e os converte
-// 2 - Chama o serviço enviando um objeto empacotado para o processamento de regras
-// 3 - Retorna o JSON processado (lista e metadados de paginação)
+// função para listar colaboradores paginados da Organização (exclusivo ADMIN)
 export async function listUsers(req, res, next) {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
-    const search = req.query.search || "";
-    const role = req.query.role || "";
-
     const users = await userService.listUsers({
-      page,
-      limit,
-      search,
-      role,
+      organizacaoId: req.user.organizacaoId,
+      lojaId: req.query.lojaId || "",
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 10,
+      search: req.query.search || "",
+      role: req.query.role || "",
     });
-
     res.json(users);
   } catch (err) {
-    log.error({ err }, "Error listing users");
+    log.error({ err }, "Erro ao listar usuários");
     next(err);
   }
 }
 
-// função para obter os dados completos de um único usuário via ID
-// 1 - Pega req.params.id e aciona serviço
-// 2 - O serviço remove a senha da resposta e devolve os dados sanitizados
+// função para consultar detalhes de um colaborador da Organização
 export async function getUser(req, res, next) {
   try {
-    const user = await userService.getUserById(req.params.id);
+    const user = await userService.getUserById(req.params.id, req.user.organizacaoId);
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error getting user");
+    log.error({ err }, "Erro ao buscar usuário");
     next(err);
   }
 }
 
-// função de administrador para atualizar usuários de terceiros
-// 1 - Avalia se há imagem via Multer para upload
-// 2 - Avalia a flag 'removerImagem' (caso o admin queira excluir a foto atual do usuário editado)
-// 3 - Invoca o serviço que salva as alterações
-// 4 - Registra ação (UPDATE_USER) e retorna novos dados
+// função para atualizar colaborador (incluindo mudança de cargo ou transferência de loja)
 export async function updateUser(req, res, next) {
   try {
+    const organizacaoId = req.user.organizacaoId;
+    const orgSlug = req.user.organizacaoSlug || organizacaoId;
+
     let newImagePath = null;
     if (req.file) {
-      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/usuarios");
+      const folder = await resolveUserCloudinaryFolder(orgSlug, organizacaoId, req.body?.lojaId);
+      newImagePath = await uploadToCloudinary(req.file.path, folder);
     }
     const removeImage = req.body.removerImagem === "true";
+
     const user = await userService.updateUser(
       req.params.id,
       req.body,
       newImagePath,
-      removeImage
+      removeImage,
+      organizacaoId
     );
-    log.info({ user: req.user?.id, action: 'UPDATE_USER', targetId: user.id }, 'User updated a user');
+
+    invalidateUserNamesCache(organizacaoId);
+    log.info(
+      { user: req.user?.id, organizacaoId, action: "UPDATE_USER", targetId: user.id },
+      "Colaborador atualizado"
+    );
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error updating user");
+    log.error({ err }, "Erro ao atualizar usuário");
     next(err);
   }
 }
 
-// função que delega a exclusão ao serviço
-// 1 - Pega id, tenta apagar no serviço (que trata regras como impedir usuário de excluir a si mesmo)
+// função rápida para transferir um Gerente ou Operador de uma loja para outra dentro da mesma Organização
+export async function transferUserStore(req, res, next) {
+  try {
+    const organizacaoId = req.user.organizacaoId;
+    const { lojaId } = req.body;
+    const user = await userService.transferUserStore(req.params.id, lojaId, organizacaoId);
+    invalidateUserNamesCache(organizacaoId);
+
+    log.info(
+      {
+        user: req.user?.id,
+        organizacaoId,
+        action: "TRANSFER_USER_STORE",
+        targetId: user.id,
+        newLojaId: user.lojaId,
+      },
+      "Colaborador transferido de loja"
+    );
+    res.json(user);
+  } catch (err) {
+    log.warn({ err }, "Erro ao transferir loja do colaborador");
+    next(err);
+  }
+}
+
+// função para excluir definitivamente um colaborador preservando vendas/movimentações e antigo ID
 export async function deleteUser(req, res, next) {
   try {
-    await userService.deleteUser(req.params.id, req.user?.id);
-    log.info({ user: req.user?.id, action: 'DELETE_USER', targetId: req.params.id }, 'User deleted a user');
-    res.json({ ok: true });
+    const organizacaoId = req.user.organizacaoId;
+    const result = await userService.deleteUser(req.params.id, req.user?.id, organizacaoId);
+
+    invalidateUserNamesCache(organizacaoId);
+    log.info(
+      { user: req.user?.id, organizacaoId, action: "DELETE_USER", targetId: req.params.id },
+      "Exclusão física de usuário concluída com preservação de histórico"
+    );
+    res.json(result);
   } catch (err) {
-    log.error({ err }, "Error deleting user");
+    log.error({ err }, "Erro ao excluir usuário");
     next(err);
   }
 }
 
-// função para o próprio usuário autenticado pegar seus dados ("Meu Perfil")
-// 1 - Usa o req.user.id injetado pelo token jwt em authMiddleware
-// 2 - Chama serviço getUserById garantindo que pega apenas as própias infos
+// função para consultar o próprio perfil autenticado
 export async function getMe(req, res, next) {
   try {
-    const user = await userService.getUserById(req.user.id);
+    const user = await userService.getUserById(req.user.id, req.user.organizacaoId);
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error getting logged user");
+    log.error({ err }, "Erro ao obter perfil logado");
     next(err);
   }
 }
 
-// função para o próprio usuário logado atualizar seus dados (Meu Perfil)
-// 1 - Verifica se o solicitante é ADMIN usando a role extraída do token
-// 2 - Lida com nova imagem ou deleção de imagem
-// 3 - Aplica "Guardrails": Se um usuário NÃO for admin e tentar mudar sua 'role' (passando esse parâmetro pelo cliente/POSTMAN forçadamente), a aplicação lança 403 negando a operação
-// 4 - Caso o solicitante seja ADMIN e passe uma role, o sistema autoriza alterar os privilégios
-// 5 - Aciona o serviço para efetivar as mudanças permitidas no banco e gera o log (UPDATE_ME)
+// função para o próprio usuário atualizar nome, e-mail e avatar (sem autoescalação de cargo)
 export async function updateMe(req, res, next) {
   try {
     const isAdmin = req.user.role === "ADMIN";
+    const organizacaoId = req.user.organizacaoId;
+    const orgSlug = req.user.organizacaoSlug || organizacaoId;
 
     let newImagePath = null;
     if (req.file) {
-      newImagePath = await uploadToCloudinary(req.file.path, "ADM-estoque/usuarios");
+      const folder = getTenantFolder(
+        orgSlug,
+        req.user.lojaSlug || "corporativo",
+        "usuarios"
+      );
+      newImagePath = await uploadToCloudinary(req.file.path, folder);
     }
 
     const removeImage = req.body.removerImagem === "true";
-
     const { nome, email, role } = req.body || {};
 
-    // Guardrails: Impede escalonamento de privilégios via API falsificada (proteção extra de segurança vital em APIs nodejs)
     if (!isAdmin && role !== undefined) {
-      throw new AppError("Acesso negado", 403);
+      throw new AppError("Acesso negado para alteração de privilégios", 403);
     }
 
-    const updateData = {
-      nome,
-      email,
-    };
-
+    const updateData = { nome, email };
     if (isAdmin && role !== undefined && role !== "") {
       const allowedRoles = ["ADMIN", "GERENTE", "OPERADOR"];
       const normalizedRole = String(role).toUpperCase();
@@ -192,13 +257,14 @@ export async function updateMe(req, res, next) {
       req.user.id,
       updateData,
       newImagePath,
-      removeImage
+      removeImage,
+      organizacaoId
     );
 
-    log.info({ user: req.user?.id, action: 'UPDATE_ME' }, 'User updated their own profile');
+    invalidateUserNamesCache(organizacaoId);
     res.json(user);
   } catch (err) {
-    log.error({ err }, "Error updating logged user");
+    log.error({ err }, "Erro ao atualizar perfil próprio");
     next(err);
   }
 }

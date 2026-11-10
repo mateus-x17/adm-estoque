@@ -1,25 +1,31 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { permit } from "../middlewares/roleMiddleware.js";
-import { listMovements, getUserStats, getSalesReport } from "../controllers/movementController.js";
+import {
+  listMovements,
+  getUserStats,
+  getSalesReport,
+  getPerformanceRanking,
+  getPerformanceDetail,
+} from "../controllers/movementController.js";
 
-// arquivo de rotas para leitura de movimentações e relatórios de auditoria
-// 1 - Inicializa o roteador do Express
+// arquivo de rotas para extrato unitário de movimentações, relatórios de vendas e desempenho de vendedores
+
 const router = express.Router();
 
-// 2 - Protege todas as rotas exigindo token JWT de sessão ativa
 router.use(authMiddleware);
 
-// 3 - Rota de relatório executivo consolidado de vendas (/sales-report)
-// Retorna totais de vendas no último mês (1m), 6 meses (6m) e 1 ano (1y) com timeline para gráficos e PDF
+// Relatório executivo (ADMIN escolhe rede/loja; GERENTE vê sua loja; OPERADOR vê apenas suas vendas)
 router.get("/sales-report", permit("ADMIN", "GERENTE", "OPERADOR"), getSalesReport);
 
-// 4 - Rota estatística /user-stats
-// Permite que apenas cargos gerenciais e administradores acessem o relatório financeiro consolidado
+// Ranking do melhor ao pior vendedor e raio-X individual (incluindo busca por ID antigo de ex-funcionários)
+router.get("/performance", permit("ADMIN", "GERENTE"), getPerformanceRanking);
+router.get("/performance/:refId", permit("ADMIN", "GERENTE"), getPerformanceDetail);
+
+// Estatísticas agregadas de vendas por vendedor no Dashboard (vedado ao OPERADOR)
 router.get("/user-stats", permit("ADMIN", "GERENTE"), getUserStats);
 
-// 5 - Rota base de listagem de histórico
-// Todos podem visualizar o histórico de movimentações com filtros e paginação
+// Listagem paginada do extrato item a item (OPERADOR recebe estritamente seus registros)
 router.get("/", permit("ADMIN", "GERENTE", "OPERADOR"), listMovements);
 
 export default router;

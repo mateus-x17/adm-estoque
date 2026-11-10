@@ -1,46 +1,34 @@
 import { apiClient } from "./apiClient.js";
 
-/**
- * Users API
- */
+// arquivo responsável pelas requisições HTTP de usuários, transferência entre filiais e exclusão definitiva
+
 export const usersApi = {
-  /**
-   * Get currently logged user
-   */
-  getMe: async () => {
-    const response = await apiClient.get(`/users/me`);
-    return response;
-  },
+  getMe: async () => apiClient.get("/users/me"),
 
-  /**
-   * Get all users
-   */
-  getUsers: async ({ page = 1, limit = 10, search = "", role = "" } = {}) => {
-    const query = new URLSearchParams({
-      page,
-      limit,
-      search,
-      role,
+  // função para listar usuários da Organização com filtro opcional por lojaId, cargo e busca por nome/e-mail/ID
+  getUsers: async ({ page = 1, limit = 10, search = "", role = "", lojaId = "" } = {}) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(search ? { search } : {}),
+      ...(role && role !== "todos" ? { role } : {}),
+      ...(lojaId && lojaId !== "todos" && lojaId !== "all" ? { lojaId: String(lojaId) } : {}),
     });
-    const response = await apiClient.get(`/users?${query.toString()}`);
-    return response;
+    return apiClient.get(`/users?${params.toString()}`);
   },
 
-  /**
-   * Get all users id+name (for filters — accessible to ADMIN and GERENTE)
-   */
-  getUserNames: async () => {
-    const response = await apiClient.get("/users/names");
-    return response;
-  },
+  // função para buscar lista resumida de vendedores para dropdowns (ADMIN e GERENTE)
+  getUserNames: async () => apiClient.get("/users/names"),
 
-  /**
-   * Create a new user
-   */
+  // função para criar colaborador ou administrador na Organização
   createUser: (userData) => apiClient.post("/users", userData),
 
-  /**
-   * Delete user by ID
-   */
+  // função para atualizar usuário ou transferir sua filial via PUT
+  updateUser: (id, userData) => apiClient.put(`/users/${id}`, userData),
+
+  // função exclusiva de ADMIN para transferir rapidamente um GERENTE ou OPERADOR para outra loja
+  transferUserStore: (id, lojaId) => apiClient.patch(`/users/${id}/store`, { lojaId }),
+
+  // função para excluir definitivamente um colaborador preservando vendedorRefId e histórico de vendas
   deleteUser: (id) => apiClient.delete(`/users/${id}`),
 };

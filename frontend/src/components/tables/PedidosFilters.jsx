@@ -1,6 +1,11 @@
 import React from "react";
-import { FiArrowDown, FiArrowUp, FiPlus } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiPlus, FiLock } from "react-icons/fi";
 
+// arquivo responsável pelos controles de criação e filtragem de pedidos/movimentações com restrição RBAC
+
+// componente barra de filtros de pedidos
+// 1 - Exibe botão de novo pedido e alternância do painel avançado de filtros
+// 2 - Exibe seletor de usuário apenas para ADMIN/GERENTE, mostrando bloqueio informativo ao OPERADOR
 const PedidosFilters = ({
   filterId,
   setFilterId,
@@ -11,6 +16,7 @@ const PedidosFilters = ({
   userFilter,
   setUserFilter,
   usuarios = [],
+  canFilterByUser = false,
   showFilters,
   setShowFilters,
   onCreateClick,
@@ -28,7 +34,7 @@ const PedidosFilters = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <button
           onClick={onCreateClick}
           className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
@@ -39,55 +45,65 @@ const PedidosFilters = ({
 
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
+          className="text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
         >
           {showFilters ? "Ocultar filtros" : "Mostrar filtros"}
         </button>
       </div>
 
       {showFilters && (
-        <section className="glass-card p-5 flex flex-col lg:flex-row gap-3 animate-fade-up">
+        <section className="glass-card p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-fade-up">
           <input
             type="text"
             placeholder="ID do pedido"
             value={filterId}
             onChange={handleChange(setFilterId)}
-            className={`lg:w-40 ${inputClass}`}
+            className={inputClass}
           />
 
           <input
             type="date"
             value={filterDate}
             onChange={handleChange(setFilterDate)}
-            className={`lg:w-44 ${inputClass}`}
+            className={inputClass}
           />
 
           <select
             value={filterType}
             onChange={handleChange(setFilterType)}
-            className={`lg:w-40 ${inputClass}`}
+            className={inputClass}
           >
-            <option value="todos">Todos</option>
+            <option value="todos">Todos os tipos</option>
             <option value="VENDA">Venda</option>
             <option value="REPOSICAO">Reposição</option>
           </select>
 
-          <select
-            value={userFilter}
-            onChange={handleChange(setUserFilter)}
-            className={`lg:w-52 ${inputClass}`}
-          >
-            <option value="">Todos os usuários</option>
-            {usuarios.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nome}
-              </option>
-            ))}
-          </select>
+          {canFilterByUser ? (
+            <select
+              value={userFilter}
+              onChange={handleChange(setUserFilter)}
+              className={inputClass}
+            >
+              <option value="">Todos os usuários</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nome}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div
+              className="w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-white/5 text-xs text-text-secondary flex items-center gap-2 cursor-not-allowed select-none"
+              title="Apenas Gerentes e Administradores podem consultar vendas de outros vendedores"
+            >
+              <FiLock size={13} className="shrink-0" />
+              <span>Somente suas vendas</span>
+            </div>
+          )}
 
           <button
             onClick={onToggleOrder}
-            className="btn-secondary px-4 py-2 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 lg:w-40 shrink-0"
+            className="btn-secondary px-4 py-2 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 w-full"
             title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
           >
             {order === "desc" ? <FiArrowDown size={14} /> : <FiArrowUp size={14} />}

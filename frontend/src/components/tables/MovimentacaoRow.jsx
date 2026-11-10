@@ -1,18 +1,30 @@
 import React from "react";
 import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 
+// arquivo responsável por renderizar linha do livro-razão unitário com suporte a snapshot de ex-colaborador, estorno e pedido vinculado
+
 const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
   const dataCompacta = new Date(movimentacao.data).toLocaleDateString("pt-BR");
   const isVenda = movimentacao.tipo === "VENDA" || movimentacao.tipo === "SAIDA";
+  const isEstorno = Boolean(movimentacao.estorno);
 
-  const badgeClass = isVenda
+  const badgeClass = isEstorno
+    ? "bg-amber-500/15 text-amber-400 border-amber-500/40"
+    : isVenda
     ? "bg-accent-green/10 text-accent-green border-accent-green"
     : "bg-accent-red/10 text-accent-red border-accent-red";
-    
+
   const Icon = isVenda ? FiArrowUpRight : FiArrowDownRight;
   const iconColor = isVenda ? "text-accent-green" : "text-accent-red";
-  const iconBg = isVenda ? "bg-accent-green/10 border-accent-green" : "bg-accent-red/10 border-accent-red";
+  const iconBg = isVenda
+    ? "bg-accent-green/10 border-accent-green"
+    : "bg-accent-red/10 border-accent-red";
   const labelTipo = isVenda ? "VENDA" : "REPOSIÇÃO";
+
+  const vendedorNome =
+    movimentacao.usuario?.nome || movimentacao.vendedorNomeSnapshot || "Sistema";
+  const vendedorRef = movimentacao.vendedorRefId ? `#${movimentacao.vendedorRefId}` : "";
+  const isDeletedSeller = !movimentacao.usuario && Boolean(movimentacao.vendedorNomeSnapshot);
 
   return (
     <div
@@ -20,27 +32,44 @@ const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
       className="glass-card hover-card flex flex-col md:flex-row md:items-center justify-between p-4 gap-4 animate-fade-up"
     >
       <div className="flex items-center gap-4 flex-1 min-w-0">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center border shrink-0 ${iconBg} ${iconColor}`}>
+        <div
+          className={`w-10 h-10 rounded-full flex items-center justify-center border shrink-0 ${iconBg} ${iconColor}`}
+        >
           <Icon size={18} strokeWidth={2} />
         </div>
-        
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-text-primary text-sm truncate">
-              {movimentacao.produto.nome}
+              {movimentacao.produto?.nome}
             </p>
             <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase border ${badgeClass}`}>
               {labelTipo}
+              {isEstorno ? " (Estorno)" : ""}
             </span>
+            {movimentacao.pedido?.codigo && (
+              <span className="px-2 py-0.5 rounded-full font-mono text-[10px] border border-[var(--color-border)] bg-[var(--color-bg)] text-text-secondary">
+                {movimentacao.pedido.codigo}
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-3 mt-1">
-            <p className="text-xs font-mono text-text-secondary truncate">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
+            <p className="text-xs font-mono text-text-secondary">
               Qtd: <span className="font-semibold text-text-primary">{movimentacao.quantidade}</span>
             </p>
-            <span className="w-1 h-1 rounded-full bg-[var(--color-border-light)]"></span>
+            <span className="w-1 h-1 rounded-full bg-[var(--color-border-light)]" />
             <p className="text-xs font-mono text-text-secondary truncate">
-              {movimentacao.usuario?.nome || "Sistema"}
+              {vendedorNome} {vendedorRef}
+              {isDeletedSeller ? " (Ex-colab.)" : ""}
             </p>
+            {movimentacao.loja?.nome && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-[var(--color-border-light)]" />
+                <p className="text-[11px] font-mono text-text-secondary truncate">
+                  @{movimentacao.loja.nome}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

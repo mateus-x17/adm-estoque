@@ -1,81 +1,177 @@
-import { prisma } from '../config/prismaClient.js';
-import { AppError } from '../utils/errorHandler.js';
+import { prisma } from "../config/prismaClient.js";
+import { AppError } from "../utils/errorHandler.js";
+import { parseBooleanFlag } from "../utils/sanitizers.js";
 
-// serviço responsável por listar todas as categorias diretamente do banco
-// 1 - Executa a consulta findMany na tabela categoria sem filtros
-// 2 - Retorna a lista de categorias em formato de array de objetos
-export async function listCategories() {
-  return prisma.categoria.findMany();
+// arquivo responsável pelas regras de negócio e persistência de categorias isoladas por Organização e Loja
+
+// função auxiliar para construir o filtro de pertencimento ao escopo de leitura/escrita
+// 1 - Isola sempre por organizacaoId e opcionalmente por lojaId
+function buildScopeWhere(scope) {
+  return {
+    organizacaoId: Number(scope.organizacaoId),
+    ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+  };
 }
 
-// serviço responsável por criar uma nova categoria
-// 1 - Valida o input certificando-se que não é uma string vazia, nula ou diferente de texto
-// 2 - Lança um erro 400 (Bad Request) caso o nome seja inválido
-// 3 - Remove os espaços em branco no início e no fim da string usando trim()
-// 4 - Persiste a nova categoria no banco usando o ORM Prisma e retorna o objeto criado
-export async function createCategory(nome) {
-  if (!nome || typeof nome !== 'string' || nome.trim() === '') {
-    throw new AppError('Nome de categoria é obrigatório e deve ser texto', 400);
+// função para listar categorias da Organização ou de uma Loja específica com suporte a Soft Delete
+// 1 - Aceita scope (organizacaoId, lojaId?) e filtro status ('ativos', 'inativos', 'todos')
+// 2 - Retorna categorias ordenadas por status e nome, incluindo a loja vinculada e contagem de produtos
+export async function listCategories(scope, status = "ativos") {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+
+  const statusFilter =
+    status === "ativos" ? { ativo: true } : status === "inativos" ? { ativo: false } : {};
+
+  return prisma.categoria.findMany({
+    where: {
+      ...buildScopeWhere(scope),
+      ...statusFilter,
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+      _count: { select: { produtos: true } },
+    },
+    orderBy: [{ ativo: "desc" }, { nome: "asc" }],
+  });
+}
+
+// função para criar uma nova categoria dentro da loja resolvida pelo escopo
+// 1 - Valida nome não vazio e unicidade dentro da loja (chave composta lojaId_nome)
+// 2 - Persiste categoria ativa vinculada à organizacaoId e lojaId
+export async function createCategory(nome, storeScope) {
+  if (!storeScope?.lojaId || !storeScope?.organizacaoId) {
+    throw new AppError("Loja ou organização não identificada", 400);
+  }
+  if (!nome || typeof nome !== "string" || nome.trim() === "") {
+    throw new AppError("Nome de categoria é obrigatório e deve ser texto", 400);
   }
 
   const cleanName = nome.trim();
-  const existing = await prisma.categoria.findUnique({ where: { nome: cleanName } });
+  const lojaId = Number(storeScope.lojaId);
+  const organizacaoId = Number(storeScope.organizacaoId);
+
+  const existing = await prisma.categoria.findUnique({
+    where: {
+      lojaId_nome: {
+        lojaId,
+        nome: cleanName,
+      },
+    },
+  });
+
   if (existing) {
-    throw new AppError('Já existe uma categoria cadastrada com este nome', 400);
+    throw new AppError("Já existe uma categoria cadastrada com este nome nesta loja", 400);
   }
 
-  return prisma.categoria.create({ data: { nome: cleanName } });
+  return prisma.categoria.create({
+    data: {
+      nome: cleanName,
+      ativo: true,
+      organizacaoId,
+      lojaId,
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+    },
+  });
 }
 
-// serviço responsável por atualizar o nome da categoria
-// 1 - Valida o input do novo nome garantindo que seja um texto válido
-// 2 - Tenta encontrar a categoria pelo ID passado convertendo-o para número
-// 3 - Garante unicidade do nome para evitar erro P2002 do Prisma
-// 4 - Realiza a atualização aplicando trim() no nome e retorna a categoria atualizada
-export async function updateCategory(id, nome) {
-  if (!nome || typeof nome !== 'string' || nome.trim() === '') {
-    throw new AppError('Nome de categoria é obrigatório e deve ser texto', 400);
+// função para atualizar o nome de uma categoria respeitando escopo de Organização/Loja
+// 1 - Busca garantindo que pertence à organização (e à loja do usuário caso não seja ADMIN)
+// 2 - Verifica colisão de nome na mesma loja antes de salvar
+export async function updateCategory(id, nome, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+  if (!nome || typeof nome !== "string" || nome.trim() === "") {
+    throw new AppError("Nome de categoria é obrigatório e deve ser texto", 400);
   }
 
   const cleanName = nome.trim();
-  const category = await prisma.categoria.findUnique({ where: { id: Number(id) } });
-  if (!category) throw new AppError('Categoria não encontrada', 404);
+  const category = await prisma.categoria.findFirst({
+    where: {
+      id: Number(id),
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.restrictToUserStore && scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
+  });
 
-  const existing = await prisma.categoria.findUnique({ where: { nome: cleanName } });
+  if (!category) throw new AppError("Categoria não encontrada", 404);
+
+  const existing = await prisma.categoria.findUnique({
+    where: {
+      lojaId_nome: {
+        lojaId: category.lojaId,
+        nome: cleanName,
+      },
+    },
+  });
+
   if (existing && existing.id !== Number(id)) {
-    throw new AppError('Já existe outra categoria cadastrada com este nome', 400);
+    throw new AppError("Já existe outra categoria cadastrada com este nome nesta loja", 400);
   }
 
   return prisma.categoria.update({
     where: { id: Number(id) },
-    data: { nome: cleanName }
+    data: { nome: cleanName },
+    include: { loja: { select: { id: true, nome: true, slug: true } } },
   });
 }
 
-// serviço responsável por excluir uma categoria
-// 1 - Busca a categoria pelo ID para verificar se ela realmente existe
-// 2 - Verifica se existem produtos atrelados (prevenção de violação de Foreign Key P2003)
-// 3 - Executa a deleção no banco de dados e retorna a resposta da operação
-export async function deleteCategory(id) {
-  const category = await prisma.categoria.findUnique({
-    where: { id: Number(id) },
-    include: { _count: { select: { produtos: true } } }
+// função para inativar ou reativar logicamente uma categoria (Soft Delete)
+export async function toggleCategoryStatus(id, ativo, scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+
+  const category = await prisma.categoria.findFirst({
+    where: {
+      id: Number(id),
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.restrictToUserStore && scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+    },
   });
-  if (!category) throw new AppError('Categoria não encontrada', 404);
+  if (!category) throw new AppError("Categoria não encontrada", 404);
+
+  return prisma.categoria.update({
+    where: { id: Number(id) },
+    data: { ativo: parseBooleanFlag(ativo) },
+    include: { loja: { select: { id: true, nome: true, slug: true } } },
+  });
+}
+
+// função exclusiva de ADMIN para excluir categoria (ou aplicar Soft Delete automático se houver produtos associados)
+export async function deleteCategory(id, organizacaoId) {
+  if (!organizacaoId) throw new AppError("Organização não identificada", 400);
+
+  const category = await prisma.categoria.findFirst({
+    where: { id: Number(id), organizacaoId: Number(organizacaoId) },
+    include: { _count: { select: { produtos: true } } },
+  });
+  if (!category) throw new AppError("Categoria não encontrada", 404);
 
   if (category._count.produtos > 0) {
-    throw new AppError(
-      `Não é possível excluir a categoria "${category.nome}" porque ela possui ${category._count.produtos} produto(s) vinculado(s).`,
-      400
-    );
+    const inactivated = await prisma.categoria.update({
+      where: { id: Number(id) },
+      data: { ativo: false },
+    });
+    return {
+      softDeleted: true,
+      message: `Categoria "${category.nome}" possui ${category._count.produtos} produto(s) associado(s) e foi inativada logicamente.`,
+      category: inactivated,
+    };
   }
 
-  return prisma.categoria.delete({ where: { id: Number(id) } });
+  await prisma.categoria.delete({ where: { id: Number(id) } });
+  return {
+    softDeleted: false,
+    message: `Categoria "${category.nome}" excluída permanentemente.`,
+  };
 }
 
-// serviço responsável por contar a quantidade absoluta de categorias
-// 1 - Executa a função count do Prisma para contar o número de linhas na tabela
-// 2 - Retorna o valor inteiro representando o total
-export async function countCategories() {
-  return prisma.categoria.count();
+// função para contar categorias ativas do escopo selecionado
+export async function countCategories(scope) {
+  if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+  return prisma.categoria.count({
+    where: {
+      ...buildScopeWhere(scope),
+      ativo: true,
+    },
+  });
 }

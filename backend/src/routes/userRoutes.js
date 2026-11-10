@@ -7,6 +7,7 @@ import {
   listUsers,
   getUser,
   updateUser,
+  transferUserStore,
   deleteUser,
   getMe,
   updateMe,
@@ -14,46 +15,47 @@ import {
 } from "../controllers/userController.js";
 import { upload } from "../config/multerConfig.js";
 
-// arquivo de rotas para gerenciamento de usuários
+// arquivo de rotas para gestão de colaboradores e transferência entre lojas da Organização
+
 const router = express.Router();
 
-// 1 - Todas as rotas usam autenticação inicial
 router.use(authMiddleware);
 
-// 2 - Rota "Meu Perfil"
-// Disponível para o próprio usuário autenticado independente da 'role' (cargo)
 router.get("/me", getMe);
 router.put(
   "/me",
-  upload.single("imagem"), // permite envio de nova foto de perfil
+  upload.single("imagem"),
   validateRequest({ required: ["nome", "email"] }),
   updateMe
 );
 
-// 3 - Lista otimizada apenas com id e nome dos usuários
-// Usada em dropdowns/filtros; acessível por todos os usuários autenticados para filtros de histórico/pedidos
-router.get("/names", permit("ADMIN", "GERENTE", "OPERADOR"), getUserNames);
+// Lista otimizada de vendedores para filtros/selects (vedada ao OPERADOR por sigilo)
+router.get("/names", permit("ADMIN", "GERENTE"), getUserNames);
 
-// 4 - Barreira administrativa central
-// Daqui para baixo, todas as rotas (CRUD completo) ficam restritas ao nível ADMIN
+// Gestão completa de equipe exclusiva do ADMIN da Organização
 router.use(permit("ADMIN"));
 
-// 5 - Rotas administrativas de gestão (Criação, listagem geral, consulta de terceiro, alteração, deleção)
-router.post("/",
+router.post(
+  "/",
   upload.single("imagem"),
-  validateRequest({ required: ['nome', 'email', 'senha', 'role'] }),
+  validateRequest({ required: ["nome", "email", "senha", "role"] }),
   createUser
 );
 
 router.get("/", listUsers);
 router.get("/:id", getUser);
 
-router.put("/:id",
+router.put(
+  "/:id",
   upload.single("imagem"),
-  validateRequest({ required: ['nome', 'email', 'role'] }),
+  validateRequest({ required: ["nome", "email", "role"] }),
   updateUser
 );
 
+// Transferência rápida de Gerente ou Operador para outra filial da rede
+router.patch("/:id/store", validateRequest({ required: ["lojaId"] }), transferUserStore);
+
+// Exclusão definitiva do usuário mantendo vendedorRefId e snapshots históricos em Pedidos/Movimentos
 router.delete("/:id", deleteUser);
 
 export default router;

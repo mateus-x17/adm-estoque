@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAuthStore } from "../../store/useAuthStore.js";
+import { useUserStore } from "../../store/userStore.js";
+import { useTenantStore } from "../../store/useTenantStore.js";
 import ModalMensagem from "../common/ModalMensagem.jsx";
 import { formatImageUrl } from "../../utils/imageHelper.js";
 
-const formConfigs = {
+// arquivo responsável pelo painel lateral de criação e edição de entidades respeitando Organização e Loja alvo
+
+const baseConfigs = {
   usuario: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
@@ -15,6 +19,14 @@ const formConfigs = {
         type: "select",
         options: ["ADMIN", "GERENTE", "OPERADOR"],
         required: true,
+      },
+      {
+        name: "lojaId",
+        label: "Loja / Filial de Atuação",
+        type: "select",
+        endpoint: "/stores?status=ativos",
+        hideWhen: (f) => f.role === "ADMIN",
+        description: "Administradores acessam todas as lojas; Gerentes e Operadores atuam na filial escolhida.",
       },
       { name: "imagem", label: "Foto do Usuário", type: "file" },
     ],
@@ -34,7 +46,7 @@ const formConfigs = {
         label: "Email",
         type: "email",
         required: true,
-        description: "Seu email usado para login e identificação do usuário.",
+        description: "Seu email usado para login.",
       },
       {
         name: "imagem",
@@ -59,7 +71,7 @@ const formConfigs = {
         label: "Email",
         type: "email",
         required: true,
-        description: "Seu email usado para login e identificação do usuário.",
+        description: "Seu email usado para login.",
       },
       {
         name: "role",
@@ -67,7 +79,7 @@ const formConfigs = {
         type: "select",
         options: ["ADMIN", "GERENTE", "OPERADOR"],
         required: true,
-        description: "Define o nível de permissão do usuário no sistema.",
+        description: "Define o nível de permissão do usuário na Organização.",
       },
       {
         name: "imagem",
@@ -90,6 +102,13 @@ const formConfigs = {
         options: ["ADMIN", "GERENTE", "OPERADOR"],
         required: true,
       },
+      {
+        name: "lojaId",
+        label: "Loja / Filial de Atuação",
+        type: "select",
+        endpoint: "/stores?status=ativos",
+        hideWhen: (f) => f.role === "ADMIN",
+      },
       { name: "imagem", label: "Foto do Usuário", type: "file" },
     ],
     route: `${import.meta.env.VITE_API_BASE_URL}/users`,
@@ -98,27 +117,10 @@ const formConfigs = {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "preco", label: "Preço", type: "number", required: true },
-      {
-        name: "quantidade",
-        label: "Quantidade",
-        type: "number",
-        required: true,
-      },
+      { name: "quantidade", label: "Quantidade", type: "number", required: true },
       { name: "descricao", label: "Descrição", type: "textarea" },
-      {
-        name: "categoriaId",
-        label: "Categoria",
-        type: "select",
-        endpoint: "/categories",
-        keyName: "categoria",
-      },
-      {
-        name: "fornecedorId",
-        label: "Fornecedor",
-        type: "select",
-        endpoint: "/suppliers",
-        keyName: "fornecedores",
-      },
+      { name: "categoriaId", label: "Categoria", type: "select", endpoint: "/categories", keyName: "categoria" },
+      { name: "fornecedorId", label: "Fornecedor", type: "select", endpoint: "/suppliers", keyName: "fornecedores" },
       { name: "imagem", label: "Imagem do Produto", type: "file" },
     ],
     route: (id) => `${import.meta.env.VITE_API_BASE_URL}/products/${id}`,
@@ -127,27 +129,10 @@ const formConfigs = {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "preco", label: "Preço", type: "number", required: true },
-      {
-        name: "quantidade",
-        label: "Quantidade",
-        type: "number",
-        required: true,
-      },
+      { name: "quantidade", label: "Quantidade", type: "number", required: true },
       { name: "descricao", label: "Descrição", type: "textarea" },
-      {
-        name: "categoriaId",
-        label: "Categoria",
-        type: "select",
-        endpoint: "/categories",
-        keyName: "categoria",
-      },
-      {
-        name: "fornecedorId",
-        label: "Fornecedor",
-        type: "select",
-        endpoint: "/suppliers",
-        keyName: "fornecedores",
-      },
+      { name: "categoriaId", label: "Categoria", type: "select", endpoint: "/categories", keyName: "categoria" },
+      { name: "fornecedorId", label: "Fornecedor", type: "select", endpoint: "/suppliers", keyName: "fornecedores" },
       { name: "imagem", label: "Imagem do Produto", type: "file" },
     ],
     route: `${import.meta.env.VITE_API_BASE_URL}/products`,
@@ -155,52 +140,20 @@ const formConfigs = {
   fornecedor: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "telefone", label: "Telefone", type: "text", required: true },
-      { name: "endereco", label: "Endereço", type: "text", required: true },
+      { name: "email", label: "Email", type: "email" },
+      { name: "telefone", label: "Telefone", type: "text" },
+      { name: "endereco", label: "Endereço", type: "text" },
     ],
     route: (id) => `${import.meta.env.VITE_API_BASE_URL}/suppliers/${id}`,
   },
   CriarFornecedor: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "telefone", label: "Telefone", type: "text", required: true },
-      { name: "endereco", label: "Endereço", type: "text", required: true },
+      { name: "email", label: "Email", type: "email" },
+      { name: "telefone", label: "Telefone", type: "text" },
+      { name: "endereco", label: "Endereço", type: "text" },
     ],
     route: `${import.meta.env.VITE_API_BASE_URL}/suppliers`,
-  },
-  CriarPedido: {
-    fields: [
-      {
-        name: "produtoId",
-        label: "Produto",
-        type: "select",
-        endpoint: "/products?limit=100",
-        keyName: "data",
-        required: true,
-      },
-      {
-        name: "quantidade",
-        label: "Quantidade",
-        type: "number",
-        required: true,
-      },
-      {
-        name: "tipo",
-        label: "Tipo",
-        type: "select",
-        options: [
-          { id: "VENDA", nome: "Venda" },
-          { id: "REPOSICAO", nome: "Reposição" },
-        ],
-        required: true,
-      },
-      { name: "observacao", label: "Observação", type: "textarea" },
-    ],
-    // Special route handling for this one
-    dynamicRoute: (formData) =>
-      `${import.meta.env.VITE_API_BASE_URL}/products/${formData.produtoId}/adjust`,
   },
 };
 
@@ -226,7 +179,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
         <span className="text-text-secondary text-xs">▼</span>
       </div>
       {isOpen && (
-        <div className="absolute z-10 w-full mt-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] max-h-60 flex flex-col overflow-hidden">
+        <div className="absolute z-20 w-full mt-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] max-h-60 flex flex-col overflow-hidden">
           <div className="p-2 border-b border-[var(--color-border)] sticky top-0 bg-[var(--color-surface)]">
             <input
               type="text"
@@ -239,7 +192,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
           </div>
           <div className="overflow-y-auto py-1 bg-[var(--color-surface)]">
             <div
-              className="px-4 py-2 text-xs text-text-primary hover:bg-white/5 cursor-pointer transition-colors"
+              className="px-4 py-2 text-xs text-text-primary hover:bg-white/5 cursor-pointer"
               onClick={() => {
                 onChange("");
                 setIsOpen(false);
@@ -252,7 +205,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
               filteredOptions.map((opt) => (
                 <div
                   key={opt.id}
-                  className="px-4 py-2 text-xs text-text-primary hover:bg-white/5 cursor-pointer transition-colors"
+                  className="px-4 py-2 text-xs text-text-primary hover:bg-white/5 cursor-pointer"
                   onClick={() => {
                     onChange(opt.id);
                     setIsOpen(false);
@@ -274,55 +227,90 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
 
 function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
   const token = useAuthStore((state) => state.token);
-  const config = formConfigs[type];
+  const currentUser = useUserStore((state) => state.user);
+  const { stores, selectedLojaId } = useTenantStore();
+
   const isCreating = type.startsWith("Criar");
+  const isAdmin = currentUser?.role === "ADMIN";
+
+  // Para ADMIN criando produto ou fornecedor, injeta campo obrigatório de loja no topo
+  const config = useMemo(() => {
+    const raw = baseConfigs[type];
+    if (!raw) return baseConfigs.usuario;
+    if (isAdmin && (type === "CriarProduto" || type === "CriarFornecedor")) {
+      return {
+        ...raw,
+        fields: [
+          {
+            name: "lojaId",
+            label: "Filial / Loja Destino",
+            type: "select",
+            endpoint: "/stores?status=ativos",
+            required: true,
+          },
+          ...raw.fields,
+        ],
+      };
+    }
+    return raw;
+  }, [type, isAdmin]);
 
   const panelTitle = (() => {
-    if (
-      !isCreating &&
-      (type === "configuracoes" || type === "configuracoesAdmin")
-    ) {
+    if (!isCreating && (type === "configuracoes" || type === "configuracoesAdmin")) {
       return "Editar Configurações";
     }
     if (isCreating) return `Criar ${type.replace("Criar", "")}`;
     return `Editar ${type}`;
   })();
 
-  const [form, setForm] = useState(
-    config.fields.reduce((acc, field) => {
-      acc[field.name] = itemData?.[field.name] || "";
+  const [form, setForm] = useState(() => {
+    const initial = config.fields.reduce((acc, field) => {
+      acc[field.name] = itemData?.[field.name] ?? "";
       return acc;
-    }, {}),
-  );
+    }, {});
+
+    if (isAdmin && isCreating && !initial.lojaId && (type === "CriarProduto" || type === "CriarFornecedor" || type === "CriarUsuario")) {
+      if (selectedLojaId && selectedLojaId !== "all") {
+        initial.lojaId = String(selectedLojaId);
+      } else if (stores.length > 0) {
+        initial.lojaId = String(stores[0].id);
+      }
+    }
+    if (type === "CriarUsuario" && !initial.role) {
+      initial.role = "OPERADOR";
+    }
+    return initial;
+  });
 
   const [file, setFile] = useState(null);
   const [removeImage, setRemoveImage] = useState(false);
-  const [modal, setModal] = useState({
-    visible: false,
-    mensagem: "",
-    tipo: "",
-  });
+  const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [selectOptions, setSelectOptions] = useState({});
+
+  const effectiveLojaHeader =
+    form.lojaId ||
+    itemData?.lojaId ||
+    (selectedLojaId && selectedLojaId !== "all" ? selectedLojaId : "");
 
   useEffect(() => {
     config.fields.forEach(async (field) => {
       if (field.type !== "select") return;
 
       if (field.endpoint) {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}${field.endpoint}`,
-          {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          },
-        );
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(effectiveLojaHeader && field.endpoint !== "/stores?status=ativos"
+            ? { "X-Loja-Id": String(effectiveLojaHeader) }
+            : {}),
+        };
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}${field.endpoint}`, {
+          headers,
+        });
         if (!res.ok) return;
         const data = await res.json();
-        /////
-        console.log("PRODUCTS RESPONSE", data);
-        /////
-        const list = Array.isArray(data) ? data : data[field.keyName] || [];
+        const list = Array.isArray(data) ? data : data[field.keyName] || data.data || [];
         setSelectOptions((prev) => ({ ...prev, [field.name]: list }));
       } else if (field.options) {
         setSelectOptions((prev) => ({
@@ -333,7 +321,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         }));
       }
     });
-  }, [token]);
+  }, [token, config.fields, effectiveLojaHeader]);
 
   useEffect(() => {
     setTimeout(() => setOpen(true), 10);
@@ -344,117 +332,48 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
     setClosing(true);
   };
 
-  // -------------------------------------------------------------------------
-  // CORE LOGIC: handleSubmit
-  // Orquestrador de submissão universal. Funciona tanto para Editar (PUT) quanto Criar (POST) qualquer entidade.
-  // 1 - Agrupa dados textuais com dados binários (Arquivos/Fotos) usando FormData nativo do Javascript.
-  // 2 - Avalia a necessidade de injetar Token JWT nas requests.
-  // 3 - Verifica se o tipo do envio requer multipart/form-data ou application/json.
-  // -------------------------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("TOKEN", token);
-
     try {
       const formData = new FormData();
-      Object.entries(form).forEach(([key, value]) =>
-        formData.append(key, value),
-      );
-      
-      // Anexa foto caso usuário tenha upado alguma no input type="file"
+      Object.entries(form).forEach(([key, value]) => formData.append(key, value ?? ""));
       if (file) formData.append("imagem", file);
-      // Sinaliza exclusão de foto prévia
       if (removeImage && !file) formData.append("removerImagem", "true");
 
       const method = isCreating ? "POST" : "PUT";
       let url = isCreating ? config.route : config.route(itemData.id);
+      if (config.dynamicRoute) url = config.dynamicRoute(form);
 
-      // Casos especiais como Pedido/Movimentação que usam rotas customizadas
-      if (config.dynamicRoute) {
-        url = config.dynamicRoute(form);
-      }
-
-      // Descobre se existe algum campo do tipo 'file' na config deste form específico
       const hasFileField = config.fields.some((field) => field.type === "file");
-      let body;
       const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (effectiveLojaHeader) headers["X-Loja-Id"] = String(effectiveLojaHeader);
 
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-
-      // ---------------------------------------------------------------------
-      // Validação Cruzada de Headers/Body
-      // Se for CriarPedido (movimentação de estoque), o backend precisa de application/json puro para tratar a transação.
-      // Do contrário, se tiver arquivo/imagem, envia multipart/form-data via FormData.
-      // ---------------------------------------------------------------------
-      if (type === "CriarPedido") {
-        headers["Content-Type"] = "application/json";
-
-        const payload = {
-          ...form,
-          quantidade: Number(form.quantidade),
-        };
-
-        body = JSON.stringify(payload);
-      } else if (hasFileField) {
-        body = formData; // Browser injeta Content-Type multipart automaticamente
+      let body;
+      if (hasFileField) {
+        body = formData;
       } else {
         headers["Content-Type"] = "application/json";
         body = JSON.stringify(form);
       }
 
-      console.log("FORM:", form);
-      for (const pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
-      }
-
-      const res = await fetch(url, {
-        method,
-        headers,
-        body,
-      });
-
-      console.log("STATUS:", res.status);
-      const responseText = await res.clone().text();
-      console.log("RESPONSE:", responseText);
+      const res = await fetch(url, { method, headers, body });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-
-        console.error("BACKEND ERROR:", err);
-
         setModal({
           visible: true,
           mensagem: err.error || err.message || `Erro ${res.status}`,
           tipo: "erro",
         });
-
         return;
       }
 
-      // const updatedItem = isCreating
-      //   ? await res.json()
-      //   : await fetch(config.route(itemData.id), {
-      //     headers: token ? { Authorization: `Bearer ${token}` } : {},
-      //   }).then((r) => r.json())
-
-      // const updatedItem = await res.json()
-      ///////////////////////////////////////
-      // const responseData = await res.json()
-      // const updatedItem =
-      //   responseData.fornecedor ||
-      //   responseData.produto ||
-      //   responseData.usuario ||
-      //   responseData
       const responseData = await res.json();
       const updatedItem =
         responseData.id !== undefined
           ? responseData
-          : responseData.fornecedor ||
-            responseData.produto ||
-            responseData.usuario ||
-            responseData;
+          : responseData.fornecedor || responseData.produto || responseData.usuario || responseData;
 
       setModal({
         visible: true,
@@ -466,35 +385,43 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         setModal({ visible: false });
         handleClose();
         onItemUpdated && onItemUpdated(updatedItem);
-      }, 2000);
+      }, 1200);
     } catch {
       setModal({ visible: true, mensagem: "Erro de conexão", tipo: "erro" });
     }
   };
 
   return createPortal(
+    <div
+      className={`fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+        closing ? "opacity-0" : "opacity-100"
+      }`}
+      onClick={handleClose}
+      onTransitionEnd={() => closing && onClose()}
+    >
       <div
-        className={`fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${closing ? "opacity-0" : "opacity-100"}`}
-        onClick={handleClose}
-        onTransitionEnd={() => closing && onClose()}
+        className={`absolute right-0 top-0 h-[100dvh] w-[92%] sm:w-[75%] md:w-[65%] max-w-md transform transition-transform duration-300 ${
+          open ? "translate-x-0" : "translate-x-full"
+        } bg-[var(--color-bg)] border-l border-[var(--color-border-light)] shadow-[-10px_0_40px_rgba(0,0,0,0.5)] flex flex-col`}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className={`absolute right-0 top-0 h-[100dvh] w-[90%] md:w-[65%] max-w-md transform transition-transform duration-300 ${
-            open ? "translate-x-0" : "translate-x-full"
-          } bg-[var(--color-bg)] border-l border-[var(--color-border-light)] shadow-[-10px_0_40px_rgba(0,0,0,0.5)] flex flex-col`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-6 border-b border-[var(--color-border-light)] shrink-0">
-            <h2 className="font-display text-lg font-semibold text-text-primary">
-              {panelTitle}
-            </h2>
-          </div>
+        <div className="p-4 sm:p-6 border-b border-[var(--color-border-light)] shrink-0">
+          <h2 className="font-display text-lg font-semibold text-text-primary">{panelTitle}</h2>
+        </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5 custom-scrollbar">
-            {config.fields.map((field) => (
+        <form
+          id="editar-item-form"
+          onSubmit={handleSubmit}
+          className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar"
+        >
+          {config.fields.map((field) => {
+            if (field.hideWhen && field.hideWhen(form)) return null;
+
+            return (
               <div key={field.name}>
                 <label className="block text-sm font-medium mb-1.5 text-text-primary">
                   {field.label}
+                  {field.required ? <span className="text-accent-pink ml-1">*</span> : null}
                 </label>
                 {field.description ? (
                   <p className="text-xs mb-3 text-text-secondary">{field.description}</p>
@@ -504,16 +431,23 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                   <SearchableSelect
                     options={selectOptions[field.name]}
                     value={form[field.name]}
-                    onChange={(val) => setForm({ ...form, [field.name]: val })}
+                    onChange={(val) => {
+                      if (field.name === "lojaId" && (type === "CriarProduto" || type === "produto")) {
+                        setForm({ ...form, lojaId: val, categoriaId: "", fornecedorId: "" });
+                      } else {
+                        setForm({ ...form, [field.name]: val });
+                      }
+                    }}
                     placeholder="Selecione..."
                   />
                 ) : field.type === "textarea" ? (
                   <textarea
                     name={field.name}
                     rows={4}
+                    required={Boolean(field.required)}
                     value={form[field.name]}
                     onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
-                    className="w-full rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs resize-none text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+                    className="w-full rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs resize-none text-text-primary focus:border-accent-purple outline-none"
                   />
                 ) : field.type === "file" ? (
                   <div className="p-4 rounded-xl border border-[var(--color-border-light)] bg-white/5">
@@ -531,7 +465,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                             setRemoveImage(true);
                             setFile(null);
                           }}
-                          className="text-xs font-semibold text-accent-red hover:opacity-80 transition-opacity duration-200"
+                          className="text-xs font-semibold text-accent-red hover:opacity-80"
                         >
                           Remover foto
                         </button>
@@ -543,49 +477,52 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
                         setFile(e.target.files[0]);
                         setRemoveImage(false);
                       }}
-                      className="w-full text-xs text-text-secondary file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-accent-purple/10 file:text-accent-purple hover:file:bg-accent-purple/20 transition-colors"
+                      className="w-full text-xs text-text-secondary file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-accent-purple/10 file:text-accent-purple"
                     />
                   </div>
                 ) : (
                   <input
                     type={field.type}
                     name={field.name}
+                    step={field.type === "number" && field.name === "preco" ? "0.01" : undefined}
+                    required={Boolean(field.required)}
                     value={form[field.name]}
                     onChange={(e) => setForm({ ...form, [field.name]: e.target.value })}
-                    className="w-full rounded-full bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+                    className="w-full rounded-full bg-[var(--color-surface)] border border-[var(--color-border-light)] px-4 py-2 text-xs text-text-primary focus:border-accent-purple outline-none"
                   />
                 )}
               </div>
-            ))}
-          </form>
+            );
+          })}
+        </form>
 
-          <div className="p-6 border-t border-[var(--color-border-light)] bg-[var(--color-bg)] flex justify-end gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="btn-secondary px-4 py-2 text-xs font-semibold"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              className="btn-primary px-4 py-2 text-xs font-semibold"
-            >
-              Salvar
-            </button>
-          </div>
-
-          {modal.visible && (
-            <ModalMensagem
-              mensagem={modal.mensagem}
-              tipo={modal.tipo}
-              onClose={() => setModal({ visible: false })}
-            />
-          )}
+        <div className="p-4 sm:p-6 border-t border-[var(--color-border-light)] bg-[var(--color-bg)] flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="btn-secondary px-4 py-2 text-xs font-semibold w-full sm:w-auto"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            form="editar-item-form"
+            className="btn-primary px-4 py-2 text-xs font-semibold w-full sm:w-auto"
+          >
+            Salvar
+          </button>
         </div>
-      </div>,
-      document.body
+
+        {modal.visible && (
+          <ModalMensagem
+            mensagem={modal.mensagem}
+            tipo={modal.tipo}
+            onClose={() => setModal({ visible: false })}
+          />
+        )}
+      </div>
+    </div>,
+    document.body
   );
 }
 
