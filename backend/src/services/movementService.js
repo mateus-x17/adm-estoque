@@ -313,12 +313,31 @@ export async function getSellerPerformanceRanking(
 
   let list = Array.from(mergedMap.values());
 
-  // Inclui ex-funcionários que venderam em qualquer época quando usuário pesquisar explicitamente por ID/nome
+  // 1 - Ordena o conjunto completo ANTES de filtrar, preservando a posição real (#1, #2, #3...) mesmo ao pesquisar um único ID/nome
+  list.sort(
+    (a, b) =>
+      b.totalFaturado - a.totalFaturado ||
+      b.totalPecas - a.totalPecas ||
+      b.totalPedidos - a.totalPedidos ||
+      a.nome.localeCompare(b.nome)
+  );
+
+  const faturamentoGlobal = list.reduce((acc, s) => acc + s.totalFaturado, 0);
+
+  let fullRanking = list.map((s, idx) => ({
+    posicao: idx + 1,
+    ...s,
+    ticketMedio: s.totalPedidos > 0 ? Number((s.totalFaturado / s.totalPedidos).toFixed(2)) : 0,
+    percentualParticipacao:
+      faturamentoGlobal > 0 ? Number(((s.totalFaturado / faturamentoGlobal) * 100).toFixed(1)) : 0,
+  }));
+
+  // 2 - Aplica filtro opcional de inclusão de ex-funcionários mantendo as posições reais originais
   const showDeleted = includeDeleted !== false && includeDeleted !== "false";
   if (!showDeleted) {
-    list = list.filter((s) => !s.excluido);
+    fullRanking = fullRanking.filter((s) => !s.excluido);
   } else if (search && String(search).trim() !== "") {
-    // Garante que ex-colaboradores sem venda nos últimos 30 dias também apareçam se tiveram vendas históricas (ex: no último ano)
+    // Caso ex-colaborador não tenha vendido nesta janela (ex: 1m), traz do histórico sem sobrescrever quem já ranqueou
     const trimmed = String(search).trim();
     const numericId = !isNaN(Number(trimmed)) ? Number(trimmed) : null;
     const missingDeleted = await prisma.$queryRaw`
@@ -340,10 +359,13 @@ export async function getSellerPerformanceRanking(
         )
       GROUP BY m."vendedorRefId"
     `;
+    let tailIdx = fullRanking.length;
     for (const del of missingDeleted) {
       const refId = Number(del.vendedorRefId);
       if (!mergedMap.has(refId)) {
-        list.push({
+        tailIdx += 1;
+        fullRanking.push({
+          posicao: tailIdx,
           vendedorRefId: refId,
           nome: del.nome,
           email: del.email,
@@ -354,38 +376,23 @@ export async function getSellerPerformanceRanking(
           totalPedidos: 0,
           totalPecas: 0,
           totalFaturado: 0,
+          ticketMedio: 0,
+          percentualParticipacao: 0,
         });
       }
     }
   }
 
+  // 3 - Filtra pela busca mantendo exatamente a posicao real e participação originais no ranking da loja/rede
   const trimmedSearch = String(search || "").trim().toLowerCase();
-  if (trimmedSearch) {
-    list = list.filter(
-      (item) =>
-        String(item.vendedorRefId) === trimmedSearch ||
-        item.nome.toLowerCase().includes(trimmedSearch) ||
-        item.email.toLowerCase().includes(trimmedSearch)
-    );
-  }
-
-  list.sort(
-    (a, b) =>
-      b.totalFaturado - a.totalFaturado ||
-      b.totalPecas - a.totalPecas ||
-      b.totalPedidos - a.totalPedidos ||
-      a.nome.localeCompare(b.nome)
-  );
-
-  const faturamentoGlobal = list.reduce((acc, s) => acc + s.totalFaturado, 0);
-
-  const ranking = list.map((s, idx) => ({
-    posicao: idx + 1,
-    ...s,
-    ticketMedio: s.totalPedidos > 0 ? Number((s.totalFaturado / s.totalPedidos).toFixed(2)) : 0,
-    percentualParticipacao:
-      faturamentoGlobal > 0 ? Number(((s.totalFaturado / faturamentoGlobal) * 100).toFixed(1)) : 0,
-  }));
+  const ranking = trimmedSearch
+    ? fullRanking.filter(
+        (item) =>
+          String(item.vendedorRefId) === trimmedSearch ||
+          item.nome.toLowerCase().includes(trimmedSearch) ||
+          item.email.toLowerCase().includes(trimmedSearch)
+      )
+    : fullRanking;
 
   return {
     period: resolvedPeriod,

@@ -44,6 +44,7 @@ export async function uploadToCloudinary(filePath, folder = "general", timeoutMs
 
     const uploadPromise = cloudinary.uploader.upload(filePath, {
       folder,
+      resource_type: "auto",
     });
 
     const result = await Promise.race([uploadPromise, timeoutPromise]);

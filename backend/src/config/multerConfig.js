@@ -3,13 +3,14 @@ import path from "path";
 import fs from "fs";
 
 // arquivo responsável por configurar o upload de arquivos local usando Multer
-// 1 - Define os caminhos absolutos das pastas de destino dos uploads (pasta base, usuários e produtos)
+// 1 - Define os caminhos absolutos das pastas de destino dos uploads (pasta base, usuários, produtos e comprovantes)
 const uploadsDir = path.resolve("uploads");
 const usuariosDir = path.join(uploadsDir, "usuarios");
 const produtosDir = path.join(uploadsDir, "produtos");
+const comprovantesDir = path.join(uploadsDir, "comprovantes");
 
 // 2 - Itera sobre a lista de diretórios e verifica se existem, criando-os (com a flag recursive) caso não existam
-[uploadsDir, usuariosDir, produtosDir].forEach((dir) => {
+[uploadsDir, usuariosDir, produtosDir, comprovantesDir].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -19,13 +20,16 @@ const storage = multer.diskStorage({
   // 1 - Lê a URL original da requisição
   // 2 - Se a rota incluir "/users", envia para a pasta usuariosDir
   // 3 - Se a rota incluir "/products", envia para a pasta produtosDir
-  // 4 - Caso contrário, usa a pasta genérica uploadsDir
+  // 4 - Se a rota incluir "/orders", envia para a pasta comprovantesDir
+  // 5 - Caso contrário, usa a pasta genérica uploadsDir
   destination: function (req, file, cb) {
     const url = req.originalUrl || req.url || "";
     if (url.includes("/users")) {
       cb(null, usuariosDir);
     } else if (url.includes("/products")) {
       cb(null, produtosDir);
+    } else if (url.includes("/orders")) {
+      cb(null, comprovantesDir);
     } else {
       cb(null, uploadsDir); // fallback
     }
@@ -52,5 +56,19 @@ function fileFilter(req, file, cb) {
   else cb(new Error("Tipo de arquivo inválido. Apenas jpg, jpeg, jfif, png, webp."));
 }
 
-// 4 - Exporta o objeto de upload do Multer, juntando as configurações de armazenamento, o filtro de tipo e o limite de tamanho (5MB)
+// função para filtrar arquivos de comprovante de pedido (imagens ou PDF)
+// 1 - Permite imagens padrão e arquivos PDF como recibo/comprovante até 5MB
+function comprovanteFileFilter(req, file, cb) {
+  const extensoesPermitidas = /jpeg|jpg|webp|jfif|png|pdf/;
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (extensoesPermitidas.test(ext)) cb(null, true);
+  else cb(new Error("Comprovante inválido. Apenas imagens (jpg, png, webp) ou PDF."));
+}
+
+// 4 - Exporta os objetos de upload do Multer com limite de 5MB
 export const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
+export const uploadComprovante = multer({
+  storage,
+  fileFilter: comprovanteFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});

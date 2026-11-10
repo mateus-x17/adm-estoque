@@ -138,6 +138,11 @@ model Pedido {
   tipo                  MovimentoTipo @default(VENDA)
   status                PedidoStatus  @default(CONCLUIDO)
   valorTotal            Decimal       @db.Decimal(10, 2)
+  formaPagamento        String?
+  statusPagamento       String        @default("PAGO")
+  comprovanteCodigo     String?
+  comprovanteUrl        String?
+  recebidoPor           String?
   observacao            String?
   clienteNome           String?
   fornecedor            Fornecedor?   @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)

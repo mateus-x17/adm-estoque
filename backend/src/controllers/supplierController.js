@@ -119,7 +119,8 @@ export async function deletarFornecedor(req, res, next) {
 export async function getSupplierStats(req, res, next) {
   try {
     const scope = await resolveReadScope(req);
-    const stats = await supplierService.getSupplierStats(scope);
+    const status = req.query.status || "ativos";
+    const stats = await supplierService.getSupplierStats(scope, status);
     res.json(stats);
   } catch (err) {
     log.error({ err }, "Erro ao gerar estatísticas de fornecedores");

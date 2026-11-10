@@ -177,6 +177,13 @@ export async function createOrder(payload, requestingUser, storeScope, idempoten
           tipo: normalizedTipo,
           status: "CONCLUIDO",
           valorTotal,
+          formaPagamento: payload.formaPagamento ? String(payload.formaPagamento).trim().toUpperCase() : null,
+          statusPagamento: payload.statusPagamento
+            ? String(payload.statusPagamento).trim().toUpperCase()
+            : "PAGO",
+          comprovanteCodigo: payload.comprovanteCodigo ? String(payload.comprovanteCodigo).trim() : null,
+          comprovanteUrl: payload.comprovanteUrl ? String(payload.comprovanteUrl).trim() : null,
+          recebidoPor: payload.recebidoPor ? String(payload.recebidoPor).trim() : null,
           observacao: payload.observacao ? String(payload.observacao).trim() : null,
           clienteNome: payload.clienteNome ? String(payload.clienteNome).trim() : null,
           fornecedorId: validFornecedorId,
@@ -311,6 +318,8 @@ export async function listOrdersPaginated(filters = {}, scope, requestingUser) {
           OR: [
             { codigo: { contains: trimmedSearch, mode: "insensitive" } },
             { clienteNome: { contains: trimmedSearch, mode: "insensitive" } },
+            { comprovanteCodigo: { contains: trimmedSearch, mode: "insensitive" } },
+            { recebidoPor: { contains: trimmedSearch, mode: "insensitive" } },
             { vendedorNomeSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
             { vendedorEmailSnapshot: { contains: trimmedSearch, mode: "insensitive" } },
             {
@@ -483,6 +492,7 @@ export async function cancelOrder(id, motivo, scope, requestingUser) {
       where: { id: orderId },
       data: {
         status: "CANCELADO",
+        statusPagamento: "ESTORNADO",
         canceladoPorRefId: Number(requestingUser.id),
         canceladoPorNome: requestingUser.nome,
         canceladoEm: new Date(),
@@ -496,5 +506,55 @@ export async function cancelOrder(id, motivo, scope, requestingUser) {
     });
 
     return updatedOrder;
+  });
+}
+
+// função para anexar ou atualizar comprovação de pagamento/recebimento em um pedido existente
+// 1 - Garante isolamento por Organização, Loja e sigilo do OPERADOR (somente seus próprios pedidos)
+// 2 - Atualiza formaPagamento, statusPagamento, comprovanteCodigo, comprovanteUrl e recebidoPor
+export async function updateOrderProof(id, data = {}, scope, requestingUser) {
+  const orderId = Number(id);
+  if (isNaN(orderId)) throw new AppError("ID de pedido inválido", 400);
+
+  const isOperador = requestingUser?.role === "OPERADOR";
+  const pedido = await prisma.pedido.findFirst({
+    where: {
+      id: orderId,
+      organizacaoId: Number(scope.organizacaoId),
+      ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+      ...(isOperador ? { vendedorRefId: Number(requestingUser.id) } : {}),
+    },
+  });
+
+  if (!pedido) throw new AppError("Pedido não encontrado", 404);
+  if (pedido.status === "CANCELADO") {
+    throw new AppError("Não é possível alterar comprovante de um pedido cancelado.", 400);
+  }
+
+  return prisma.pedido.update({
+    where: { id: orderId },
+    data: {
+      formaPagamento:
+        data.formaPagamento !== undefined
+          ? String(data.formaPagamento).trim().toUpperCase() || null
+          : undefined,
+      statusPagamento:
+        data.statusPagamento !== undefined
+          ? String(data.statusPagamento).trim().toUpperCase()
+          : undefined,
+      comprovanteCodigo:
+        data.comprovanteCodigo !== undefined
+          ? String(data.comprovanteCodigo).trim() || null
+          : undefined,
+      comprovanteUrl:
+        data.comprovanteUrl !== undefined ? String(data.comprovanteUrl).trim() || null : undefined,
+      recebidoPor:
+        data.recebidoPor !== undefined ? String(data.recebidoPor).trim() || null : undefined,
+    },
+    include: {
+      loja: { select: { id: true, nome: true, slug: true } },
+      fornecedor: { select: { id: true, nome: true } },
+      itens: { include: { produto: { select: { id: true, nome: true, imagem: true } } } },
+    },
   });
 }

@@ -169,20 +169,28 @@ export async function countSuppliers(scope) {
   });
 }
 
-// função SQL nativa para consolidar reposições e vendas por fornecedor ativo (excluindo estornos e pedidos cancelados)
-// 1 - Filtra por organizacaoId e opcionalmente por lojaId
+// função SQL nativa para consolidar reposições e vendas por fornecedor (respeitando filtro de status e excluindo estornos)
+// 1 - Filtra por organizacaoId, status ('ativos', 'inativos', 'todos') e opcionalmente por lojaId
 // 2 - Considera apenas movimentações válidas (m.estorno = false e pedido inexistente ou CONCLUIDO)
-export async function getSupplierStats(scope) {
+export async function getSupplierStats(scope, status = "ativos") {
   if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
 
   const lojaFilter = scope.lojaId
     ? Prisma.sql`AND f."lojaId" = ${Number(scope.lojaId)}`
     : Prisma.empty;
 
+  const statusFilterSql =
+    status === "inativos"
+      ? Prisma.sql`AND f."ativo" = false`
+      : status === "todos"
+      ? Prisma.empty
+      : Prisma.sql`AND f."ativo" = true`;
+
   const rawResults = await prisma.$queryRaw`
     SELECT
       f.id AS "id",
       f.nome AS "nome",
+      f.ativo AS "ativo",
       l.nome AS "lojaNome",
       COALESCE(SUM(CASE WHEN m.tipo = 'REPOSICAO' THEN m.quantidade ELSE 0 END), 0)::int AS "totalReposicoes",
       COALESCE(SUM(CASE WHEN m.tipo = 'VENDA' THEN m.quantidade ELSE 0 END), 0)::int AS "totalVendas",
@@ -193,16 +201,17 @@ export async function getSupplierStats(scope) {
     LEFT JOIN "Movimento" m ON m."produtoId" = p.id AND m."estorno" = false
     LEFT JOIN "Pedido" ped ON ped.id = m."pedidoId"
     WHERE f."organizacaoId" = ${Number(scope.organizacaoId)}
-      AND f."ativo" = true
+      ${statusFilterSql}
       ${lojaFilter}
       AND (m.id IS NULL OR m."pedidoId" IS NULL OR ped."status" = 'CONCLUIDO')
-    GROUP BY f.id, f.nome, l.nome
+    GROUP BY f.id, f.nome, f.ativo, l.nome
     ORDER BY f.nome ASC
   `;
 
   return rawResults.map((sup) => ({
     id: Number(sup.id),
     nome: sup.nome,
+    ativo: Boolean(sup.ativo),
     lojaNome: sup.lojaNome,
     totalReposicoes: Number(sup.totalReposicoes || 0),
     totalVendas: Number(sup.totalVendas || 0),

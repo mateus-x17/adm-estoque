@@ -1,9 +1,31 @@
 import { childLogger } from "../config/logger.js";
 import * as orderService from "../services/orderService.js";
 import { resolveReadScope, resolveWriteStore } from "../utils/tenantScope.js";
+import { getTenantFolder, uploadToCloudinary } from "../config/cloudinaryConfig.js";
 const log = childLogger("orderController");
 
-// arquivo responsável por controlar requisições HTTP do módulo de Multipedidos e estorno de estoque
+// arquivo responsável por controlar requisições HTTP do módulo de Multipedidos, comprovantes e estorno de estoque
+
+// função auxiliar para enviar comprovante de pedido (imagem ou PDF) para a subpasta isolada da loja
+// 1 - Verifica se Cloudinary está configurado; se sim, realiza upload com timeout na pasta da loja
+// 2 - Caso contrário, retorna o caminho local /uploads/comprovantes/...
+async function resolveProofUrl(file, req, storeScope) {
+  if (!file) return null;
+  const hasCloud =
+    Boolean(process.env.CLOUDINARY_CLOUD_NAME) &&
+    Boolean(process.env.CLOUDINARY_API_KEY) &&
+    Boolean(process.env.CLOUDINARY_API_SECRET);
+
+  if (hasCloud) {
+    const folder = getTenantFolder(
+      req.user.organizacaoSlug || storeScope.organizacaoId,
+      storeScope.lojaSlug || storeScope.lojaId,
+      "comprovantes"
+    );
+    return uploadToCloudinary(file.path, folder);
+  }
+  return `/uploads/comprovantes/${file.filename}`;
+}
 
 // função para listar pedidos multi-item respeitando Organização, Loja e RBAC
 // 1 - Resolve o escopo de leitura da Organização/Loja conforme papel e filtro X-Loja-Id
@@ -34,8 +56,8 @@ export async function getOrder(req, res, next) {
 }
 
 // função para criar um pedido multi-item com baixa/reposição atômica na loja alvo
-// 1 - Valida a loja destino de gravação e extrai eventual Idempotency-Key do header ou payload
-// 2 - Executa criação atômica dos itens, snapshots e livro-razão retornando 201 Created
+// 1 - Valida a loja destino de gravação, sobe eventual anexo de comprovante e extrai Idempotency-Key
+// 2 - Executa criação atômica dos itens, comprovante, snapshots e livro-razão retornando 201 Created
 export async function createOrder(req, res, next) {
   try {
     const storeScope = await resolveWriteStore(req, req.body?.lojaId);
@@ -44,8 +66,13 @@ export async function createOrder(req, res, next) {
       req.headers["x-idempotency-key"] ||
       req.body?.idempotencyKey;
 
+    const comprovanteUrl = await resolveProofUrl(req.file, req, storeScope);
+
     const order = await orderService.createOrder(
-      req.body,
+      {
+        ...req.body,
+        ...(comprovanteUrl ? { comprovanteUrl } : {}),
+      },
       req.user,
       storeScope,
       idempotencyKey
@@ -67,6 +94,36 @@ export async function createOrder(req, res, next) {
     res.status(201).json(order);
   } catch (err) {
     log.warn({ err }, "Erro ao criar pedido multi-item");
+    next(err);
+  }
+}
+
+// função para anexar ou confirmar comprovante de pagamento/recebimento de um pedido existente
+// 1 - Resolve o escopo de leitura/segurança e faz upload opcional de novo arquivo de comprovante
+// 2 - Atualiza formaPagamento, statusPagamento, comprovanteCodigo, comprovanteUrl e recebidoPor
+export async function updateOrderProof(req, res, next) {
+  try {
+    const scope = await resolveReadScope(req);
+    const existing = await orderService.getOrderById(req.params.id, scope, req.user);
+    const comprovanteUrl = await resolveProofUrl(req.file, req, {
+      organizacaoId: scope.organizacaoId,
+      lojaId: existing.lojaId,
+      lojaSlug: existing.loja?.slug,
+    });
+
+    const updated = await orderService.updateOrderProof(
+      req.params.id,
+      {
+        ...req.body,
+        ...(comprovanteUrl ? { comprovanteUrl } : {}),
+      },
+      scope,
+      req.user
+    );
+
+    res.json(updated);
+  } catch (err) {
+    log.warn({ err }, "Erro ao atualizar comprovante do pedido");
     next(err);
   }
 }

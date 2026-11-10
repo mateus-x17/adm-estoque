@@ -482,10 +482,13 @@ export async function getProductStats(scope) {
       select: {
         id: true,
         nome: true,
+        preco: true,
         quantidade: true,
         loja: { select: { id: true, nome: true } },
+        categoria: { select: { id: true, nome: true } },
       },
-      take: 5,
+      orderBy: [{ quantidade: "asc" }, { nome: "asc" }],
+      take: 50,
     }),
   ]);
 

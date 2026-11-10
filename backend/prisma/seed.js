@@ -88,6 +88,10 @@ async function createSeedOrder({
   vendedor,
   fornecedorId = null,
   clienteNome = null,
+  formaPagamento = "PIX",
+  statusPagamento = "PAGO",
+  comprovanteCodigo = null,
+  recebidoPor = null,
   observacao = null,
   createdAt,
   items,
@@ -114,6 +118,10 @@ async function createSeedOrder({
       tipo,
       status,
       valorTotal,
+      formaPagamento,
+      statusPagamento: status === "CANCELADO" ? "ESTORNADO" : statusPagamento,
+      comprovanteCodigo: comprovanteCodigo || `COMP-${codigo}`,
+      recebidoPor: recebidoPor || clienteNome || vendedor.nome,
       observacao,
       clienteNome,
       fornecedorId,
@@ -403,6 +411,8 @@ async function seedOrganization(orgConfig, passwordHash) {
         }
 
         const isCancelDemo = monthsAgo === 0 && s === 1;
+        const paymentMethods = ["PIX", "CARTAO_CREDITO", "CARTAO_DEBITO", "DINHEIRO", "TRANSFERENCIA"];
+        const chosenMethod = paymentMethods[(orderSequence + s) % paymentMethods.length];
         await createSeedOrder({
           codigo: `PED-${String(orderSequence).padStart(4, "0")}`,
           tipo: "VENDA",
@@ -411,6 +421,15 @@ async function seedOrganization(orgConfig, passwordHash) {
           lojaId: loja.id,
           vendedor: picked.user,
           clienteNome: CLIENT_NAMES[(orderSequence + s) % CLIENT_NAMES.length],
+          formaPagamento: chosenMethod,
+          statusPagamento: isCancelDemo ? "ESTORNADO" : "PAGO",
+          comprovanteCodigo:
+            chosenMethod === "PIX"
+              ? `E2E-${orderSequence}99BR`
+              : chosenMethod.startsWith("CARTAO")
+              ? `NSU-${10000 + orderSequence}`
+              : `REC-${orderSequence}`,
+          recebidoPor: CLIENT_NAMES[(orderSequence + s) % CLIENT_NAMES.length],
           observacao: s % 2 === 0 ? "Venda presencial balcão" : "Pedido loja digital",
           createdAt: buildRelativeDate(monthsAgo, Math.min(27, 6 + s * 5), 11 + s),
           items: chosenItems,
@@ -486,6 +505,7 @@ async function main() {
             { nome: "LogiSupply Distribuidora", email: "pedidos@logisupply.com", telefone: "(11) 3333-1111", endereco: "Av. Industrial, 800" },
             { nome: "MegaHardware Atacado", email: "comercial@megahw.com", telefone: "(11) 3333-2222", endereco: "Rua Santa Ifigênia, 420" },
             { nome: "ErgoTech Brasil", email: "suporte@ergotech.com", telefone: "(11) 3333-3333", endereco: "Av. Conforto, 55" },
+            { nome: "Alpha Importações Legado", email: "contato@alphalegado.com", telefone: "(11) 3111-9090", endereco: "Galpão Antigo 04 - Brás", ativo: false },
           ],
           produtos: [
             { nome: "Mouse Gamer Logitech G502", descricao: "Sensor Hero 25K DPI com pesos ajustáveis", preco: 289.9, categoria: "Periféricos", fornecedor: "LogiSupply Distribuidora", imagePrefix: "1760764515263", slugId: "mouse-g502", stockFinal: 64 },
@@ -512,6 +532,7 @@ async function main() {
           fornecedores: [
             { nome: "InfoSul Importadora", email: "vendas@infosul.com", telefone: "(41) 3200-4400", endereco: "Curitiba/PR" },
             { nome: "PowerCharge Tech", email: "atendimento@powercharge.com", telefone: "(11) 3500-8800", endereco: "Barueri/SP" },
+            { nome: "Nexus Cabo & Cia (Desativada)", email: "arquivo@nexuscabo.com", telefone: "(11) 3200-0099", endereco: "Santo Amaro, SP", ativo: false },
           ],
           produtos: [
             { nome: "Monitor 27\" QHD Dell UltraSharp", descricao: "Resolução 2K IPS 99% sRGB USB-C Hub", preco: 1849.0, categoria: "Monitores & Displays", fornecedor: "InfoSul Importadora", imagePrefix: "1769021129540", slugId: "monitor-27-qhd", stockFinal: 16 },
@@ -551,6 +572,7 @@ async function main() {
           fornecedores: [
             { nome: "Akihabara Imports", email: "contato@akihabara.com", telefone: "(11) 3900-1122", endereco: "Liberdade, São Paulo/SP" },
             { nome: "Multiverso Colecionáveis", email: "atacado@multiverso.com", telefone: "(21) 3100-7788", endereco: "Botafogo, Rio de Janeiro/RJ" },
+            { nome: "PixelBox Encerrada", email: "legado@pixelbox.com", telefone: "(21) 3999-0011", endereco: "São Cristóvão, RJ", ativo: false },
           ],
           produtos: [
             { nome: "Teclado Custom Mech 75% Neon", descricao: "Hot-swappable com keycaps PBT tema Cyberpunk", preco: 429.9, categoria: "Setup Geek", fornecedor: "Akihabara Imports", imagePrefix: "1760764570683", slugId: "teclado-cyber", stockFinal: 31 },

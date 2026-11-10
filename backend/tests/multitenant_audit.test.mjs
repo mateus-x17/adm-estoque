@@ -287,13 +287,17 @@ async function runAuditSuite() {
     });
     assert.equal(p2Res.status, 201);
 
-    // Operador 1 fecha Multipedido #1: 2x Teclado (400) + 1x Mouse (100) = 500
+    // Operador 1 fecha Multipedido #1: 2x Teclado (400) + 1x Mouse (100) = 500 com comprovante PIX
     const orderOp1 = await apiFetch("/orders", {
       method: "POST",
       token: tokenOp1,
       body: {
         tipo: "VENDA",
         clienteNome: "Cliente Vip",
+        formaPagamento: "PIX",
+        statusPagamento: "PAGO",
+        comprovanteCodigo: "E2E-TEST-001",
+        recebidoPor: "Cliente Vip",
         itens: [
           { produtoId: p1Res.data.id, quantidade: 2 },
           { produtoId: p2Res.data.id, quantidade: 1 },
@@ -302,6 +306,8 @@ async function runAuditSuite() {
     });
     assert.equal(orderOp1.status, 201);
     assert.equal(Number(orderOp1.data.valorTotal), 500);
+    assert.equal(orderOp1.data.formaPagamento, "PIX");
+    assert.equal(orderOp1.data.comprovanteCodigo, "E2E-TEST-001");
     assert.equal(orderOp1.data.itens.length, 2);
 
     // Operador 2 fecha Multipedido #2: 1x Mouse (100) e depois Multipedido #3 para cancelar
@@ -380,10 +386,22 @@ async function runAuditSuite() {
     assert.equal(rankingRes.status, 200);
     const activeRanks = rankingRes.data.ranking.filter((r) => r.totalFaturado > 0);
     assert.equal(activeRanks[0].vendedorRefId, op1Id);
+    assert.equal(activeRanks[0].posicao, 1);
     assert.equal(activeRanks[0].totalFaturado, 500);
     assert.equal(activeRanks[1].vendedorRefId, op2Id);
+    assert.equal(activeRanks[1].posicao, 2);
     assert.equal(activeRanks[1].excluido, true);
     assert.equal(activeRanks[1].totalFaturado, 100);
+
+    // Ao buscar diretamente pelo antigo ID do 2º colocado, ele DEVE preservar sua posição real (2º, e nunca 1º)
+    const filteredRankRes = await apiFetch(`/movements/performance?period=1m&search=${op2Id}`, {
+      token: tokenAdminA,
+      lojaId: lojaA1.id,
+    });
+    assert.equal(filteredRankRes.status, 200);
+    assert.equal(filteredRankRes.data.ranking.length, 1);
+    assert.equal(filteredRankRes.data.ranking[0].vendedorRefId, op2Id);
+    assert.equal(filteredRankRes.data.ranking[0].posicao, 2);
     console.log("   ✅ Exclusão física do usuário preservando vendedorRefId e ranking melhor->pior comprovados.");
 
     // 5. Transferência de Gerente da Loja 1 para Loja 2 e Relatórios Admin Multi-Loja vs Gerente
