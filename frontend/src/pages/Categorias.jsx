@@ -4,11 +4,14 @@ import { FiPlus, FiEdit, FiTrash, FiX, FiPower } from "react-icons/fi";
 import { categoriesApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import { useUserStore } from "../store/userStore.js";
+import { useTenantStore } from "../store/useTenantStore.js";
 
-// arquivo responsável pela página de gestão de categorias com RBAC e Soft Delete por estabelecimento
+// arquivo responsável pela página de gestão de categorias com RBAC, multi-loja e Soft Delete
 
 const Categorias = () => {
   const user = useUserStore((state) => state.user);
+  const { stores, selectedLojaId } = useTenantStore();
+  const isAdmin = user?.role === "ADMIN";
   const canManage = user?.role === "ADMIN" || user?.role === "GERENTE";
   const canDelete = user?.role === "ADMIN";
 
@@ -18,30 +21,30 @@ const Categorias = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [nome, setNome] = useState("");
+  const [targetLojaId, setTargetLojaId] = useState("");
   const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
 
-  // função para carregar as categorias da loja conforme o filtro de status selecionado
-  // 1 - Aciona categoriesApi.getCategories informando status ('ativos', 'inativos' ou 'todos')
-  // 2 - Atualiza o estado local garantindo array válido e encerra loading
+  // função para carregar as categorias da organização/loja conforme filtro de status e loja selecionada
   const fetchCategorias = useCallback(async (status = statusFiltro) => {
     setLoading(true);
     try {
-      const data = await categoriesApi.getCategories({ status });
+      const data = await categoriesApi.getCategories({
+        status,
+        ...(selectedLojaId && selectedLojaId !== "all" ? { lojaId: selectedLojaId } : {}),
+      });
       setCategorias(Array.isArray(data) ? data : data?.data || []);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [statusFiltro]);
+  }, [statusFiltro, selectedLojaId]);
 
   useEffect(() => {
     fetchCategorias(statusFiltro);
   }, [statusFiltro, fetchCategorias]);
 
   // função para salvar criação ou edição de categoria via API real
-  // 1 - Se editingId existir, chama PUT /categories/:id; caso contrário, chama POST /categories
-  // 2 - Fecha modal, exibe mensagem de confirmação e recarrega a lista
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!nome.trim()) return;
@@ -50,7 +53,10 @@ const Categorias = () => {
       if (editingId) {
         await categoriesApi.updateCategory(editingId, { nome: nome.trim() });
       } else {
-        await categoriesApi.createCategory({ nome: nome.trim() });
+        await categoriesApi.createCategory({
+          nome: nome.trim(),
+          ...(isAdmin && targetLojaId ? { lojaId: Number(targetLojaId) } : {}),
+        });
       }
 
       setModalOpen(false);
@@ -208,6 +214,11 @@ const Categorias = () => {
                   <span className="font-semibold text-text-primary text-sm truncate">
                     {cat.nome}
                   </span>
+                  {cat.loja?.nome && (
+                    <span className="font-mono text-[10px] text-text-secondary hidden sm:inline shrink-0">
+                      @{cat.loja.nome}
+                    </span>
+                  )}
                   {isInactive && (
                     <span className="px-2 py-0.5 rounded-full bg-accent-red/10 text-accent-red border border-accent-red/25 font-mono text-[10px] uppercase shrink-0">
                       Inativa
@@ -277,7 +288,28 @@ const Categorias = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!editingId && isAdmin && stores.length > 0 && (
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5 ml-1">
+                      Loja / Filial Destino
+                    </label>
+                    <select
+                      value={
+                        targetLojaId ||
+                        (selectedLojaId !== "all" ? selectedLojaId : String(stores[0].id))
+                      }
+                      onChange={(e) => setTargetLojaId(e.target.value)}
+                      className="w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none"
+                    >
+                      {stores.map((st) => (
+                        <option key={st.id} value={String(st.id)}>
+                          {st.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm text-text-secondary mb-1.5 ml-1">
                     Nome da categoria

@@ -16,8 +16,9 @@ import {
 } from "recharts";
 import { movementsApi, usersApi } from "../services/api/index.js";
 import { useUserStore } from "../store/userStore.js";
+import { useTenantStore } from "../store/useTenantStore.js";
 
-// arquivo responsável pela página de histórico de movimentações e gráficos operacionais isolados por loja e cargo RBAC
+// arquivo responsável pela página de histórico de movimentações unitárias e gráficos operacionais isolados por loja e cargo RBAC
 
 const PIE_COLORS = ["var(--color-chart-3)", "var(--color-chart-4)"];
 
@@ -54,6 +55,7 @@ const Movimentacoes = () => {
   const [loaded, setLoaded] = useState(false);
   
   const currentUser = useUserStore((state) => state.user);
+  const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const canFilterByUser = currentUser?.role === "ADMIN" || currentUser?.role === "GERENTE";
 
   const [search, setSearch] = useState("");
@@ -103,7 +105,7 @@ const Movimentacoes = () => {
       }
     };
     carregarUsuarios();
-  }, [canFilterByUser]);
+  }, [canFilterByUser, selectedLojaId]);
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -117,7 +119,7 @@ const Movimentacoes = () => {
           tipo: tipoFiltro || undefined,
           from: fromDate || undefined,
           to: toDate || undefined,
-          usuarioId: userFilter || undefined,
+          vendedorRefId: userFilter || undefined,
         };
 
         const paramsPie = {
@@ -127,7 +129,7 @@ const Movimentacoes = () => {
           tipo: tipoFiltro || undefined,
           from: fromDate || undefined,
           to: toDate || undefined,
-          usuarioId: userFilter || undefined,
+          vendedorRefId: userFilter || undefined,
         };
 
         const paramsLine = {
@@ -155,12 +157,14 @@ const Movimentacoes = () => {
         setTotalMovimentos(pagination.total || tableData.length);
 
 
-        const pieData = pieResult.data || [];
+        const pieData = (pieResult.data || []).filter((m) => !m.estorno && m.pedido?.status !== "CANCELADO");
         let pieReposicoes = 0, pieVendas = 0;
         let montanteReposicoes = 0, montanteVendas = 0;
         
         pieData.forEach((m) => {
-          const valor = m.quantidade * Number(m.produto?.preco || 0);
+          const valor = Number(
+            m.valorTotal !== undefined ? m.valorTotal : m.quantidade * Number(m.produto?.preco || 0)
+          );
           if (m.tipo === "REPOSICAO" || m.tipo === "ENTRADA") {
             pieReposicoes += m.quantidade;
             montanteReposicoes += valor;
@@ -176,7 +180,7 @@ const Movimentacoes = () => {
         ]);
 
 
-        const lineData = lineResult.data || [];
+        const lineData = (lineResult.data || []).filter((m) => !m.estorno && m.pedido?.status !== "CANCELADO");
         const grouped = {};
         
         lineData.forEach((m) => {
@@ -217,11 +221,12 @@ const Movimentacoes = () => {
     toDate,
     userFilter,
     order,
+    selectedLojaId,
   ]);
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [search, tipoFiltro, fromDate, toDate, userFilter]);
+  }, [search, tipoFiltro, fromDate, toDate, userFilter, selectedLojaId]);
 
   return (
     <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
@@ -255,7 +260,7 @@ const Movimentacoes = () => {
           <section className="glass-card p-5 flex flex-col lg:flex-row gap-3 animate-fade-up">
             <input
               type="text"
-              placeholder="Buscar produto"
+              placeholder="Buscar produto, pedido, vendedor ou ID antigo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full lg:w-1/3 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200"

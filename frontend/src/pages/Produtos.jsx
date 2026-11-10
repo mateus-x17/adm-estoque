@@ -9,13 +9,15 @@ import PaginationControls from "../components/common/PaginationControls.jsx";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import { productsApi, categoriesApi } from "../services/api/index.js";
 import { useUserStore } from "../store/userStore.js";
+import { useTenantStore } from "../store/useTenantStore.js";
 
-// arquivo responsável pela página de listagem e gestão do catálogo de produtos do estabelecimento
+// arquivo responsável pela página de listagem e gestão do catálogo de produtos por Organização e Loja
 // 1 - Aplica controle RBAC para criação, edição e importação/exportação em lote via planilhas (.xlsx e .csv)
 // 2 - Suporta filtro por status (ativos, inativos, todos) para compatibilidade com Soft Delete
 
 const Produtos = () => {
   const user = useUserStore((state) => state.user);
+  const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const canManage = user?.role === "ADMIN" || user?.role === "GERENTE";
 
   const [produtos, setProdutos] = useState([]);
@@ -38,13 +40,15 @@ const Produtos = () => {
   const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
   const itemsPerPage = 8;
 
-  // efeito para carregar categorias ativas da loja no select de filtro
+  // efeito para carregar categorias ativas da loja/rede no select de filtro
   useEffect(() => {
+    setCategoriaFiltro("");
+    setCurrentPage(1);
     categoriesApi
       .getCategories()
       .then((res) => setCategorias(res.data || res || []))
       .catch(() => {});
-  }, []);
+  }, [selectedLojaId]);
 
   // função para consultar a listagem paginada de produtos com filtros de busca, categoria, preço e status
   // 1 - Monta objeto de parâmetros omitindo valores vazios
@@ -59,6 +63,7 @@ const Produtos = () => {
         sortPrice: sortPrice || undefined,
         categoriaId: categoriaFiltro || undefined,
         status: statusFiltro || "ativos",
+        ...(selectedLojaId && selectedLojaId !== "all" ? { lojaId: selectedLojaId } : {}),
       };
 
       const result = await productsApi.getProducts(params);
@@ -70,7 +75,7 @@ const Produtos = () => {
       console.error(error);
       setLoaded(true);
     }
-  }, [currentPage, search, sortPrice, categoriaFiltro, statusFiltro]);
+  }, [currentPage, search, sortPrice, categoriaFiltro, statusFiltro, selectedLojaId]);
 
   useEffect(() => {
     carregarProdutos();

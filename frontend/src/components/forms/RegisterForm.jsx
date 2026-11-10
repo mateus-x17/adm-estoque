@@ -2,17 +2,15 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/userStore.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
+import { useTenantStore } from "../../store/useTenantStore.js";
 import { authApi } from "../../services/api/index.js";
 
-// arquivo responsável pelo cadastro público de novo estabelecimento (tenant) e seu administrador fundador
+// arquivo responsável pelo cadastro público de nova Organização (Rede), 1ª Loja e fundador ADMIN
 
 const inputClass =
   "w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200";
 
-// função auxiliar para transformar o nome comercial da loja em um slug URL-safe amigável
-// 1 - Normaliza acentos e converte para letras minúsculas
-// 2 - Substitui espaços por hífens e remove símbolos inválidos
-function slugifyStoreName(value) {
+function slugifyName(value) {
   return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -27,8 +25,10 @@ function slugifyStoreName(value) {
 const RegisterForm = () => {
   const { setUser } = useUserStore();
   const { setToken } = useAuthStore();
+  const { setStores, setSelectedLojaId } = useTenantStore();
   const navigate = useNavigate();
 
+  const [nomeOrganizacao, setNomeOrganizacao] = useState("");
   const [nomeLoja, setNomeLoja] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
@@ -41,19 +41,15 @@ const RegisterForm = () => {
   const [sucesso, setSucesso] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // função para atualizar o nome da loja e sincronizar o slug automaticamente caso ainda não editado à mão
-  const handleStoreNameChange = (e) => {
+  const handleOrgNameChange = (e) => {
     const val = e.target.value;
-    setNomeLoja(val);
+    setNomeOrganizacao(val);
     if (!slugEdited) {
-      setSlug(slugifyStoreName(val));
+      setSlug(slugifyName(val));
     }
   };
 
-  // função para enviar os dados de abertura da loja e efetuar login automático no novo ambiente isolado
-  // 1 - Valida comprimento mínimo de senha (6 caracteres) no cliente
-  // 2 - Chama authApi.register criando Empresa + Usuário ADMIN fundador em transação no servidor
-  // 3 - Salva token JWT e usuário na store Zustand e redireciona para o dashboard da nova loja
+  // função para submeter abertura da Organização + 1ª Loja + ADMIN e logar automaticamente
   const submitForm = async (e) => {
     e.preventDefault();
     setErro("");
@@ -67,7 +63,8 @@ const RegisterForm = () => {
     setLoading(true);
     try {
       const data = await authApi.register({
-        nomeLoja: nomeLoja.trim(),
+        nomeOrganizacao: nomeOrganizacao.trim(),
+        nomeLoja: (nomeLoja || `${nomeOrganizacao} Matriz`).trim(),
         slug: slug.trim() || undefined,
         cnpj: cnpj.trim() || undefined,
         telefone: telefone.trim() || undefined,
@@ -76,16 +73,18 @@ const RegisterForm = () => {
         senha,
       });
 
-      setSucesso("Loja criada com sucesso! Preparando seu ambiente...");
+      setSucesso("Rede e 1ª loja criadas com sucesso! Entrando no painel...");
 
       if (data.token && data.user) {
         setUser(data.user);
         setToken(data.token);
-        setTimeout(() => navigate("/dashboard"), 1000);
+        setStores(data.lojas || []);
+        setSelectedLojaId("all");
+        setTimeout(() => navigate("/dashboard"), 800);
       }
     } catch (error) {
-      console.error("Erro ao cadastrar estabelecimento:", error);
-      setErro(error.message || "Não foi possível cadastrar a loja.");
+      console.error("Erro ao cadastrar organização:", error);
+      setErro(error.message || "Não foi possível criar a organização.");
     } finally {
       setLoading(false);
     }
@@ -93,28 +92,37 @@ const RegisterForm = () => {
 
   return (
     <div className="w-full max-w-sm">
-      <form className="w-full flex flex-col gap-2.5 animate-fade-up" onSubmit={submitForm}>
+      <form className="w-full flex flex-col gap-2 animate-fade-up" onSubmit={submitForm}>
         <input
           type="text"
-          placeholder="Nome da loja / estabelecimento *"
-          value={nomeLoja}
-          onChange={handleStoreNameChange}
+          placeholder="Nome da Organização / Rede *"
+          value={nomeOrganizacao}
+          onChange={handleOrgNameChange}
           required
           className={inputClass}
         />
 
         <input
           type="text"
-          placeholder="Código único da loja (ex: minha-loja)"
+          placeholder="Nome da 1ª Loja / Matriz *"
+          value={nomeLoja}
+          onChange={(e) => setNomeLoja(e.target.value)}
+          required
+          className={inputClass}
+        />
+
+        <input
+          type="text"
+          placeholder="Código único da rede (ex: grupo-techstock)"
           value={slug}
           onChange={(e) => {
             setSlugEdited(true);
-            setSlug(slugifyStoreName(e.target.value));
+            setSlug(slugifyName(e.target.value));
           }}
           className={`${inputClass} font-mono`}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <input
             type="text"
             placeholder="CNPJ (opcional)"
@@ -133,7 +141,7 @@ const RegisterForm = () => {
 
         <input
           type="text"
-          placeholder="Seu nome completo (Admin) *"
+          placeholder="Seu nome completo (Admin da Rede) *"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           required
@@ -161,9 +169,9 @@ const RegisterForm = () => {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary mt-2 w-full py-2.5 text-xs font-semibold"
+          className="btn-primary mt-1.5 w-full py-2.5 text-xs font-semibold"
         >
-          {loading ? "Criando loja..." : "Criar Loja e Acessar"}
+          {loading ? "Criando Organização..." : "Criar Rede e 1ª Loja"}
         </button>
       </form>
 
@@ -174,7 +182,7 @@ const RegisterForm = () => {
       )}
 
       {sucesso && (
-        <div className="mt-3 w-full p-3 rounded-xl border border-accent-green/20 bg-accent-green/10 text-accent-green text-xs text-center">
+        <div className="mt-3 w-full p-3 rounded-xl border border-accent-emerald/20 bg-accent-emerald/10 text-accent-emerald text-xs text-center">
           {sucesso}
         </div>
       )}

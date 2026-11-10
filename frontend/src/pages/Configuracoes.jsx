@@ -1,30 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { User, Shield, Store } from "lucide-react";
+import { User, Shield, Store, Building2 } from "lucide-react";
 import { useThemeStore } from "../store/useThemeStore.js";
 import { usersApi } from "../services/api/users.api.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
 import { formatImageUrl } from "../utils/imageHelper.js";
 
-// arquivo responsável pela página de configurações e perfil do colaborador autenticado e seu estabelecimento
+// arquivo responsável pela página de configurações e perfil do usuário dentro da Organização/Loja
 
 const fieldMeta = {
   role: {
     label: "Role / Permissão",
-    description: "Define o nível de permissão do usuário no estabelecimento (ADMIN, GERENTE ou OPERADOR).",
+    description: "Define seu nível de acesso na Organização (ADMIN, GERENTE ou OPERADOR).",
   },
-  nome: {
-    label: "Nome",
-    description: "Seu nome exibido no sistema.",
-  },
-  email: {
-    label: "Email",
-    description: "Seu email usado para login e identificação na loja.",
-  },
-  imagem: {
-    label: "Foto",
-    description: "Foto do usuário exibida na sidebar e nesta página.",
-  },
+  nome: { label: "Nome", description: "Seu nome exibido no sistema." },
+  email: { label: "Email", description: "Seu email usado para login e identificação." },
+  imagem: { label: "Foto", description: "Foto do usuário exibida na barra lateral e no perfil." },
 };
 
 function Configuracoes() {
@@ -32,16 +23,14 @@ function Configuracoes() {
 
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "erro" });
-
   const [editOpen, setEditOpen] = useState(false);
+
   const editType = useMemo(() => {
     if (!me) return "configuracoes";
     return me.role === "ADMIN" ? "configuracoesAdmin" : "configuracoes";
   }, [me]);
 
-  // função para carregar os dados atualizados do perfil e da loja vinculada via GET /users/me
   const loadMe = async () => {
     try {
       setLoading(true);
@@ -71,13 +60,13 @@ function Configuracoes() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-3 sm:py-4 border-b border-[var(--color-border)] mb-6">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
-            Conta
+            Conta #{me?.id || "—"}
           </span>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
             Configurações
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary mt-1">
-            Confira os dados da sua loja, cargo RBAC e atualize seu perfil.
+            Confira os dados da sua Organização, filial vinculada, cargo RBAC e atualize seu perfil.
           </p>
         </div>
       </header>
@@ -90,7 +79,6 @@ function Configuracoes() {
         me && (
           <>
             <section className="grid gap-6 lg:grid-cols-12">
-              {/* Resumo do usuário e estabelecimento */}
               <div className="lg:col-span-5 xl:col-span-4 space-y-5">
                 <div className="glass-card hover-card rounded-3xl p-5 md:p-7 border border-[var(--color-border)] shadow-sm">
                   <div className="flex items-center gap-4 mb-6">
@@ -110,7 +98,9 @@ function Configuracoes() {
                       <h2 className="font-display text-lg sm:text-xl font-semibold text-text-primary truncate">
                         {me.nome}
                       </h2>
-                      <p className="text-xs sm:text-sm text-text-secondary truncate mt-1">{me.email}</p>
+                      <p className="text-xs sm:text-sm text-text-secondary truncate mt-1">
+                        {me.email}
+                      </p>
                     </div>
                   </div>
 
@@ -128,30 +118,37 @@ function Configuracoes() {
                       </span>
                     </div>
 
-                    {me.empresa && (
+                    {me.organizacao && (
                       <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-4 sm:p-5 space-y-2">
                         <div className="flex items-center gap-2 text-text-primary">
-                          <Store className="text-accent-pink" size={16} strokeWidth={1.5} />
-                          <p className="text-sm font-semibold">Estabelecimento Ativo</p>
+                          <Building2 className="text-accent-purple" size={16} strokeWidth={1.5} />
+                          <p className="text-sm font-semibold">Organização / Rede</p>
                         </div>
                         <p className="text-sm font-semibold text-text-primary truncate">
-                          {me.empresa.nome}
+                          {me.organizacao.nome}
                         </p>
                         <p className="font-mono text-xs text-text-secondary truncate">
-                          Slug: @{me.empresa.slug}
+                          Slug: @{me.organizacao.slug}
                         </p>
-                        {me.empresa.cnpj && (
-                          <p className="font-mono text-xs text-text-secondary">
-                            CNPJ: {me.empresa.cnpj}
-                          </p>
-                        )}
-                        {me.empresa.telefone && (
-                          <p className="font-mono text-xs text-text-secondary">
-                            Telefone: {me.empresa.telefone}
-                          </p>
-                        )}
                       </div>
                     )}
+
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-4 sm:p-5 space-y-1.5">
+                      <div className="flex items-center gap-2 text-text-primary">
+                        <Store className="text-accent-pink" size={16} strokeWidth={1.5} />
+                        <p className="text-sm font-semibold">Unidade / Filial</p>
+                      </div>
+                      <p className="text-sm font-semibold text-text-primary truncate">
+                        {me.role === "ADMIN"
+                          ? "Acesso Global (Todas as Lojas da Rede)"
+                          : me.loja?.nome || "Não vinculada"}
+                      </p>
+                      {me.loja?.slug && (
+                        <p className="font-mono text-xs text-text-secondary truncate">
+                          @{me.loja.slug}
+                        </p>
+                      )}
+                    </div>
 
                     <button
                       onClick={() => setEditOpen(true)}
@@ -163,7 +160,6 @@ function Configuracoes() {
                 </div>
               </div>
 
-              {/* Informações detalhadas */}
               <div className="lg:col-span-7 xl:col-span-8">
                 <div className="glass-card hover-card rounded-3xl p-5 md:p-8 border border-[var(--color-border)] shadow-sm h-full">
                   <h3 className="font-display text-lg font-semibold text-text-primary">
@@ -174,31 +170,27 @@ function Configuracoes() {
                   </p>
 
                   <div className="mt-6 sm:mt-8 grid gap-4 sm:gap-6 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-5 hover:bg-white/5 transition-colors">
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-5">
                       <p className="text-sm font-semibold text-text-primary mb-1">
                         {fieldMeta.nome.label}
                       </p>
-                      <p className="text-xs text-text-secondary mb-4 line-clamp-2 min-h-[32px]">
-                        {fieldMeta.nome.description}
-                      </p>
+                      <p className="text-xs text-text-secondary mb-4">{fieldMeta.nome.description}</p>
                       <p className="text-sm font-medium text-text-primary break-all bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
                         {me.nome}
                       </p>
                     </div>
 
-                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-5 hover:bg-white/5 transition-colors">
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-5">
                       <p className="text-sm font-semibold text-text-primary mb-1">
                         {fieldMeta.email.label}
                       </p>
-                      <p className="text-xs text-text-secondary mb-4 line-clamp-2 min-h-[32px]">
-                        {fieldMeta.email.description}
-                      </p>
+                      <p className="text-xs text-text-secondary mb-4">{fieldMeta.email.description}</p>
                       <p className="text-sm font-medium text-text-primary break-all bg-[var(--color-bg)] px-4 py-2 rounded-lg border border-[var(--color-border-light)]">
                         {me.email}
                       </p>
                     </div>
 
-                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-5 md:col-span-2 hover:bg-white/5 transition-colors">
+                    <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface)] p-5 md:col-span-2">
                       <p className="text-sm font-semibold text-text-primary mb-1">
                         {fieldMeta.imagem.label}
                       </p>

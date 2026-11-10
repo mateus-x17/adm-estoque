@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Clock, Download } from "lucide-react";
+import { Download, TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 import KPISection from "../components/dashboard/KPISection.jsx";
 import StockFlowChart from "../components/dashboard/StockFlowChart.jsx";
 import LowStockAlert from "../components/dashboard/LowStockAlert.jsx";
@@ -8,44 +9,60 @@ import UserStatsCharts from "../components/dashboard/UserStatsCharts.jsx";
 import MontanteGrafic from "../components/dashboard/MontanteGrafic.jsx";
 import ModalExportarRelatorio from "../components/dashboard/ModalExportarRelatorio.jsx";
 import { useUserStore } from "../store/userStore.js";
+import { useTenantStore } from "../store/useTenantStore.js";
 
-// arquivo responsável por renderizar a página principal do Dashboard executivo (Visão Geral)
-// 1 - Importa métricas em tempo real, gráficos de fluxo de estoque e alertas de estoque baixo
-// 2 - Gerencia o estado de abertura do modal de exportação de relatórios em PDF
-// 3 - Aplica controle de acesso para métricas restritas a Administradores e Gerentes
+// arquivo responsável por renderizar o Dashboard executivo multi-loja / filial com acesso a relatórios PDF e Desempenho
+
 const Dashboard = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const user = useUserStore((state) => state.user);
+  const { stores, selectedLojaId } = useTenantStore();
+
   const canViewUserStats = user?.role === "ADMIN" || user?.role === "GERENTE";
-  const storeName = user?.empresa?.nome || user?.empresaNome;
+  const orgName = user?.organizacao?.nome || user?.organizacaoNome;
+  const selectedStoreObj = stores.find((s) => String(s.id) === String(selectedLojaId));
+  const scopeSubtitle =
+    user?.role === "ADMIN"
+      ? selectedLojaId === "all"
+        ? `${orgName || "Rede"} • Todas as Lojas`
+        : `${orgName || "Rede"} • ${selectedStoreObj?.nome || "Filial"}`
+      : `${orgName || "Rede"} • ${user?.loja?.nome || user?.lojaNome || "Minha Loja"}`;
 
   return (
     <div className="w-full min-h-screen pt-2 pb-8 space-y-6 max-w-7xl mx-auto transition-colors duration-300">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-3 border-b border-[var(--color-border)] mb-6">
         <div className="min-w-0">
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
-            Painel {storeName ? `• ${storeName}` : ""}
+            {scopeSubtitle}
           </span>
           <h1 className="font-display text-2xl md:text-3xl font-bold text-text-primary tracking-tight mt-1">
             Visão Geral
           </h1>
           <p className="text-xs text-text-secondary mt-1">
-            {canViewUserStats
-              ? "Monitoramento consolidado com precisão do seu estoque."
-              : "Resumo de catálogo e acompanhamento das suas movimentações."}
+            {user?.role === "ADMIN"
+              ? "Monitoramento da Organização com seleção global de filiais e exportação de relatórios."
+              : user?.role === "GERENTE"
+              ? "Acompanhamento completo da sua filial, equipe de vendedores e faturamento."
+              : "Resumo de catálogo e acompanhamento exclusivo das suas movimentações."}
           </p>
         </div>
+
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          <button className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none">
-            <Clock className="w-3 h-3" />
-            Hoje
-          </button>
+          {canViewUserStats && (
+            <Link
+              to="/dashboard/desempenho"
+              className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-accent-pink" />
+              Desempenho Vendedores
+            </Link>
+          )}
           <button
             onClick={() => setIsReportModalOpen(true)}
-            className="btn-primary px-3 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none"
+            className="btn-primary px-3.5 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none"
           >
-            <Download className="w-3 h-3" />
-            Exportar relatório
+            <Download className="w-3.5 h-3.5" />
+            Exportar relatório (PDF)
           </button>
         </div>
       </header>
@@ -71,12 +88,11 @@ const Dashboard = () => {
           </>
         )}
 
-        <div className={canViewUserStats ? "lg:col-span-2" : "col-span-1 lg:col-span-2"}>
+        <div className="lg:col-span-2">
           <MontanteGrafic />
         </div>
       </div>
 
-      {/* Modal interativo para visualização e exportação de relatório de vendas em PDF */}
       <ModalExportarRelatorio
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}

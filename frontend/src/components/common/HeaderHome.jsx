@@ -1,20 +1,17 @@
 import { useEffect } from "react";
 import { CgLogIn } from "react-icons/cg";
-import { FiSun, FiMoon } from "react-icons/fi";
+import { FiSun, FiMoon, FiShield } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import { useThemeStore } from "../../store/useThemeStore.js";
 
-// arquivo responsável pelo cabeçalho público da landing page com navegação por âncoras, alternância de tema e acesso ao sistema
-// função para renderizar a barra superior fixa da página inicial
-// 1 - Configura os links de navegação incluindo a seção Multi-Tenant
-// 2 - Sincroniza o estado do modo escuro/claro no documento HTML
-// 3 - Renderiza botões responsivos de login/cadastro e troca de tema
+// arquivo responsável pelo cabeçalho público da landing page com acesso separado para Portal da Loja e Portal Admin
+
 function HeaderHome() {
   const { darkMode, toggleDarkMode } = useThemeStore();
 
   const navLinks = [
     { name: "Funcionalidades", href: "#funcionalidades" },
-    { name: "Multi-Tenant", href: "#multitenant" },
+    { name: "Multi-Loja", href: "#multitenant" },
     { name: "Módulos", href: "#modulos" },
     { name: "Painel", href: "/dashboard" },
   ];
@@ -26,17 +23,18 @@ function HeaderHome() {
   return (
     <header className="fixed top-4 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
       <div className="w-full max-w-6xl border border-[var(--color-border-light)] rounded-full bg-[var(--color-bg)]/70 backdrop-blur-xl transition-colors duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-        <div className="flex items-center justify-between px-6 py-3.5">
-          
-          {/* Left: Logo */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3">
           <NavLink to="/" className="flex items-baseline gap-1 font-display">
-            <span className="text-xl font-bold tracking-tight text-text-primary">ESTOQUE</span>
-            <span className="text-xl font-bold tracking-tight text-accent-purple font-mono">.OS</span>
+            <span className="text-lg sm:text-xl font-bold tracking-tight text-text-primary">
+              ESTOQUE
+            </span>
+            <span className="text-lg sm:text-xl font-bold tracking-tight text-accent-purple font-mono">
+              .OS
+            </span>
           </NavLink>
 
-          {/* Middle: Links (Desktop) */}
-          <nav className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
+          <nav className="hidden md:flex items-center gap-7">
+            {navLinks.map((link) =>
               link.href.startsWith("#") ? (
                 <a
                   key={link.name}
@@ -54,11 +52,10 @@ function HeaderHome() {
                   {link.name}
                 </NavLink>
               )
-            ))}
+            )}
           </nav>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <button
               onClick={toggleDarkMode}
               aria-label="Alternar tema"
@@ -66,14 +63,24 @@ function HeaderHome() {
             >
               {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
             </button>
+
             <NavLink
-              to="/auth"
-              className="hidden md:flex items-center gap-2 btn-primary px-5 py-2 text-sm font-medium"
+              to="/admin/login"
+              className="hidden sm:flex items-center gap-1.5 rounded-full border border-accent-purple/30 bg-accent-purple/10 px-4 py-2 text-xs font-semibold text-accent-purple hover:bg-accent-purple hover:text-white transition-all"
             >
-              Acessar Sistema
+              <FiShield size={14} />
+              Portal Admin
             </NavLink>
+
             <NavLink
-              to="/auth"
+              to="/login"
+              className="hidden md:flex items-center gap-2 btn-primary px-5 py-2 text-xs sm:text-sm font-medium"
+            >
+              Acessar Loja
+            </NavLink>
+
+            <NavLink
+              to="/login"
               className="md:hidden flex items-center justify-center btn-primary w-10 h-10 rounded-full"
               aria-label="Acessar Sistema"
             >

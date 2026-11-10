@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   FiUploadCloud,
@@ -9,13 +9,20 @@ import {
   FiFileText,
 } from "react-icons/fi";
 import { productsApi } from "../../services/api/index.js";
+import { useUserStore } from "../../store/userStore.js";
+import { useTenantStore } from "../../store/useTenantStore.js";
 
 // arquivo responsável por renderizar o modal de importação em lote de produtos via planilhas (.xlsx e .csv)
 // 1 - Permite baixar a planilha modelo oficial (.xlsx ou .csv) pronta para preenchimento
 // 2 - Executa pré-validação ('preview') exibindo novas categorias/fornecedores e eventuais erros por linha
-// 3 - Confirma a importação transacional ('commit') criando os registros exclusivamente para a loja ativa
+// 3 - Permite ao ADMIN selecionar a loja alvo quando estiver em visão consolidada e confirma via transação atômica ('commit')
 
 const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
+  const user = useUserStore((state) => state.user);
+  const { stores, selectedLojaId } = useTenantStore();
+  const isAdmin = user?.role === "ADMIN";
+
+  const [targetLojaId, setTargetLojaId] = useState("");
   const [file, setFile] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingCommit, setLoadingCommit] = useState(false);
@@ -24,6 +31,19 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
   const [errorMsg, setErrorMsg] = useState("");
   const [commitErrors, setCommitErrors] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isAdmin) {
+      if (selectedLojaId && selectedLojaId !== "all") {
+        setTargetLojaId(String(selectedLojaId));
+      } else if (stores.length > 0) {
+        setTargetLojaId(String(stores[0].id));
+      }
+    } else if (user?.lojaId) {
+      setTargetLojaId(String(user.lojaId));
+    }
+  }, [isOpen, isAdmin, selectedLojaId, stores, user]);
 
   if (!isOpen) return null;
 
@@ -104,7 +124,7 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
     setSuccessMsg("");
 
     try {
-      const data = await productsApi.importProducts(file, "preview");
+      const data = await productsApi.importProducts(file, "preview", isAdmin ? targetLojaId : null);
       setPreviewData(data);
     } catch (err) {
       setErrorMsg(err.message || "Não foi possível ler a planilha enviada.");
@@ -127,7 +147,7 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
     setCommitErrors([]);
 
     try {
-      const result = await productsApi.importProducts(file, "commit");
+      const result = await productsApi.importProducts(file, "commit", isAdmin ? targetLojaId : null);
       setSuccessMsg(
         result.message ||
           `${result.createdCount || 0} produto(s) importado(s) com sucesso.`
@@ -189,6 +209,32 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
 
         {/* Conteúdo rolável */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar">
+          {isAdmin && stores.length > 0 && (
+            <div className="p-3.5 rounded-2xl border border-accent-purple/30 bg-accent-purple/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div>
+                <p className="text-xs font-semibold text-text-primary">Filial de destino da importação</p>
+                <p className="text-[11px] text-text-secondary">
+                  Os produtos e categorias novas serão criados nesta loja
+                </p>
+              </div>
+              <select
+                value={targetLojaId}
+                onChange={(e) => {
+                  setTargetLojaId(e.target.value);
+                  setPreviewData(null);
+                  setSuccessMsg("");
+                }}
+                className="px-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs font-medium text-text-primary outline-none focus:border-accent-purple"
+              >
+                {stores.map((st) => (
+                  <option key={st.id} value={String(st.id)}>
+                    {st.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Bloco 1: Download de Planilha Modelo */}
           <div className="glass-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -427,3 +473,4 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
 };
 
 export default ModalImportarPlanilha;
+

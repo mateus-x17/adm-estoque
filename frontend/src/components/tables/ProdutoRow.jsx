@@ -36,6 +36,7 @@ const ProdutoRow = ({ produto, index, abrirModal }) => {
             {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
               Number(produto.preco || 0)
             )}
+            {produto?.loja?.nome ? ` • @${produto.loja.nome}` : ""}
           </p>
         </div>
       </div>

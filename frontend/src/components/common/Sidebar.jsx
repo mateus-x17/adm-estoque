@@ -15,21 +15,37 @@ import {
   Sun,
   Moon,
   Store,
+  TrendingUp,
+  Building2,
 } from "lucide-react";
 import { useUserStore } from "../../store/userStore.js";
 import { useAuthStore } from "../../store/useAuthStore.js";
+import { useTenantStore } from "../../store/useTenantStore.js";
+import { storesApi } from "../../services/api/index.js";
 import { formatImageUrl } from "../../utils/imageHelper.js";
 import ModalConfirmacao from "./ModalConfirmacao.jsx";
 
-// arquivo responsável pela barra lateral de navegação, exibição do estabelecimento ativo (tenant) e filtro RBAC de menus
+// arquivo responsável pela barra lateral, seletor de loja global para ADMIN e filtros RBAC
 
 const iconProps = { size: 18, strokeWidth: 1.5 };
 
 const links = [
   { name: "Dashboard", path: "/dashboard", icon: <Home {...iconProps} /> },
   { name: "Produtos", path: "/dashboard/produtos", icon: <Package {...iconProps} /> },
-  { name: "Movimentações", path: "/dashboard/movimentacoes", icon: <ArrowRightLeft {...iconProps} /> },
   { name: "Pedidos", path: "/dashboard/pedidos", icon: <ShoppingCart {...iconProps} /> },
+  { name: "Movimentações", path: "/dashboard/movimentacoes", icon: <ArrowRightLeft {...iconProps} /> },
+  {
+    name: "Desempenho",
+    path: "/dashboard/desempenho",
+    icon: <TrendingUp {...iconProps} />,
+    roles: ["ADMIN", "GERENTE"],
+  },
+  {
+    name: "Lojas / Filiais",
+    path: "/dashboard/lojas",
+    icon: <Building2 {...iconProps} />,
+    roles: ["ADMIN"],
+  },
   { name: "Usuários", path: "/dashboard/usuarios", icon: <Users {...iconProps} />, roles: ["ADMIN"] },
   { name: "Categorias", path: "/dashboard/categorias", icon: <Tag {...iconProps} /> },
   { name: "Fornecedores", path: "/dashboard/fornecedores", icon: <Truck {...iconProps} /> },
@@ -45,50 +61,83 @@ const Sidebar = ({ closeSidebar }) => {
 
   const { clearUser, user } = useUserStore();
   const { clearToken } = useAuthStore();
+  const { stores, selectedLojaId, setStores, setSelectedLojaId, clearTenant } = useTenantStore();
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  const storeName = user?.empresa?.nome || user?.empresaNome || "Minha Loja";
-  const storeSlug = user?.empresa?.slug || user?.empresaSlug || "";
+  const isAdmin = user?.role === "ADMIN";
+  const orgName = user?.organizacao?.nome || user?.organizacaoNome || "Organização";
+  const storeName = user?.loja?.nome || user?.lojaNome || "Minha Loja";
 
-  // Filtra itens de navegação de acordo com o cargo (ex: Usuários apenas para ADMIN)
+  // Sincroniza lojas da Organização quando o ADMIN entra ou recarrega o painel
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    storesApi
+      .getStores("ativos")
+      .then((list) => {
+        if (active && Array.isArray(list)) setStores(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, setStores]);
+
   const visibleLinks = links.filter(
     (link) => !link.roles || (user?.role && link.roles.includes(user.role))
   );
 
-  // função para abrir confirmação de saída
-  const confirmLogout = () => {
-    setIsLogoutModalOpen(true);
-  };
+  const confirmLogout = () => setIsLogoutModalOpen(true);
 
-  // função para encerrar sessão limpando usuário e JWT da store e redirecionando à Home
   const handleLogout = () => {
     setIsLogoutModalOpen(false);
     clearUser();
     clearToken();
+    clearTenant();
     navigate("/");
     closeSidebar?.();
   };
 
   return (
     <div className="flex flex-col justify-between h-full w-64 p-4 bg-[var(--color-surface)] border-r border-[var(--color-border)] rounded-r-[2rem] text-text-primary transition-colors duration-300 shadow-[20px_0_40px_rgba(0,0,0,0.05)] overflow-y-auto custom-scrollbar">
-      {/* Topo e identificador do estabelecimento ativo */}
       <div>
         <div className="flex items-baseline gap-1 font-display px-2 mb-4 mt-2">
           <span className="text-xl font-bold tracking-tight">ESTOQUE</span>
           <span className="text-xl font-bold tracking-tight text-accent-pink font-secondary">.OS</span>
         </div>
 
-        <div className="mx-1 mb-5 px-3 py-2.5 rounded-2xl border border-[var(--color-border-light)] bg-accent-purple/5 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-accent-purple/15 text-accent-purple flex items-center justify-center shrink-0">
-            <Store size={15} strokeWidth={1.8} />
+        {/* Contexto de Organização e Loja (ADMIN escolhe qual filial visualizar) */}
+        <div className="mx-1 mb-5 p-3 rounded-2xl border border-[var(--color-border-light)] bg-accent-purple/5 flex flex-col gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-accent-purple/15 text-accent-purple flex items-center justify-center shrink-0">
+              <Store size={15} strokeWidth={1.8} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-accent-purple truncate">
+                {orgName}
+              </p>
+              {!isAdmin && (
+                <p className="text-xs font-semibold text-text-primary truncate">{storeName}</p>
+              )}
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-text-primary truncate">{storeName}</p>
-            {storeSlug && (
-              <p className="font-mono text-[10px] text-text-secondary truncate">@{storeSlug}</p>
-            )}
-          </div>
+
+          {isAdmin && (
+            <select
+              value={selectedLojaId}
+              onChange={(e) => setSelectedLojaId(e.target.value)}
+              aria-label="Selecionar loja ativa"
+              className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs font-medium text-text-primary outline-none focus:border-accent-purple cursor-pointer"
+            >
+              <option value="all">Todas as Lojas ({stores.length})</option>
+              {stores.map((st) => (
+                <option key={st.id} value={String(st.id)}>
+                  {st.nome}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <nav className="flex flex-col gap-1.5">
@@ -113,7 +162,7 @@ const Sidebar = ({ closeSidebar }) => {
         </nav>
       </div>
 
-      {/* Rodapé com perfil, tema, configurações e saída */}
+      {/* Rodapé */}
       <div className="pt-4 mt-4 border-t border-[var(--color-border)]">
         <div className="flex items-center gap-3 px-2 mb-4">
           {user?.imagem ? (
@@ -129,8 +178,8 @@ const Sidebar = ({ closeSidebar }) => {
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold truncate text-text-primary">{user?.nome || "Usuário"}</p>
-            <p className="font-secondary text-xs text-text-secondary uppercase truncate mt-0.5">
-              {user?.role || "OPERADOR"}
+            <p className="font-secondary text-[11px] text-text-secondary uppercase truncate mt-0.5">
+              #{user?.id} · {user?.role || "OPERADOR"}
             </p>
           </div>
         </div>

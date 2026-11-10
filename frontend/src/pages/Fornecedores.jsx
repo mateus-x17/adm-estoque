@@ -7,11 +7,13 @@ import { suppliersApi } from "../services/api/index.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import ModalFornecedor from "../components/forms/ModalFornecedor.jsx";
 import { useUserStore } from "../store/userStore.js";
+import { useTenantStore } from "../store/useTenantStore.js";
 
-// arquivo responsável pela página de listagem e gestão de fornecedores por loja com RBAC e Soft Delete
+// arquivo responsável pela página de listagem e gestão de fornecedores por Organização/Loja com RBAC e Soft Delete
 
 const Fornecedores = () => {
   const user = useUserStore((state) => state.user);
+  const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const canManage = user?.role === "ADMIN" || user?.role === "GERENTE";
   const canDelete = user?.role === "ADMIN";
 
@@ -26,14 +28,15 @@ const Fornecedores = () => {
   const [modalMsg, setModalMsg] = useState({ visible: false, mensagem: "", tipo: "" });
   const [fornecedorSelecionado, setFornecedorSelecionado] = useState(null);
 
-  // função para buscar fornecedores filtrados por status e métricas agregadas da loja
-  // 1 - Dispara requisições paralelas de listagem e estatísticas
-  // 2 - Atualiza estados locais de tabela e gráficos com segurança
+  // função para buscar fornecedores filtrados por status e métricas agregadas da rede/loja
   const fetchData = useCallback(async (status = statusFiltro) => {
     setLoading(true);
     try {
       const [dataSup, dataStats] = await Promise.all([
-        suppliersApi.getSuppliers({ status }),
+        suppliersApi.getSuppliers({
+          status,
+          ...(selectedLojaId && selectedLojaId !== "all" ? { lojaId: selectedLojaId } : {}),
+        }),
         suppliersApi.getSupplierStats(),
       ]);
 
@@ -44,7 +47,7 @@ const Fornecedores = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFiltro]);
+  }, [statusFiltro, selectedLojaId]);
 
   useEffect(() => {
     fetchData(statusFiltro);

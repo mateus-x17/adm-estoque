@@ -1,14 +1,9 @@
 import { useState, useEffect } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { movementsApi } from "../../services/api/index.js";
+import { useTenantStore } from "../../store/useTenantStore.js";
+
+// arquivo responsável pelo gráfico de vendas e movimentações por vendedor no Dashboard (ADMIN e GERENTE)
 
 const PERIODO_OPTIONS = [
   { label: "Mês", value: "month" },
@@ -31,6 +26,7 @@ const CustomTooltip = ({ active, payload, label, isValue }) => {
 export default function UserStatsCharts({ type }) {
   const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(false);
+  const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -47,7 +43,6 @@ export default function UserStatsCharts({ type }) {
       setLoading(true);
       try {
         let from, to;
-
         if (periodType === "month") {
           const [year, month] = selectedMonth.split("-");
           const lastDay = new Date(year, month, 0).getDate();
@@ -68,14 +63,14 @@ export default function UserStatsCharts({ type }) {
     };
 
     fetchStats();
-  }, [periodType, selectedMonth, selectedYear]);
+  }, [periodType, selectedMonth, selectedYear, selectedLojaId]);
 
   const isValue = type === "value";
   const dataKey = isValue ? "totalValue" : "count";
 
   const sorted = [...userStats].sort((a, b) => b[dataKey] - a[dataKey]);
   const rankOf = new Map(sorted.map((d, i) => [d.name, i]));
-  
+
   const opacityFor = (name) => {
     const rank = rankOf.get(name) ?? 0;
     const n = Math.max(sorted.length - 1, 1);
@@ -87,10 +82,12 @@ export default function UserStatsCharts({ type }) {
       <div className="flex flex-col gap-3">
         <div>
           <h2 className="font-display text-base font-semibold text-text-primary mb-0.5">
-            {isValue ? "Valor movimentado por usuário" : "Movimentações por usuário"}
+            {isValue ? "Valor movimentado por vendedor" : "Movimentações por vendedor"}
           </h2>
           <p className="font-secondary text-xs text-text-secondary">
-            {isValue ? "Total em reais de vendas registradas" : "Quantidade total de movimentações"}
+            {isValue
+              ? "Faturamento líquido validado (inclui histórico preservado)"
+              : "Volume total de operações concluídas"}
           </p>
         </div>
 
@@ -125,7 +122,7 @@ export default function UserStatsCharts({ type }) {
               className="px-3 py-1.5 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
               {years.map((y) => (
-                <option key={y} value={y} className="bg-[var(--color-surface)] text-text-primary">
+                <option key={y} value={y}>
                   {y}
                 </option>
               ))}
@@ -134,39 +131,48 @@ export default function UserStatsCharts({ type }) {
         </div>
       </div>
 
-      <div className="h-[220px] sm:h-[240px]">
-        {loading ? (
-          <div className="w-full h-full flex items-center justify-center gap-3">
-            <div className="w-5 h-5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-text-secondary">Carregando...</span>
-          </div>
-        ) : userStats.length === 0 ? (
-          <div className="w-full h-full flex items-center justify-center text-sm text-text-secondary">
-            Nenhuma movimentação no período.
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={userStats} barCategoryGap="30%">
-              <XAxis
-                dataKey="name"
-                tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
-                axisLine={{ stroke: "var(--color-border-light)" }}
-                tickLine={false}
-              />
-              <YAxis hide />
-              <Tooltip
-                content={<CustomTooltip isValue={isValue} />}
-                cursor={{ fill: "var(--color-border-light)", opacity: 0.3 }}
-              />
-              <Bar dataKey={dataKey} radius={[4, 4, 0, 0]}>
-                {userStats.map((entry, i) => (
-                  <Cell key={i} fill="var(--color-chart-1)" fillOpacity={opacityFor(entry.name)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      {loading ? (
+        <div className="h-[220px] flex items-center justify-center">
+          <span className="font-mono text-xs text-text-secondary animate-pulse">
+            Carregando...
+          </span>
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="h-[220px] flex items-center justify-center">
+          <span className="font-mono text-xs text-text-secondary">
+            Nenhum dado encontrado no período
+          </span>
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={sorted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+            <XAxis
+              dataKey="name"
+              stroke="var(--color-text-secondary)"
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              stroke="var(--color-text-secondary)"
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => (isValue ? `R$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}` : v)}
+            />
+            <Tooltip content={<CustomTooltip isValue={isValue} />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+            <Bar dataKey={dataKey} radius={[8, 8, 0, 0]} maxBarSize={38}>
+              {sorted.map((entry) => (
+                <Cell
+                  key={entry.vendedorRefId || entry.name}
+                  fill={isValue ? "var(--color-chart-2)" : "var(--color-chart-1)"}
+                  fillOpacity={opacityFor(entry.name)}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

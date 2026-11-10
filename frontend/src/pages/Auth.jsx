@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import LoginForm from "../components/forms/LoginForm.jsx";
-import RegisterForm from "../components/forms/RegisterForm.jsx";
 import { useThemeStore } from "../store/useThemeStore.js";
-import { FiSun, FiMoon, FiArrowLeft } from "react-icons/fi";
+import { FiSun, FiMoon, FiArrowLeft, FiShoppingBag, FiShield } from "react-icons/fi";
 
-// arquivo responsável pela tela unificada de autenticação e criação de estabelecimentos (responsiva para mobile e desktop)
+// arquivo responsável pelo Portal da Loja (login de Gerentes e Operadores vinculados às filiais)
 
 const Auth = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
-  const [isLogin, setIsLogin] = useState(true);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
+  if (searchParams.get("mode") === "register") {
+    return <Navigate to="/admin/login?mode=register" replace />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-20 pb-10 transition-colors duration-300 relative overflow-x-hidden overflow-y-auto">
-      {/* Elementos decorativos de fundo otimizados para GPU */}
       <div
         className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full pointer-events-none"
         style={{ background: "radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, transparent 70%)" }}
@@ -31,120 +33,76 @@ const Auth = () => {
       <div className="fixed top-0 left-0 w-full flex items-center justify-between px-4 sm:px-6 py-4 z-30 bg-background/60 backdrop-blur-md md:bg-transparent md:backdrop-blur-none">
         <Link
           to="/"
-          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
+          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
         >
           <FiArrowLeft size={16} />
           Voltar
         </Link>
 
-        <button
-          onClick={toggleDarkMode}
-          aria-label="Alternar tema"
-          className="rounded-full border border-[var(--color-border)] p-2.5 text-text-secondary hover:border-accent-purple hover:text-accent-purple bg-[var(--color-surface)] transition-all duration-300"
-        >
-          {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/admin/login"
+            className="flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full border border-accent-purple/30 bg-accent-purple/10 text-accent-purple hover:bg-accent-purple hover:text-white transition-all"
+          >
+            <FiShield size={13} />
+            Portal Admin
+          </Link>
+          <button
+            onClick={toggleDarkMode}
+            aria-label="Alternar tema"
+            className="rounded-full border border-[var(--color-border)] p-2.5 text-text-secondary hover:border-accent-purple hover:text-accent-purple bg-[var(--color-surface)] transition-all"
+          >
+            {darkMode ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
-      {/* Card principal: altura ajustada para acomodar campos de abertura de loja sem cortes no mobile ou desktop */}
-      <div className="relative w-full max-w-[860px] h-auto md:h-[630px] rounded-3xl overflow-hidden glass-card shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
-        {/* Painel lateral animado */}
-        <div
-          className={`
-            bg-gradient-to-br from-accent-purple to-accent-pink text-white flex flex-col items-center justify-center p-7 sm:p-10 z-20 text-center
-            md:absolute md:top-0 md:left-0 md:w-1/2 md:h-full w-full h-auto
-            transition-transform duration-700 ease-in-out relative overflow-hidden
-            ${isLogin ? "md:translate-x-full" : "md:translate-x-0"}
-          `}
-        >
-          <div className="hidden md:block absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col items-center">
-            <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/80 mb-2">
-              {isLogin ? "Nova loja · Multi-Tenant" : "Já possui acesso"}
+      {/* Card principal Portal da Loja */}
+      <div className="relative w-full max-w-[820px] rounded-3xl overflow-hidden glass-card shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] grid grid-cols-1 md:grid-cols-2">
+        {/* Formulário Equipe */}
+        <div className="flex flex-col items-center justify-center p-7 sm:p-10">
+          <div className="w-full max-w-xs flex flex-col items-center">
+            <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-accent-pink mb-2">
+              Operação da Filial
             </span>
+            <h1 className="font-display text-2xl font-bold mb-1 text-text-primary text-center">
+              Portal da Loja
+            </h1>
+            <p className="text-xs text-text-secondary mb-6 text-center">
+              Acesso exclusivo para Gerentes e Operadores cadastrados pelo administrador
+            </p>
 
-            {isLogin ? (
-              <>
-                <h2 className="font-display text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  Cadastre sua loja
-                </h2>
-                <p className="mb-6 text-xs sm:text-sm text-white/85 max-w-xs leading-relaxed">
-                  Crie seu ambiente exclusivo com estoque isolado, equipe, categorias e planilhas em segundos.
-                </p>
-                <button
-                  onClick={() => setIsLogin(false)}
-                  className="rounded-full border border-white/40 px-7 py-2.5 text-xs sm:text-sm font-semibold hover:bg-white hover:text-accent-purple transition-all duration-300 shadow-lg hover:shadow-white/20"
-                >
-                  Criar estabelecimento
-                </button>
-              </>
-            ) : (
-              <>
-                <h2 className="font-display text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  Bem-vindo de volta!
-                </h2>
-                <p className="mb-6 text-xs sm:text-sm text-white/85 max-w-xs leading-relaxed">
-                  Já possui conta vinculada a um estabelecimento? Acesse o painel agora.
-                </p>
-                <button
-                  onClick={() => setIsLogin(true)}
-                  className="rounded-full border border-white/40 px-7 py-2.5 text-xs sm:text-sm font-semibold hover:bg-white hover:text-accent-pink transition-all duration-300 shadow-lg hover:shadow-white/20"
-                >
-                  Entrar na minha loja
-                </button>
-              </>
-            )}
+            <LoginForm portal="loja" />
+
+            <p className="text-[11px] text-text-secondary mt-5 text-center">
+              É administrador da rede?{" "}
+              <Link to="/admin/login" className="text-accent-purple font-semibold hover:underline">
+                Entrar no Portal Admin
+              </Link>
+            </p>
           </div>
         </div>
 
-        {/* VIEWPORT dos formulários */}
-        <div
-          className={`
-            md:absolute md:top-0 md:h-full md:w-1/2 w-full h-auto overflow-y-auto z-10 custom-scrollbar
-            ${isLogin ? "md:left-0" : "md:right-0"}
-          `}
-        >
-          <div
-            className={`
-              flex md:flex-row flex-col md:w-[200%] w-full min-h-full transition-transform duration-700 ease-in-out
-              ${isLogin ? "md:translate-x-0" : "md:-translate-x-1/2"}
-            `}
-          >
-            {/* Login */}
-            <div
-              className={`w-full md:w-1/2 flex flex-col items-center justify-center p-6 sm:p-9 min-h-full ${
-                isLogin ? "flex" : "hidden"
-              } md:flex`}
-            >
-              <div className="flex flex-col justify-center items-center w-full max-w-xs mx-auto">
-                <h2 className="font-display text-2xl sm:text-3xl font-bold text-text-primary mb-1.5 tracking-tight text-center">
-                  Acesso ao Sistema
-                </h2>
-                <p className="text-xs sm:text-sm text-text-secondary mb-6 text-center">
-                  Insira suas credenciais para acessar sua loja.
-                </p>
-                <LoginForm />
-              </div>
-            </div>
-
-            {/* Registro de Estabelecimento + Admin */}
-            <div
-              className={`w-full md:w-1/2 flex flex-col items-center justify-center p-6 sm:p-8 min-h-full ${
-                !isLogin ? "flex" : "hidden"
-              } md:flex`}
-            >
-              <div className="flex flex-col justify-center items-center w-full max-w-xs mx-auto">
-                <h2 className="font-display text-2xl font-bold text-text-primary mb-1 tracking-tight text-center">
-                  Abrir Estabelecimento
-                </h2>
-                <p className="text-xs text-text-secondary mb-5 text-center">
-                  Configure sua loja e o administrador principal.
-                </p>
-                <RegisterForm />
-              </div>
-            </div>
+        {/* Painel Informativo */}
+        <div className="bg-gradient-to-br from-accent-purple to-accent-pink text-white flex flex-col items-center justify-center p-8 sm:p-10 text-center">
+          <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center mb-3">
+            <FiShoppingBag size={20} />
           </div>
+          <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/80 mb-2">
+            Gerentes &amp; Operadores
+          </span>
+          <h2 className="font-display text-2xl font-bold mb-3 tracking-tight">
+            Operação Unificada
+          </h2>
+          <p className="mb-6 text-xs sm:text-sm text-white/85 max-w-xs leading-relaxed">
+            Gerentes acompanham relatórios e vendedores da sua filial; Operadores lançam pedidos multi-item e acompanham suas próprias vendas com total sigilo.
+          </p>
+          <Link
+            to="/admin/login?mode=register"
+            className="rounded-full border border-white/40 px-6 py-2.5 text-xs font-semibold hover:bg-white hover:text-accent-purple transition-all shadow-lg"
+          >
+            Criar Minha Organização (Admin)
+          </Link>
         </div>
       </div>
     </div>

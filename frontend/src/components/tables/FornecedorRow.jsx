@@ -37,6 +37,11 @@ const FornecedorRow = ({
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs text-text-secondary shrink-0">#{fornecedor.id}</span>
             <p className="text-sm font-semibold text-text-primary truncate">{fornecedor.nome}</p>
+            {fornecedor.loja?.nome && (
+              <span className="font-mono text-[10px] text-text-secondary hidden sm:inline shrink-0">
+                @{fornecedor.loja.nome}
+              </span>
+            )}
             {isInactive && (
               <span className="px-2 py-0.5 rounded-full bg-accent-red/10 text-accent-red border border-accent-red/25 font-mono text-[10px] uppercase shrink-0">
                 Inativo

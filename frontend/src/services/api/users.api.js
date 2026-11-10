@@ -1,40 +1,34 @@
 import { apiClient } from "./apiClient.js";
 
-// arquivo responsável pelas requisições HTTP de gestão de colaboradores da loja
+// arquivo responsável pelas requisições HTTP de usuários, transferência entre filiais e exclusão definitiva
 
 export const usersApi = {
-  // função para obter os dados completos do usuário autenticado e da loja vinculada
-  getMe: async () => {
-    return apiClient.get("/users/me");
-  },
+  getMe: async () => apiClient.get("/users/me"),
 
-  // função para listar os colaboradores do estabelecimento com paginação e filtros de cargo e status
-  // 1 - Constrói query string incluindo status ('todos', 'ativos', 'inativos') para suporte a Soft Delete
-  // 2 - Retorna payload paginado do backend
-  getUsers: async ({ page = 1, limit = 10, search = "", role = "", status = "todos" } = {}) => {
-    const query = new URLSearchParams({
-      page,
-      limit,
-      search,
-      role,
-      status,
+  // função para listar usuários da Organização com filtro opcional por lojaId, cargo e busca por nome/e-mail/ID
+  getUsers: async ({ page = 1, limit = 10, search = "", role = "", lojaId = "" } = {}) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(search ? { search } : {}),
+      ...(role && role !== "todos" ? { role } : {}),
+      ...(lojaId && lojaId !== "todos" && lojaId !== "all" ? { lojaId: String(lojaId) } : {}),
     });
-    return apiClient.get(`/users?${query.toString()}`);
+    return apiClient.get(`/users?${params.toString()}`);
   },
 
-  // função para buscar lista resumida de colaboradores da loja (disponível apenas para ADMIN e GERENTE)
-  getUserNames: async () => {
-    return apiClient.get("/users/names");
-  },
+  // função para buscar lista resumida de vendedores para dropdowns (ADMIN e GERENTE)
+  getUserNames: async () => apiClient.get("/users/names"),
 
-  // função para criar um novo colaborador vinculado ao estabelecimento atual
+  // função para criar colaborador ou administrador na Organização
   createUser: (userData) => apiClient.post("/users", userData),
 
-  // função para inativar ou reativar logicamente um colaborador (Soft Delete)
-  // 1 - Envia PATCH para /users/:id/status com { ativo }
-  toggleUserStatus: (id, ativo) =>
-    apiClient.patch(`/users/${id}/status`, { ativo }),
+  // função para atualizar usuário ou transferir sua filial via PUT
+  updateUser: (id, userData) => apiClient.put(`/users/${id}`, userData),
 
-  // função para excluir um colaborador (ou aplicar Soft Delete automático caso possua histórico)
+  // função exclusiva de ADMIN para transferir rapidamente um GERENTE ou OPERADOR para outra loja
+  transferUserStore: (id, lojaId) => apiClient.patch(`/users/${id}/store`, { lojaId }),
+
+  // função para excluir definitivamente um colaborador preservando vendedorRefId e histórico de vendas
   deleteUser: (id) => apiClient.delete(`/users/${id}`),
 };
