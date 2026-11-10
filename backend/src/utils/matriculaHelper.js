@@ -78,3 +78,118 @@ export function buildWorkedMonthsTimeline(dataInicio, dataTermino) {
   }
   return months;
 }
+
+// função auxiliar para interpretar data de demissão (YYYY-MM-DD local até 23:59:59 ou timestamp explícito)
+// 1 - Quando recebe YYYY-MM-DD fixa no último segundo do dia para não cortar vendas realizadas na data de desligamento
+export function parseDismissalDate(rawDate) {
+  if (!rawDate) return new Date();
+  if (typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())) {
+    const [year, month, day] = rawDate.trim().split("-").map(Number);
+    return new Date(year, month - 1, day, 23, 59, 59, 999);
+  }
+  const parsed = new Date(rawDate);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+// função compartilhada para montar payload padronizado do Relatório Final de Desligamento filtrado por meses trabalhados
+// 1 - Mantém identificação enxuta (Nome, E-mail e Matrícula CANCELADA) com Data de Início e Data de Término (Demissão)
+export function buildDismissalReportPayload({
+  refId,
+  nome,
+  email,
+  matricula,
+  dataInicio,
+  dataTermino,
+  motivo = null,
+  salesMovements = [],
+  sellerOrders = [],
+}) {
+  const start = new Date(dataInicio);
+  const end = new Date(dataTermino);
+  const safeStart = start <= end ? start : end;
+  const matriculaCode = matricula || formatMatricula(refId);
+
+  const timeline = buildWorkedMonthsTimeline(safeStart, end);
+  const monthIndexMap = new Map(timeline.map((m) => [m.key, m]));
+  const totalOrderIds = new Set();
+  const productMap = new Map();
+  let faturamentoTotal = 0;
+  let totalPecas = 0;
+
+  for (const mov of salesMovements) {
+    const val = Number(mov.valorTotal || 0);
+    const qty = Number(mov.quantidade || 0);
+    const d = new Date(mov.data);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const orderKey = mov.pedidoId ? `P_${mov.pedidoId}` : `M_${mov.id}`;
+
+    faturamentoTotal += val;
+    totalPecas += qty;
+    totalOrderIds.add(orderKey);
+
+    if (monthIndexMap.has(key)) {
+      const mb = monthIndexMap.get(key);
+      mb.faturamento += val;
+      mb.pecas += qty;
+      mb._orderIds.add(orderKey);
+    }
+
+    const pName = mov.produto?.nome || `Produto #${mov.produtoId}`;
+    const prodAcc = productMap.get(mov.produtoId) || {
+      produtoId: mov.produtoId,
+      nome: pName,
+      quantidade: 0,
+      faturamento: 0,
+    };
+    prodAcc.quantidade += qty;
+    prodAcc.faturamento += val;
+    productMap.set(mov.produtoId, prodAcc);
+  }
+
+  const totalPedidosCancelados = sellerOrders.filter((p) => p.status === "CANCELADO").length;
+  const totalPedidosConcluidos = totalOrderIds.size;
+  faturamentoTotal = Number(faturamentoTotal.toFixed(2));
+
+  return {
+    vendedor: {
+      vendedorRefId: Number(refId),
+      nome,
+      email,
+      matricula: matriculaCode,
+      matriculaCancelada: true,
+      matriculaDisplay: formatMatriculaDisplay(refId, matriculaCode, true),
+      dataInicio: safeStart.toISOString(),
+      dataTermino: end.toISOString(),
+      motivo: motivo || null,
+    },
+    resumo: {
+      faturamentoTotal,
+      totalPedidosConcluidos,
+      totalPecas,
+      totalPedidosCancelados,
+      ticketMedio:
+        totalPedidosConcluidos > 0
+          ? Number((faturamentoTotal / totalPedidosConcluidos).toFixed(2))
+          : 0,
+    },
+    vendasPorMes: timeline.map((m) => ({
+      mes: m.key,
+      label: m.label,
+      pedidosConcluidos: m._orderIds.size,
+      pecas: m.pecas,
+      faturamento: Number(m.faturamento.toFixed(2)),
+    })),
+    topProdutos: Array.from(productMap.values())
+      .sort((a, b) => b.faturamento - a.faturamento)
+      .slice(0, 10)
+      .map((p) => ({ ...p, faturamento: Number(p.faturamento.toFixed(2)) })),
+    pedidos: sellerOrders.map((p) => ({
+      id: p.id,
+      codigo: p.codigo,
+      status: p.status,
+      valorTotal: Number(p.valorTotal),
+      createdAt: p.createdAt,
+      itensCount: p.itens?.length || 0,
+    })),
+  };
+}

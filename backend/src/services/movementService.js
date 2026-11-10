@@ -369,36 +369,21 @@ export async function getSellerPerformanceRanking(
 
   if (!showDeleted) {
     fullRanking = fullRanking.filter((s) => !s.excluido);
-  } else if (parsedSearch.raw !== "") {
-    // Caso ex-colaborador não tenha vendido nesta janela (ex: 1m), traz do histórico sem sobrescrever quem já ranqueou
-    const trimmed = parsedSearch.raw;
-    const missingDeleted = await prisma.$queryRaw`
-      SELECT
-        m."vendedorRefId"::int AS "vendedorRefId",
-        MAX(m."vendedorNomeSnapshot") AS "nome",
-        MAX(m."vendedorEmailSnapshot") AS "email",
-        MAX(m."vendedorMatriculaSnapshot") AS "matricula",
-        COALESCE(MAX(m."vendedorDataAdmissaoSnapshot"), MIN(m.data)) AS "dataInicio",
-        MAX(m."vendedorDataDesligamentoSnapshot") AS "dataTermino",
-        STRING_AGG(DISTINCT ml.nome, ', ') AS "lojaNome"
-      FROM "Movimento" m
-      JOIN "Loja" ml ON ml.id = m."lojaId"
-      LEFT JOIN "Usuario" u ON u.id = m."vendedorRefId"
-      WHERE m."organizacaoId" = ${orgId}
-        ${lojaFilterSql}
-        AND u.id IS NULL
-        AND (
-          m."vendedorNomeSnapshot" ILIKE ${"%" + trimmed + "%"}
-          OR m."vendedorEmailSnapshot" ILIKE ${"%" + trimmed + "%"}
-          OR m."vendedorMatriculaSnapshot" ILIKE ${"%" + trimmed + "%"}
-          ${parsedSearch.numericId ? Prisma.sql`OR m."vendedorRefId" = ${parsedSearch.numericId}` : Prisma.empty}
-        )
-      GROUP BY m."vendedorRefId"
-    `;
+  } else {
+    const existingIds = new Set(fullRanking.map((s) => Number(s.vendedorRefId)));
+    const dismissedRecords = await prisma.registroDesligamento.findMany({
+      where: {
+        organizacaoId: orgId,
+        ...(scope.lojaId ? { lojaId: Number(scope.lojaId) } : {}),
+      },
+      orderBy: { dataDemissao: "desc" },
+    });
+
     let tailIdx = fullRanking.length;
-    for (const del of missingDeleted) {
+    for (const del of dismissedRecords) {
       const refId = Number(del.vendedorRefId);
-      if (!mergedMap.has(refId)) {
+      if (!existingIds.has(refId)) {
+        existingIds.add(refId);
         tailIdx += 1;
         const rawMatricula = del.matricula || formatMatricula(refId);
         fullRanking.push({
@@ -410,11 +395,11 @@ export async function getSellerPerformanceRanking(
           matriculaCancelada: true,
           matriculaDisplay: formatMatriculaDisplay(refId, rawMatricula, true),
           situacao: "DESLIGADO",
-          dataInicio: del.dataInicio ? new Date(del.dataInicio).toISOString() : null,
-          dataTermino: del.dataTermino ? new Date(del.dataTermino).toISOString() : null,
+          dataInicio: del.dataAdmissao ? new Date(del.dataAdmissao).toISOString() : null,
+          dataTermino: del.dataDemissao ? new Date(del.dataDemissao).toISOString() : null,
           imagem: null,
           excluido: true,
-          cargoAtual: null,
+          cargoAtual: del.role || null,
           lojaNome: del.lojaNome || "Histórico",
           totalPedidos: 0,
           totalPecas: 0,
@@ -422,6 +407,63 @@ export async function getSellerPerformanceRanking(
           ticketMedio: 0,
           percentualParticipacao: 0,
         });
+      }
+    }
+
+    if (parsedSearch.raw !== "") {
+      // Fallback caso haja algum movimento histórico sem registro em RegistroDesligamento
+      const trimmed = parsedSearch.raw;
+      const missingDeleted = await prisma.$queryRaw`
+        SELECT
+          m."vendedorRefId"::int AS "vendedorRefId",
+          MAX(m."vendedorNomeSnapshot") AS "nome",
+          MAX(m."vendedorEmailSnapshot") AS "email",
+          MAX(m."vendedorMatriculaSnapshot") AS "matricula",
+          COALESCE(MAX(m."vendedorDataAdmissaoSnapshot"), MIN(m.data)) AS "dataInicio",
+          MAX(m."vendedorDataDesligamentoSnapshot") AS "dataTermino",
+          STRING_AGG(DISTINCT ml.nome, ', ') AS "lojaNome"
+        FROM "Movimento" m
+        JOIN "Loja" ml ON ml.id = m."lojaId"
+        LEFT JOIN "Usuario" u ON u.id = m."vendedorRefId"
+        WHERE m."organizacaoId" = ${orgId}
+          ${lojaFilterSql}
+          AND u.id IS NULL
+          AND (
+            m."vendedorNomeSnapshot" ILIKE ${"%" + trimmed + "%"}
+            OR m."vendedorEmailSnapshot" ILIKE ${"%" + trimmed + "%"}
+            OR m."vendedorMatriculaSnapshot" ILIKE ${"%" + trimmed + "%"}
+            ${parsedSearch.numericId ? Prisma.sql`OR m."vendedorRefId" = ${parsedSearch.numericId}` : Prisma.empty}
+          )
+        GROUP BY m."vendedorRefId"
+      `;
+      for (const del of missingDeleted) {
+        const refId = Number(del.vendedorRefId);
+        if (!existingIds.has(refId)) {
+          existingIds.add(refId);
+          tailIdx += 1;
+          const rawMatricula = del.matricula || formatMatricula(refId);
+          fullRanking.push({
+            posicao: tailIdx,
+            vendedorRefId: refId,
+            nome: del.nome,
+            email: del.email,
+            matricula: rawMatricula,
+            matriculaCancelada: true,
+            matriculaDisplay: formatMatriculaDisplay(refId, rawMatricula, true),
+            situacao: "DESLIGADO",
+            dataInicio: del.dataInicio ? new Date(del.dataInicio).toISOString() : null,
+            dataTermino: del.dataTermino ? new Date(del.dataTermino).toISOString() : null,
+            imagem: null,
+            excluido: true,
+            cargoAtual: null,
+            lojaNome: del.lojaNome || "Histórico",
+            totalPedidos: 0,
+            totalPecas: 0,
+            totalFaturado: 0,
+            ticketMedio: 0,
+            percentualParticipacao: 0,
+          });
+        }
       }
     }
   }
@@ -463,7 +505,7 @@ export async function getSellerPerformanceDetail(refId, scope) {
   const orgId = Number(scope.organizacaoId);
   const lojaId = scope.lojaId ? Number(scope.lojaId) : null;
 
-  const [aliveUser, validSalesMovements, sellerOrders] = await Promise.all([
+  const [aliveUser, dismissedRecord, validSalesMovements, sellerOrders] = await Promise.all([
     prisma.usuario.findFirst({
       where: { id: sellerRefId, organizacaoId: orgId },
       select: {
@@ -477,6 +519,14 @@ export async function getSellerPerformanceDetail(refId, scope) {
         imagem: true,
         lojaId: true,
         loja: { select: { id: true, nome: true, slug: true } },
+      },
+    }),
+    prisma.registroDesligamento.findUnique({
+      where: {
+        organizacaoId_vendedorRefId: {
+          organizacaoId: orgId,
+          vendedorRefId: sellerRefId,
+        },
       },
     }),
     prisma.movimento.findMany({
@@ -520,7 +570,19 @@ export async function getSellerPerformanceDetail(refId, scope) {
     throw new AppError("Colaborador não encontrado ou sem histórico nesta loja", 404);
   }
 
-  if (!aliveUser && validSalesMovements.length === 0 && sellerOrders.length === 0) {
+  if (
+    dismissedRecord &&
+    !aliveUser &&
+    lojaId &&
+    dismissedRecord.lojaId &&
+    dismissedRecord.lojaId !== lojaId &&
+    validSalesMovements.length === 0 &&
+    sellerOrders.length === 0
+  ) {
+    throw new AppError("Colaborador desligado não pertence a esta loja", 404);
+  }
+
+  if (!aliveUser && !dismissedRecord && validSalesMovements.length === 0 && sellerOrders.length === 0) {
     throw new AppError(
       `Nenhum registro encontrado para a matrícula ${formatMatricula(sellerRefId)} (#${sellerRefId})`,
       404
@@ -534,6 +596,7 @@ export async function getSellerPerformanceDetail(refId, scope) {
 
   const rawMatricula =
     aliveUser?.matricula ||
+    dismissedRecord?.matricula ||
     lastSnapshotMov?.vendedorMatriculaSnapshot ||
     lastSnapshotOrder?.vendedorMatriculaSnapshot ||
     formatMatricula(sellerRefId);
@@ -541,13 +604,15 @@ export async function getSellerPerformanceDetail(refId, scope) {
   const isExcluido = !aliveUser;
   const dataInicioRaw =
     aliveUser?.dataAdmissao ||
+    dismissedRecord?.dataAdmissao ||
     lastSnapshotMov?.vendedorDataAdmissaoSnapshot ||
     lastSnapshotOrder?.vendedorDataAdmissaoSnapshot ||
     oldestSnapshotMov?.data ||
     now;
 
   const dataTerminoRaw = isExcluido
-    ? lastSnapshotMov?.vendedorDataDesligamentoSnapshot ||
+    ? dismissedRecord?.dataDemissao ||
+      lastSnapshotMov?.vendedorDataDesligamentoSnapshot ||
       lastSnapshotOrder?.vendedorDataDesligamentoSnapshot ||
       lastSnapshotMov?.data ||
       lastSnapshotOrder?.createdAt ||
@@ -562,11 +627,13 @@ export async function getSellerPerformanceDetail(refId, scope) {
     vendedorRefId: sellerRefId,
     nome:
       aliveUser?.nome ||
+      dismissedRecord?.nome ||
       lastSnapshotMov?.vendedorNomeSnapshot ||
       lastSnapshotOrder?.vendedorNomeSnapshot ||
       `Colaborador #${sellerRefId}`,
     email:
       aliveUser?.email ||
+      dismissedRecord?.email ||
       lastSnapshotMov?.vendedorEmailSnapshot ||
       lastSnapshotOrder?.vendedorEmailSnapshot ||
       "",
@@ -576,11 +643,13 @@ export async function getSellerPerformanceDetail(refId, scope) {
     situacao: isExcluido ? "DESLIGADO" : aliveUser?.situacao || "ATIVO",
     dataInicio: safeStart.toISOString(),
     dataTermino: dataTerminoRaw ? effectiveEnd.toISOString() : null,
+    dataDemissao: dataTerminoRaw ? effectiveEnd.toISOString() : null,
     excluido: isExcluido,
-    cargoAtual: aliveUser?.role || null,
+    cargoAtual: aliveUser?.role || dismissedRecord?.role || null,
     imagem: aliveUser?.imagem || null,
     lojaAtualNome:
       aliveUser?.loja?.nome ||
+      dismissedRecord?.lojaNome ||
       lastSnapshotMov?.loja?.nome ||
       lastSnapshotOrder?.loja?.nome ||
       "Rede",

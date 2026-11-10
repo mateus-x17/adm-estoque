@@ -511,6 +511,33 @@ async function seedOrganization(orgConfig, passwordHash) {
         },
       });
 
+      await prisma.registroDesligamento.upsert({
+        where: {
+          organizacaoId_vendedorRefId: {
+            organizacaoId: organizacao.id,
+            vendedorRefId: deletedCandidate.id,
+          },
+        },
+        create: {
+          vendedorRefId: deletedCandidate.id,
+          nome: deletedCandidate.nome,
+          email: deletedCandidate.email,
+          telefone: deletedCandidate.telefone || null,
+          matricula: deletedCandidate.matricula || formatMatricula(deletedCandidate.id),
+          role: deletedCandidate.role,
+          lojaId: loja.id,
+          lojaNome: loja.nome,
+          dataAdmissao: deletedCandidate.dataAdmissao || buildRelativeDate(7, 10, 9),
+          dataDemissao: dismissalDate,
+          motivo: "Desligamento histórico de demonstração (seed)",
+          organizacaoId: organizacao.id,
+        },
+        update: {
+          dataDemissao: dismissalDate,
+          matricula: deletedCandidate.matricula || formatMatricula(deletedCandidate.id),
+        },
+      });
+
       // Exclusão física real na tabela Usuario (FK SetNull desvincula mantendo vendedorRefId e snapshots!)
       await prisma.usuario.delete({ where: { id: deletedCandidate.id } });
       console.log(

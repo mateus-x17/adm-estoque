@@ -9,7 +9,8 @@ import {
   formatMatricula,
   formatMatriculaDisplay,
   parseMatriculaSearch,
-  buildWorkedMonthsTimeline,
+  parseDismissalDate,
+  buildDismissalReportPayload,
 } from "../utils/matriculaHelper.js";
 
 // arquivo responsável pelas regras de negócio e gestão de usuários (matrícula, situação, transferência e demissão com relatório mensal)
@@ -143,10 +144,38 @@ export async function createUser(data, imagePath = null, organizacaoId) {
   return sanitizeUser(user);
 }
 
-// função para listar usuários da Organização com paginação e filtros por nome/matrícula/ID, cargo, situação e loja
+// função auxiliar para normalizar um registro de RegistroDesligamento no mesmo formato da listagem de Usuários
+// 1 - Sinaliza situacao='DESLIGADO', matriculaCancelada=true e preserva dataAdmissao e dataDemissao
+function mapDismissedToUserItem(reg) {
+  const mat = reg.matricula || formatMatricula(reg.vendedorRefId);
+  return {
+    id: reg.vendedorRefId,
+    vendedorRefId: reg.vendedorRefId,
+    nome: reg.nome,
+    email: reg.email,
+    telefone: reg.telefone || null,
+    matricula: mat,
+    matriculaCancelada: true,
+    matriculaDisplay: formatMatriculaDisplay(reg.vendedorRefId, mat, true),
+    situacao: "DESLIGADO",
+    excluido: true,
+    role: reg.role,
+    imagem: null,
+    organizacaoId: reg.organizacaoId,
+    lojaId: reg.lojaId || null,
+    loja: reg.lojaNome ? { id: reg.lojaId, nome: reg.lojaNome } : null,
+    dataAdmissao: reg.dataAdmissao,
+    dataDemissao: reg.dataDemissao,
+    dataTermino: reg.dataDemissao,
+    motivo: reg.motivo || null,
+    createdAt: reg.createdAt,
+  };
+}
+
+// função para listar usuários da Organização com paginação e filtros por nome/matrícula/ID, cargo, situação (incl. DESLIGADO) e loja
 // 1 - Isola estritamente pelo organizacaoId do ADMIN
-// 2 - Suporta busca textual por nome, e-mail, telefone, matrícula (MAT-XXXXX) ou ID numérico
-// 3 - Executa busca paginada e contagem total em paralelo
+// 2 - Quando situacao='DESLIGADO' ou situacao='todos' / includeDismissed='true', consulta também RegistroDesligamento
+// 3 - Mantém busca por Matrícula (MAT-XXXXX), ID, nome, e-mail e telefone em ambos os conjuntos
 export async function listUsers({
   organizacaoId,
   lojaId = null,
@@ -155,9 +184,11 @@ export async function listUsers({
   search = "",
   role = "",
   situacao = "",
+  includeDismissed = "",
 }) {
   if (!organizacaoId) throw new AppError("Organização não identificada", 400);
 
+  const orgIdNum = Number(organizacaoId);
   const safeLimit = Math.min(Math.max(1, Number(limit) || 10), 100);
   const safePage = Math.max(1, Number(page) || 1);
   const skip = (safePage - 1) * safeLimit;
@@ -170,16 +201,20 @@ export async function listUsers({
       ? Number(lojaId)
       : null;
 
-  const normalizedSit =
-    situacao && !["todos", "all", "null", "undefined"].includes(String(situacao))
-      ? String(situacao).toUpperCase()
-      : null;
+  const upperSit = situacao ? String(situacao).toUpperCase() : "";
+  const wantsOnlyDismissed = upperSit === "DESLIGADO";
+  const wantsBothActiveAndDismissed =
+    upperSit === "TODOS" || String(includeDismissed).toLowerCase() === "true";
 
-  const where = {
+  const normalizedSit = VALID_SITUATIONS.includes(upperSit) ? upperSit : null;
+  const normalizedRole =
+    role && role !== "todos" ? String(role).toUpperCase() : null;
+
+  const activeWhere = {
     AND: [
-      { organizacaoId: Number(organizacaoId) },
+      { organizacaoId: orgIdNum },
       parsedLojaFilter && !isNaN(parsedLojaFilter) ? { lojaId: parsedLojaFilter } : {},
-      normalizedSit && VALID_SITUATIONS.includes(normalizedSit) ? { situacao: normalizedSit } : {},
+      normalizedSit ? { situacao: normalizedSit } : {},
       trimmedSearch
         ? {
             OR: [
@@ -191,23 +226,122 @@ export async function listUsers({
             ],
           }
         : {},
-      role && role !== "todos" ? { role: String(role).toUpperCase() } : {},
+      normalizedRole ? { role: normalizedRole } : {},
     ],
   };
 
+  const dismissedWhere = {
+    AND: [
+      { organizacaoId: orgIdNum },
+      parsedLojaFilter && !isNaN(parsedLojaFilter) ? { lojaId: parsedLojaFilter } : {},
+      trimmedSearch
+        ? {
+            OR: [
+              { nome: { contains: trimmedSearch, mode: "insensitive" } },
+              { email: { contains: trimmedSearch, mode: "insensitive" } },
+              { telefone: { contains: trimmedSearch, mode: "insensitive" } },
+              { matricula: { contains: trimmedSearch, mode: "insensitive" } },
+              ...(parsedMat.numericId ? [{ vendedorRefId: parsedMat.numericId }] : []),
+            ],
+          }
+        : {},
+      normalizedRole ? { role: normalizedRole } : {},
+    ],
+  };
+
+  if (wantsOnlyDismissed) {
+    const [dismissedRows, total] = await Promise.all([
+      prisma.registroDesligamento.findMany({
+        where: dismissedWhere,
+        skip,
+        take: safeLimit,
+        orderBy: [{ dataDemissao: "desc" }],
+      }),
+      prisma.registroDesligamento.count({ where: dismissedWhere }),
+    ]);
+
+    return {
+      data: dismissedRows.map(mapDismissedToUserItem),
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      },
+    };
+  }
+
+  if (wantsBothActiveAndDismissed) {
+    const [activeTotal, dismissedTotal] = await Promise.all([
+      prisma.usuario.count({ where: activeWhere }),
+      prisma.registroDesligamento.count({ where: dismissedWhere }),
+    ]);
+
+    const total = activeTotal + dismissedTotal;
+    const neededEnd = skip + safeLimit;
+    const results = [];
+
+    if (skip < activeTotal) {
+      const activeUsers = await prisma.usuario.findMany({
+        where: activeWhere,
+        skip,
+        take: safeLimit,
+        orderBy: [{ createdAt: "desc" }],
+        select: USER_PUBLIC_SELECT,
+      });
+      results.push(
+        ...sanitizeUsers(activeUsers).map((u) => ({
+          ...u,
+          matriculaCancelada: false,
+          matriculaDisplay: formatMatriculaDisplay(u.id, u.matricula, false),
+          excluido: false,
+          dataDemissao: null,
+        }))
+      );
+    }
+
+    const remaining = safeLimit - results.length;
+    if (remaining > 0 && neededEnd > activeTotal) {
+      const dismissedSkip = Math.max(0, skip - activeTotal);
+      const dismissedRows = await prisma.registroDesligamento.findMany({
+        where: dismissedWhere,
+        skip: dismissedSkip,
+        take: remaining,
+        orderBy: [{ dataDemissao: "desc" }],
+      });
+      results.push(...dismissedRows.map(mapDismissedToUserItem));
+    }
+
+    return {
+      data: results,
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      },
+    };
+  }
+
   const [users, total] = await Promise.all([
     prisma.usuario.findMany({
-      where,
+      where: activeWhere,
       skip,
       take: safeLimit,
       orderBy: [{ createdAt: "desc" }],
       select: USER_PUBLIC_SELECT,
     }),
-    prisma.usuario.count({ where }),
+    prisma.usuario.count({ where: activeWhere }),
   ]);
 
   return {
-    data: sanitizeUsers(users),
+    data: sanitizeUsers(users).map((u) => ({
+      ...u,
+      matriculaCancelada: false,
+      matriculaDisplay: formatMatriculaDisplay(u.id, u.matricula, false),
+      excluido: false,
+      dataDemissao: null,
+    })),
     pagination: {
       page: safePage,
       limit: safeLimit,
@@ -451,11 +585,11 @@ export async function updateUserSituation(id, situacao, requestingUserId = null,
   return sanitizeUser(updated);
 }
 
-// função para demitir (cancelar matrícula e excluir fisicamente) preservando histórico, antigo ID, matrícula e gerando relatório dos meses trabalhados
-// 1 - Impede autoexclusão e exclusão do último administrador da Organização
-// 2 - Grava snapshots imutáveis (vendedorRefId, nome, email, matricula, dataAdmissao e dataDesligamento) antes de apagar a conta
-// 3 - Compila e devolve relatório completo mês a mês entre dataInicio e dataTermino com identificação enxuta (nome, email e matrícula cancelada)
-export async function deleteUser(id, requestingUserId = null, organizacaoId) {
+// função para demitir (cancelar matrícula e excluir fisicamente) preservando histórico, RegistroDesligamento, antigo ID e relatório mensal
+// 1 - Impede autoexclusão e exclusão do último administrador ativo da Organização
+// 2 - Grava snapshots imutáveis em Pedido/Movimento e cria RegistroDesligamento com dataAdmissao e dataDemissao antes de apagar Usuario
+// 3 - Compila relatório completo mês a mês entre dataInicio e dataTermino usando buildDismissalReportPayload
+export async function deleteUser(id, requestingUserId = null, organizacaoId, options = {}) {
   if (!organizacaoId) throw new AppError("Organização não identificada", 400);
   const orgIdNum = Number(organizacaoId);
   const targetId = Number(id);
@@ -487,7 +621,8 @@ export async function deleteUser(id, requestingUserId = null, organizacaoId) {
 
   const matriculaCode = user.matricula || formatMatricula(targetId);
   const dataInicio = user.dataAdmissao || user.createdAt || new Date();
-  const dataTermino = new Date();
+  const dataTermino = parseDismissalDate(options?.dataDemissao);
+  const motivoTrim = options?.motivo ? String(options.motivo).trim() : null;
   const effectiveStart = dataInicio <= dataTermino ? dataInicio : dataTermino;
 
   const { salesMovements, sellerOrders } = await prisma.$transaction(async (tx) => {
@@ -518,6 +653,41 @@ export async function deleteUser(id, requestingUserId = null, organizacaoId) {
         vendedorMatriculaSnapshot: matriculaCode,
         vendedorDataAdmissaoSnapshot: effectiveStart,
         vendedorDataDesligamentoSnapshot: dataTermino,
+      },
+    });
+
+    await tx.registroDesligamento.upsert({
+      where: {
+        organizacaoId_vendedorRefId: {
+          organizacaoId: orgIdNum,
+          vendedorRefId: targetId,
+        },
+      },
+      create: {
+        vendedorRefId: targetId,
+        nome: user.nome,
+        email: user.email,
+        telefone: user.telefone || null,
+        matricula: matriculaCode,
+        role: user.role,
+        lojaId: user.lojaId,
+        lojaNome: user.loja?.nome || (user.role === "ADMIN" ? "Todas as Lojas (Rede)" : null),
+        dataAdmissao: effectiveStart,
+        dataDemissao: dataTermino,
+        motivo: motivoTrim,
+        organizacaoId: orgIdNum,
+      },
+      update: {
+        nome: user.nome,
+        email: user.email,
+        telefone: user.telefone || null,
+        matricula: matriculaCode,
+        role: user.role,
+        lojaId: user.lojaId,
+        lojaNome: user.loja?.nome || (user.role === "ADMIN" ? "Todas as Lojas (Rede)" : null),
+        dataAdmissao: effectiveStart,
+        dataDemissao: dataTermino,
+        motivo: motivoTrim,
       },
     });
 
@@ -573,88 +743,17 @@ export async function deleteUser(id, requestingUserId = null, organizacaoId) {
 
   invalidateUserCache(targetId);
 
-  // Consolida vendas mês a mês no exato intervalo trabalhado [dataInicio .. dataTermino]
-  const timeline = buildWorkedMonthsTimeline(effectiveStart, dataTermino);
-  const monthIndexMap = new Map(timeline.map((m) => [m.key, m]));
-  const totalOrderIds = new Set();
-  const productMap = new Map();
-  let faturamentoTotal = 0;
-  let totalPecas = 0;
-
-  for (const mov of salesMovements) {
-    const val = Number(mov.valorTotal || 0);
-    const qty = Number(mov.quantidade || 0);
-    const d = new Date(mov.data);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const orderKey = mov.pedidoId ? `P_${mov.pedidoId}` : `M_${mov.id}`;
-
-    faturamentoTotal += val;
-    totalPecas += qty;
-    totalOrderIds.add(orderKey);
-
-    if (monthIndexMap.has(key)) {
-      const mb = monthIndexMap.get(key);
-      mb.faturamento += val;
-      mb.pecas += qty;
-      mb._orderIds.add(orderKey);
-    }
-
-    const pName = mov.produto?.nome || `Produto #${mov.produtoId}`;
-    const prodAcc = productMap.get(mov.produtoId) || {
-      produtoId: mov.produtoId,
-      nome: pName,
-      quantidade: 0,
-      faturamento: 0,
-    };
-    prodAcc.quantidade += qty;
-    prodAcc.faturamento += val;
-    productMap.set(mov.produtoId, prodAcc);
-  }
-
-  const totalPedidosCancelados = sellerOrders.filter((p) => p.status === "CANCELADO").length;
-  const totalPedidosConcluidos = totalOrderIds.size;
-  faturamentoTotal = Number(faturamentoTotal.toFixed(2));
-
-  const relatorioDesligamento = {
-    vendedor: {
-      nome: user.nome,
-      email: user.email,
-      matricula: matriculaCode,
-      matriculaCancelada: true,
-      matriculaDisplay: formatMatriculaDisplay(targetId, matriculaCode, true),
-      dataInicio: effectiveStart.toISOString(),
-      dataTermino: dataTermino.toISOString(),
-    },
-    resumo: {
-      faturamentoTotal,
-      totalPedidosConcluidos,
-      totalPecas,
-      totalPedidosCancelados,
-      ticketMedio:
-        totalPedidosConcluidos > 0
-          ? Number((faturamentoTotal / totalPedidosConcluidos).toFixed(2))
-          : 0,
-    },
-    vendasPorMes: timeline.map((m) => ({
-      mes: m.key,
-      label: m.label,
-      pedidosConcluidos: m._orderIds.size,
-      pecas: m.pecas,
-      faturamento: Number(m.faturamento.toFixed(2)),
-    })),
-    topProdutos: Array.from(productMap.values())
-      .sort((a, b) => b.faturamento - a.faturamento)
-      .slice(0, 10)
-      .map((p) => ({ ...p, faturamento: Number(p.faturamento.toFixed(2)) })),
-    pedidos: sellerOrders.map((p) => ({
-      id: p.id,
-      codigo: p.codigo,
-      status: p.status,
-      valorTotal: Number(p.valorTotal),
-      createdAt: p.createdAt,
-      itensCount: p.itens?.length || 0,
-    })),
-  };
+  const relatorioDesligamento = buildDismissalReportPayload({
+    refId: targetId,
+    nome: user.nome,
+    email: user.email,
+    matricula: matriculaCode,
+    dataInicio: effectiveStart,
+    dataTermino,
+    motivo: motivoTrim,
+    salesMovements,
+    sellerOrders,
+  });
 
   const hadHistory = user._count.pedidos > 0 || user._count.movimentos > 0;
   return {
@@ -666,10 +765,82 @@ export async function deleteUser(id, requestingUserId = null, organizacaoId) {
     matriculaDisplay: formatMatriculaDisplay(targetId, matriculaCode, true),
     dataInicio: effectiveStart.toISOString(),
     dataTermino: dataTermino.toISOString(),
+    dataDemissao: dataTermino.toISOString(),
+    motivo: motivoTrim,
     preservedHistory: hadHistory,
     relatorioDesligamento,
     message: hadHistory
-      ? `Matrícula ${matriculaCode} cancelada e "${user.nome}" desligado(a). Vendas históricas preservadas para consulta por matrícula/ID.`
-      : `Matrícula ${matriculaCode} cancelada e colaborador "${user.nome}" removido permanentemente.`,
+      ? `Matrícula ${matriculaCode} cancelada e "${user.nome}" desligado(a) em ${dataTermino.toLocaleDateString("pt-BR")}. Histórico preservado.`
+      : `Matrícula ${matriculaCode} cancelada e colaborador "${user.nome}" desligado(a) em ${dataTermino.toLocaleDateString("pt-BR")}.`,
   };
+}
+
+// função para reemitir o Relatório Final de Desligamento de um colaborador desligado (a partir da tela de Usuários)
+// 1 - Aceita matrícula (MAT-00063) ou ID antigo do vendedor desligado e consulta RegistroDesligamento + vendas
+export async function getDismissalReportByRef(refId, organizacaoId) {
+  if (!organizacaoId) throw new AppError("Organização não identificada", 400);
+  const orgIdNum = Number(organizacaoId);
+  const parsed = parseMatriculaSearch(refId);
+  const sellerRefId = parsed.numericId;
+  if (!sellerRefId) {
+    throw new AppError("Matrícula ou identificador inválido", 400);
+  }
+
+  const reg = await prisma.registroDesligamento.findUnique({
+    where: {
+      organizacaoId_vendedorRefId: {
+        organizacaoId: orgIdNum,
+        vendedorRefId: sellerRefId,
+      },
+    },
+  });
+
+  if (!reg) {
+    throw new AppError("Registro de desligamento não encontrado", 404);
+  }
+
+  const safeStart = reg.dataAdmissao <= reg.dataDemissao ? reg.dataAdmissao : reg.dataDemissao;
+
+  const [salesMovements, sellerOrders] = await Promise.all([
+    prisma.movimento.findMany({
+      where: {
+        organizacaoId: orgIdNum,
+        vendedorRefId: sellerRefId,
+        tipo: "VENDA",
+        estorno: false,
+        data: { gte: safeStart, lte: reg.dataDemissao },
+        OR: [{ pedidoId: null }, { pedido: { status: "CONCLUIDO" } }],
+      },
+      include: {
+        produto: { select: { id: true, nome: true } },
+      },
+      orderBy: { data: "asc" },
+    }),
+    prisma.pedido.findMany({
+      where: {
+        organizacaoId: orgIdNum,
+        vendedorRefId: sellerRefId,
+        tipo: "VENDA",
+        createdAt: { gte: safeStart, lte: reg.dataDemissao },
+      },
+      include: {
+        itens: {
+          select: { produtoNomeSnapshot: true, quantidade: true, subtotal: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return buildDismissalReportPayload({
+    refId: reg.vendedorRefId,
+    nome: reg.nome,
+    email: reg.email,
+    matricula: reg.matricula,
+    dataInicio: safeStart,
+    dataTermino: reg.dataDemissao,
+    motivo: reg.motivo,
+    salesMovements,
+    sellerOrders,
+  });
 }

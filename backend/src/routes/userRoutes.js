@@ -10,6 +10,7 @@ import {
   transferUserStore,
   changeUserSituation,
   deleteUser,
+  getDismissalReport,
   getMe,
   updateMe,
   getUserNames,
@@ -44,6 +45,7 @@ router.post(
 );
 
 router.get("/", listUsers);
+router.get("/:refId/dismissal-report", getDismissalReport);
 router.get("/:id", getUser);
 
 router.put(

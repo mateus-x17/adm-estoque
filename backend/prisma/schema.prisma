@@ -23,6 +23,7 @@ model Organizacao {
   fornecedores Fornecedor[]
   pedidos      Pedido[]
   movimentos   Movimento[]
+  desligamentos RegistroDesligamento[]
 
   @@index([slug])
   @@index([ativo])
@@ -77,6 +78,28 @@ model Usuario {
   @@index([organizacaoId, situacao])
   @@index([lojaId])
   @@index([matricula])
+}
+
+model RegistroDesligamento {
+  id            Int         @id @default(autoincrement())
+  vendedorRefId Int
+  nome          String
+  email         String
+  telefone      String?
+  matricula     String
+  role          Role        @default(OPERADOR)
+  lojaId        Int?
+  lojaNome      String?
+  dataAdmissao  DateTime
+  dataDemissao  DateTime    @default(now())
+  motivo        String?
+  createdAt     DateTime    @default(now())
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  organizacaoId Int
+
+  @@unique([organizacaoId, vendedorRefId])
+  @@index([organizacaoId, dataDemissao])
+  @@index([organizacaoId, matricula])
 }
 
 model Categoria {

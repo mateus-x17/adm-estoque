@@ -103,7 +103,7 @@ export async function getUserNames(req, res, next) {
   }
 }
 
-// função para listar colaboradores paginados da Organização (exclusivo ADMIN)
+// função para listar colaboradores paginados da Organização (inclui opção de desligados/cancelados via RegistroDesligamento)
 export async function listUsers(req, res, next) {
   try {
     const users = await userService.listUsers({
@@ -114,6 +114,7 @@ export async function listUsers(req, res, next) {
       search: req.query.search || "",
       role: req.query.role || "",
       situacao: req.query.situacao || "",
+      includeDismissed: req.query.includeDismissed || "",
     });
     res.json(users);
   } catch (err) {
@@ -226,16 +227,32 @@ export async function changeUserSituation(req, res, next) {
 export async function deleteUser(req, res, next) {
   try {
     const organizacaoId = req.user.organizacaoId;
-    const result = await userService.deleteUser(req.params.id, req.user?.id, organizacaoId);
+    const { dataDemissao = null, motivo = null } = req.body || {};
+    const result = await userService.deleteUser(req.params.id, req.user?.id, organizacaoId, {
+      dataDemissao,
+      motivo,
+    });
 
     invalidateUserNamesCache(organizacaoId);
     log.info(
       { user: req.user?.id, organizacaoId, action: "DELETE_USER", targetId: req.params.id },
-      "Exclusão física de usuário concluída com preservação de histórico"
+      "Exclusão física de usuário concluída com registro de desligamento e histórico"
     );
     res.json(result);
   } catch (err) {
     log.error({ err }, "Erro ao excluir usuário");
+    next(err);
+  }
+}
+
+// função para consultar ou reimprimir o Relatório Final de Desligamento de um colaborador demitido (por matrícula ou ID)
+export async function getDismissalReport(req, res, next) {
+  try {
+    const organizacaoId = req.user.organizacaoId;
+    const relatorio = await userService.getDismissalReportByRef(req.params.refId, organizacaoId);
+    res.json(relatorio);
+  } catch (err) {
+    log.warn({ err }, "Erro ao gerar relatório de desligamento");
     next(err);
   }
 }

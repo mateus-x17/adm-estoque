@@ -75,6 +75,7 @@ async function cleanupTempOrganizations(orgIds) {
   await prisma.movimento.deleteMany({ where: { organizacaoId: { in: orgIds } } });
   await prisma.itemPedido.deleteMany({ where: { pedido: { organizacaoId: { in: orgIds } } } });
   await prisma.pedido.deleteMany({ where: { organizacaoId: { in: orgIds } } });
+  await prisma.registroDesligamento.deleteMany({ where: { organizacaoId: { in: orgIds } } });
   await prisma.produto.deleteMany({ where: { organizacaoId: { in: orgIds } } });
   await prisma.categoria.deleteMany({ where: { organizacaoId: { in: orgIds } } });
   await prisma.fornecedor.deleteMany({ where: { organizacaoId: { in: orgIds } } });
@@ -414,12 +415,18 @@ async function runAuditSuite() {
     assert.equal(searchMovsByMat.status, 200);
     assert.ok(searchMovsByMat.data.data.some((m) => m.vendedorRefId === op2Id));
 
-    // Admin DEMITE (cancela matrícula e exclui fisicamente) o Operador 2 (que já tem R$ 100 concluído + 1 cancelado!)
-    const delOp2 = await apiFetch(`/users/${op2Id}`, { method: "DELETE", token: tokenAdminA });
+    // Admin DEMITE (cancela matrícula e exclui fisicamente) o Operador 2 informando dataDemissao e motivo
+    const todayYMD = new Date().toISOString().slice(0, 10);
+    const delOp2 = await apiFetch(`/users/${op2Id}`, {
+      method: "DELETE",
+      token: tokenAdminA,
+      body: { dataDemissao: todayYMD, motivo: "Encerramento contratual E2E" },
+    });
     assert.equal(delOp2.status, 200);
     assert.equal(delOp2.data.deletedId, op2Id);
     assert.equal(delOp2.data.matricula, op2Matricula);
     assert.equal(delOp2.data.matriculaCancelada, true);
+    assert.ok(delOp2.data.dataDemissao);
     assert.ok(delOp2.data.matriculaDisplay.includes("(CANCELADA)"));
     assert.ok(delOp2.data.relatorioDesligamento?.vendedor?.dataInicio);
     assert.ok(delOp2.data.relatorioDesligamento?.vendedor?.dataTermino);
@@ -430,6 +437,26 @@ async function runAuditSuite() {
     // Usuário demitido é barrado na hora (cache invalidado -> 401)
     const deletedOpCheck = await apiFetch("/users/me", { token: tokenOp2 });
     assert.equal(deletedOpCheck.status, 401);
+
+    // Página de Usuários lista o colaborador desligado via filtro situacao=DESLIGADO + busca por Matrícula
+    const listDismissedRes = await apiFetch(
+      `/users?situacao=DESLIGADO&search=${encodeURIComponent(op2Matricula)}`,
+      { token: tokenAdminA }
+    );
+    assert.equal(listDismissedRes.status, 200);
+    assert.equal(listDismissedRes.data.data.length, 1);
+    assert.equal(listDismissedRes.data.data[0].situacao, "DESLIGADO");
+    assert.equal(listDismissedRes.data.data[0].matriculaCancelada, true);
+    assert.ok(listDismissedRes.data.data[0].dataDemissao);
+
+    // Reemissão direta do relatório final pela página de Usuários usando Matrícula cancelada
+    const reopenReportRes = await apiFetch(
+      `/users/${encodeURIComponent(op2Matricula)}/dismissal-report`,
+      { token: tokenAdminA }
+    );
+    assert.equal(reopenReportRes.status, 200);
+    assert.equal(reopenReportRes.data.resumo.faturamentoTotal, 100);
+    assert.equal(reopenReportRes.data.vendedor.matriculaCancelada, true);
 
     // Busca na página de Desempenho pela MATRÍCULA ou ANTIGO ID retorna matrícula CANCELADA + meses trabalhados!
     const deletedPerf = await apiFetch(`/movements/performance/${encodeURIComponent(op2Matricula)}`, { token: tokenGer });
