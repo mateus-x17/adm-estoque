@@ -43,11 +43,11 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 
 | Escopo / Diretório | Quantidade de Arquivos | Contagem Real de Linhas | Finalidade |
 |---|---:|---:|---|
-| `backend/src` | 38 arquivos | 5.952 linhas | Servidor Express, rotas, controllers, services, middlewares, configs, `tenantScope` e `matriculaHelper` |
-| `backend/prisma` | 13 arquivos | 1.446 linhas | `schema.prisma`, `8` diretórios SQL de migração (`migration.sql`), `seed.js`, `seedMovements.js`, `reset.js` |
-| `backend/tests` | 1 arquivo | 517 linhas | Suíte E2E real [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) |
-| `frontend/src` | 80 arquivos | 12.095 linhas | Páginas, portais, componentes, modais (`ModalInfoUsuario`, `ModalRelatorioDesligamento`, `ModalMovimentacao`, `ModalConfirmacao`), stores e hooks |
-| **Subtotal Código + Dados + Testes** | **132 arquivos** | **20.010 linhas** | Núcleo executável completo da plataforma |
+| `backend/src` | 38 arquivos | 6.302 linhas | Servidor Express, rotas, controllers, services, middlewares, configs, `tenantScope` e `matriculaHelper` |
+| `backend/prisma` | 14 arquivos | 1.556 linhas | `schema.prisma`, `9` diretórios SQL de migração (`migration.sql`), `seed.js`, `seedMovements.js`, `reset.js` |
+| `backend/tests` | 1 arquivo | 542 linhas | Suíte E2E real [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) |
+| `frontend/src` | 80 arquivos | 12.283 linhas | Páginas, portais, componentes, modais (`ModalInfoUsuario`, `ModalRelatorioDesligamento`, `ModalMovimentacao`, `ModalConfirmacao`), stores e hooks |
+| **Subtotal Código + Dados + Testes** | **133 arquivos** | **20.683 linhas** | Núcleo executável completo da plataforma |
 | `relatorios` + `README` + config raiz | 41 arquivos | — | Relatórios 01–14, `00_REGISTRO_DE_PROGRESSO.md`, `README.md`, manifests e prompts |
 | **Total do Repositório (excluindo artefatos)** | **168 arquivos** | — | Árvore completa versionável |
 
@@ -89,4 +89,4 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 ## 5. Avaliação de Complexidade & Arquitetura `[IMPLEMENTADO (verificado)]`
 
 - **Classificação:** `MEDIUM` com arquitetura SaaS Multi-Organização / Multi-Filial coerente, lock pessimista ordenado no PostgreSQL (`ORDER BY id ASC FOR UPDATE`) em multipedidos, isolamento estrito por `organizacaoId` / `lojaId`, RH completo (Matrícula + Situação + Relatório Mensal de Desligamento) e trilha contábil imutável (`vendedorRefId` + snapshots).
-- **Atenção Pós-Build Frontend:** O bundle `vite build` compilou **2.418 módulos** sem erros, porém emitiu aviso de chunk único (`dist/assets/index-BMzMu_fe.js` = **1.007,67 kB**, gzip `281,01 kB`), recomendando *code-splitting* por rotas (`React.lazy`).
+- **Atenção Pós-Build Frontend:** O bundle `vite build` compilou **2.418 módulos** sem erros, porém emitiu aviso de chunk único (`dist/assets/index-PuhSpkQw.js` = **1.011,83 kB**, gzip `281,91 kB`), recomendando *code-splitting* por rotas (`React.lazy`).

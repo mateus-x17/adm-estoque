@@ -28,7 +28,7 @@ flowchart TD
     end
 
     subgraph CloudInfra["Persistência & CDN"]
-        NeonDB[("PostgreSQL Neon\nOrganizacao -> Lojas -> Pedidos\nDecimal(10,2) + Matricula/Snapshots")]
+        NeonDB[("PostgreSQL Neon\nOrganizacao -> Lojas -> Pedidos\nRegistroDesligamento + Snapshots")]
         Cloudinary["Cloudinary CDN (Timeout 10s)\nestoque-os/organizacoes/<org>/lojas/<loja>/"]
     end
 

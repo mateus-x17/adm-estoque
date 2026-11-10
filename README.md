@@ -12,7 +12,7 @@ O **Estoque.OS** é uma aplicação web fullstack **SaaS B2B Multi-Organização
   - **Portal da Loja (`/login` e `/auth`):** Exclusivo para `GERENTE` e `OPERADOR` vinculados à sua filial (`ADMIN` é redirecionado ao `/admin/login`).
   - `GERENTE`: Visão gerencial da sua filial (estoque, fornecedores, planilhas `.xlsx`/`.csv`, cancelamento/estorno de pedidos, PDF e desempenho dos vendedores da loja), sem acesso a `/users`, `/stores` escrita ou rotas `DELETE`.
   - `OPERADOR`: Acesso operacional restrito — registra pedidos/movimentos na loja, mas visualiza **exclusivamente suas próprias vendas e pedidos** (bloqueado com `403` em métricas e listas de terceiros).
-- **Exclusão Física Real de Usuários, Matrícula Única (`MAT-00001`) & Gestão RH:** Diferente de produtos/categorias/fornecedores/lojas (que possuem Soft Delete `ativo: Boolean`), colaboradores possuem **`matricula` única derivada do ID (`MAT-00001`)**, `telefone`, `dataAdmissao` e `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS`). Contas suspensas ou em férias têm login/acesso bloqueados com `403`, podendo ser reativadas ou demitidas no popup singelo **`Info`** de `/dashboard/usuarios`; ao demitir (`DELETE /users/:id`), a conta e o avatar são apagados enquanto a matrícula permanece marcada visualmente como **`MAT-XXXXX (CANCELADA)`** com snapshots imutáveis, gerando automaticamente o **Relatório Final de Desligamento (PDF A4)** filtrado pelos meses trabalhados (`Data de Início` e `Data de Término`).
+- **Exclusão Física Real de Usuários, Matrícula Única (`MAT-00001`), Data de Demissão & Gestão RH:** Diferente de produtos/categorias/fornecedores/lojas (que possuem Soft Delete `ativo: Boolean`), colaboradores possuem **`matricula` única derivada do ID (`MAT-00001`)**, `telefone`, `dataAdmissao` e `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS` | `DESLIGADO` no histórico). Contas suspensas ou em férias têm login/acesso bloqueados com `403`, podendo ser reativadas ou demitidas no popup singelo **`Info`** de `/dashboard/usuarios` informando a **Data de Demissão** (padrão hoje) e motivo opcional. Ao demitir (`DELETE /users/:id`), `Usuario` e avatar são apagados mantendo o arquivamento permanente em **`RegistroDesligamento`** + snapshots marcados como **`MAT-XXXXX (CANCELADA)`** — permitindo filtrar por **Desligados** dentro da própria página `/dashboard/usuarios`, visualizar **Data de Admissão** e **Data de Demissão** no popup `Info` e gerar/reabrir o **Relatório Final de Desligamento (PDF A4)** filtrado pelos meses trabalhados.
 - **Multipedidos Atômicos (`/orders`) & Estorno Transacional:** Criação de pedidos multi-item (`VENDA` ou `REPOSICAO`) com carrinhos dinâmicos, lock ordenado `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, preço unitário congelado em `ItemPedido`, campos comprobatórios (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`) e cancelamento/estorno supervisionado (`POST /orders/:id/cancel` para `ADMIN`/`GERENTE`) gerando contrapartidas `estorno = true`.
 - **Auditoria & Desempenho de Vendedores (`/dashboard/desempenho`):** Ranking completo do melhor ao pior vendedor (`1m`, `6m`, `1y`), filtro universal por **Matrícula**, antigo ID, nome ou e-mail (inclusive ex-colaboradores com matrícula cancelada), identificação enxuta nos relatórios (`Nome`, `E-mail`, `Matrícula`), comparativo simultâneo mês/semestre/ano, meses trabalhados e ficha individual PDF A4.
 - **Importação & Exportação Nativa de Planilhas (`.xlsx` / `.csv`):** Motor em Node.js via `exceljs` com planilha modelo, pré-validação linha a linha (`preview`) e gravação transacional atômica na filial escolhida (`commit`).
@@ -73,7 +73,7 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 
 ## 5. Design da API
 
-### 5.1 Inventário Completo de Rotas da Aplicação (56 Rotas HTTP + Estáticos)
+### 5.1 Inventário Completo de Rotas da Aplicação (57 Rotas HTTP + Estáticos)
 
 #### Sistema e Diagnóstico (2 rotas públicas)
 - `GET /` - Healthcheck básico de disponibilidade da API.
@@ -91,17 +91,18 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 - `PATCH /stores/:id/status` - Inativação lógica/reativação da loja protegendo última unidade ativa e invalidando cache (`ADMIN`).
 - `DELETE /stores/:id` - Exclusão física se vazia ou Soft Delete automático se possuir vínculos históricos (`ADMIN`).
 
-#### Usuários, Situação RH, Transferência & Exclusão Auditável (`/users` - 10 rotas protegidas)
+#### Usuários, Situação RH, Desligamentos, Transferência & Exclusão Auditável (`/users` - 11 rotas protegidas)
 - `GET /users/me` - Dados cadastrais (`matricula`, `telefone`, `situacao`, `dataAdmissao`) e Organização/Loja do perfil autenticado (`Todos`).
 - `PUT /users/me` - Atualização de nome, e-mail, telefone e avatar na subpasta da Organização/Loja (`Todos`; `role` bloqueada para não-ADMIN).
 - `GET /users/names` - Lista em cache por escopo (TTL 30s) de vendedores ativos para filtros (`ADMIN`, `GERENTE` — `403` para `OPERADOR`).
-- `GET /users` - Listagem paginada por rede ou loja (`X-Loja-Id`) com filtros `search` (Matrícula/nome/e-mail/ID), `role` e `situacao` (`ADMIN`).
+- `GET /users` - Listagem paginada por rede ou loja (`X-Loja-Id`) com filtros `search` (Matrícula/nome/e-mail/ID), `role` e `situacao` (incl. `DESLIGADO` ou `todos` via `RegistroDesligamento`) (`ADMIN`).
+- `GET /users/:refId/dismissal-report` - Reemite o Relatório Final de Desligamento mês a mês de um colaborador desligado pela Matrícula cancelada ou ID antigo (`ADMIN`).
 - `POST /users` - Criação de `ADMIN`, `GERENTE` ou `OPERADOR` com geração automática de **`matricula` (`MAT-00001`)**, `telefone`, `situacao`, `dataAdmissao` e upload no Cloudinary (`ADMIN`).
 - `GET /users/:id` - Consulta aos detalhes de colaborador da Organização (`ADMIN`).
 - `PUT /users/:id` - Atualização cadastral/RH/cargo/loja com proteção contra rebaixamento ou inativação do último `ADMIN ATIVO` (`ADMIN`).
 - `PATCH /users/:id/store` - Transferência rápida de `GERENTE` ou `OPERADOR` para outra filial ativa da rede com limpeza imediata de cache (`ADMIN`).
 - `PATCH /users/:id/situation` - Alteração imediata de situação trabalhista (`ATIVO`, `SUSPENSO`, `FERIAS`), bloqueando suspensos/férias com `403` e limpando caches (`ADMIN`).
-- `DELETE /users/:id` - Demissão com exclusão física real (`prisma.usuario.delete`), apagando avatar/sessão, marcando `MAT-XXXXX (CANCELADA)` nos snapshots e devolvendo **`relatorioDesligamento`** mês a mês entre `dataInicio` e `dataTermino` (`ADMIN`).
+- `DELETE /users/:id` - Demissão aceitando `{ dataDemissao?, motivo? }` opcionais, gravando `RegistroDesligamento` e snapshots (`MAT-XXXXX (CANCELADA)`), apagando fisicamente `Usuario`/avatar e devolvendo **`relatorioDesligamento`** mês a mês (`ADMIN`).
 
 #### Produtos, Estoque & Planilhas (`/products` - 12 rotas protegidas)
 - `GET /products` - Listagem paginada por rede/loja com filtros `search`, `sortBy`, `categoriaId`, `fornecedorId` e `status` (`ativos`, `inativos`, `todos`) (`Todos`).
@@ -173,7 +174,8 @@ backend/
 │   │   ├── 20261110_multitenant_softdelete/
 │   │   ├── 20261110_organizacao_multipedidos/
 │   │   ├── 20261110_pedido_comprovantes/
-│   │   └── 20261110_matricula_situacao_rh/
+│   │   ├── 20261110_matricula_situacao_rh/
+│   │   └── 20261110_registro_desligamento/
 │   ├── reset.js
 │   ├── schema.prisma
 │   ├── seed.js
@@ -499,11 +501,11 @@ Neste oitavo ciclo estrutural, o **Estoque.OS** evoluiu do modelo de loja isolad
   - Portais segregados: [`AdminLogin.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/AdminLogin.jsx) (`/admin/login`, `portal: 'admin'`) e [`Auth.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Auth.jsx) (`/login`, `portal: 'loja'`).
   - Transferência instantânea de `GERENTE`/`OPERADOR` entre filiais via `PATCH /users/:id/store` invalidando cache de autenticação na hora.
 
-#### 2. Gestão de RH, Matrícula Determinística & Exclusão Real c/ Relatório Mensal
-- **Revisão de Regra de Negócio:** Diferente de produtos, categorias, fornecedores ou lojas (onde inativação lógica faz sentido para itens descontinuados), dar *softban* permanente em funcionários impedia desligamento real. Por outro lado, gestores precisavam controlar suspensões temporárias, férias, telefone, data de admissão e matrícula corporativa.
-- **Implementação (`20261110_matricula_situacao_rh`):**
-  - Todo colaborador recebe **`matricula` única gerada do ID (`MAT-00001`)**, `telefone`, `dataAdmissao` e `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS`). Contas suspensas ou em férias ficam bloqueadas (`403`) com efeito imediato até reativação em `/dashboard/usuarios` (`ModalInfoUsuario`) ou `PUT /users/:id`.
-  - Ao demitir (`DELETE /users/:id`), o registro de `Usuario` e seu avatar no Cloudinary são **apagados definitivamente**, `Pedido.usuarioId` / `Movimento.usuarioId` assumem `NULL` via `ON DELETE SET NULL`, enquanto **`vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `vendedorMatriculaSnapshot` (`MAT-XXXXX (CANCELADA)`), `vendedorDataAdmissaoSnapshot` e `vendedorDataDesligamentoSnapshot`** permanecem imutáveis — devolvendo automaticamente o **Relatório Final de Desligamento** filtrado mês a mês entre Início e Término.
+#### 2. Gestão de RH, Matrícula Determinística, Data de Demissão & Exclusão Real c/ Relatório Mensal
+- **Revisão de Regra de Negócio:** Diferente de produtos, categorias, fornecedores ou lojas (onde inativação lógica faz sentido para itens descontinuados), dar *softban* permanente em funcionários impedia desligamento real. Por outro lado, gestores precisavam controlar suspensões temporárias, férias, telefone, admissão, matrícula e consultar posteriormente colaboradores desligados com sua respectiva **Data de Demissão**.
+- **Implementação (`20261110_matricula_situacao_rh` + `20261110_registro_desligamento`):**
+  - Todo colaborador recebe **`matricula` única gerada do ID (`MAT-00001`)**, `telefone`, `dataAdmissao` e `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS`). Contas suspensas ou em férias ficam bloqueadas (`403`) com efeito imediato até reativação em `/dashboard/usuarios` (`ModalInfoUsuario`) ou demissão definitiva.
+  - Ao demitir (`DELETE /users/:id`, aceitando `{ dataDemissao, motivo }` opcionais), o registro de `Usuario` e seu avatar são **apagados definitivamente** (`ON DELETE SET NULL`), gravando o arquivamento **`RegistroDesligamento`** + snapshots imutáveis (`MAT-XXXXX (CANCELADA)`, admissão e demissão). Assim, ex-colaboradores continuam filtráveis na própria página `/dashboard/usuarios` (`situacao=DESLIGADO`), com **Data de Demissão** no popup `Info` e botão para reemitir o **Relatório Final de Desligamento** (`GET /users/:refId/dismissal-report`).
 
 #### 3. Multipedidos Atômicos (`/orders`) & Estorno Contábil
 - **Implementação:** Criados os models `Pedido` (`CONCLUIDO` | `CANCELADO`) e `ItemPedido` em [`orderService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/orderService.js):
@@ -515,9 +517,9 @@ Neste oitavo ciclo estrutural, o **Estoque.OS** evoluiu do modelo de loja isolad
 - **Implementação:** Nova página [`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx) e endpoints `GET /movements/performance` e `GET /movements/performance/:refId` com ranking melhor→pior, switch `includeDeleted`, busca direta por antigo ID (`vendedorRefId`), comparativo simultâneo de `1m`, `6m`, `1y` e ficha PDF A4. O modal [`ModalExportarRelatorio.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/ModalExportarRelatorio.jsx) passou a incluir ranking de vendedores, giro por fornecedor e escolha de filial/rede pelo `ADMIN`.
 
 #### 5. Validação Automatizada & Estado do Build
-- **Seed & Migrações Neon:** 8 migrações em `backend/prisma/migrations/` (incluindo `20261110_pedido_comprovantes` e `20261110_matricula_situacao_rh`) e `seed.js` cobrindo `Grupo TechStock Varejo` + `CyberForge Geek Store` (com colaboradores ativos, suspenso, em férias e ex-vendedor com matrícula cancelada).
-- **Backend E2E Suite:** [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) expandida nos 7 cenários (portais, multi-loja, multipedidos c/ estorno, suspensão/reativação, busca por matrícula, demissão c/ relatório mensal e planilhas `.xlsx`/`.csv`).
-- **Frontend Build & Lint:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.418 módulos** compilados).
+- **Seed & Migrações Neon:** 9 migrações em `backend/prisma/migrations/` (incluindo `20261110_pedido_comprovantes`, `20261110_matricula_situacao_rh` e `20261110_registro_desligamento`) e `seed.js` cobrindo `Grupo TechStock Varejo` + `CyberForge Geek Store` (com colaboradores ativos, suspenso, em férias e ex-vendedor com matrícula cancelada em `RegistroDesligamento`).
+- **Backend E2E Suite:** [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) expandida nos 7 cenários (portais, multi-loja, multipedidos c/ estorno, suspensão/reativação, demissão c/ data de demissão, filtro de desligados na rota `/users`, reemissão do relatório e planilhas `.xlsx`/`.csv`).
+- **Frontend Build & Lint:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.418 módulos** compilados, `1.011,83 kB`).
 
 
 

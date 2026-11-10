@@ -10,7 +10,7 @@
 - **SGBD Primário:** PostgreSQL (Neon Cloud Database).
 - **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2 na última checagem).
 - **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma).
-- **8 Migrações Versionadas em `backend/prisma/migrations/`:**
+- **9 Migrações Versionadas em `backend/prisma/migrations/`:**
   1. `20250918051748_init` — Esquema base inicial.
   2. `20251012223132_add_field_imagem_usuario` — Avatar em usuários.
   3. `20260601063115_upd_tabela_fornecedores` — Expansão de fornecedores.
@@ -19,6 +19,7 @@
   6. `20261110_organizacao_multipedidos` — Evolução de `Empresa` → `Organizacao` + `Loja` (com backfill seguro preservando IDs), criação de `PedidoStatus`, `Pedido` e `ItemPedido`, remoção de `Usuario.ativo`, e inclusão de `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `precoUnitario`, `valorTotal`, `estorno` e `pedidoId` em `Movimento`.
   7. `20261110_pedido_comprovantes` — Inclusão de `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` e `recebidoPor` em `Pedido`.
   8. `20261110_matricula_situacao_rh` — Inclusão do enum `SituacaoFuncionario` (`ATIVO` | `SUSPENSO` | `FERIAS`), `matricula` única (`MAT-00001`), `telefone`, `situacao`, `dataAdmissao` em `Usuario` e snapshots `vendedorMatriculaSnapshot`, `vendedorDataAdmissaoSnapshot` e `vendedorDataDesligamentoSnapshot` em `Pedido` e `Movimento`.
+  9. `20261110_registro_desligamento` — Criação da tabela **`RegistroDesligamento`** (`vendedorRefId`, `matricula`, `dataAdmissao`, `dataDemissao`, `motivo`, `lojaNome`, com backfill dos históricos existentes) para listar/filtrar ex-funcionários em `/dashboard/usuarios` mantendo a exclusão física em `Usuario`.
 
 ---
 
@@ -33,6 +34,7 @@ erDiagram
     Organizacao ||--o{ Produto : "possui"
     Organizacao ||--o{ Pedido : "possui"
     Organizacao ||--o{ Movimento : "possui"
+    Organizacao ||--o{ RegistroDesligamento : "arquiva desligamentos (Cascade)"
 
     Loja ||--o{ Usuario : "vincula GERENTE/OPERADOR (SetNull)"
     Loja ||--o{ Categoria : "escopa catálogo (Cascade)"
@@ -111,6 +113,17 @@ erDiagram
         decimal precoUnitario "Decimal(10,2)"
         decimal valorTotal "Decimal(10,2)"
         boolean estorno "DEFAULT false"
+    }
+    RegistroDesligamento {
+        int id PK
+        int vendedorRefId "Unique(organizacaoId, vendedorRefId)"
+        string nome
+        string email
+        string matricula "Exibida com (CANCELADA)"
+        Role role
+        datetime dataAdmissao
+        datetime dataDemissao
+        string motivo "NULL"
     }
 ```
 
