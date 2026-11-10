@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { FaSearch } from "react-icons/fa";
-import { FiPlus } from "react-icons/fi";
+import { FiPlus, FiInfo } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 import { useThemeStore } from "../store/useThemeStore.js";
@@ -12,14 +12,35 @@ import ModalMensagem from "../components/common/ModalMensagem.jsx";
 import ModalConfirmacao from "../components/common/ModalConfirmacao.jsx";
 import EditarItem from "../components/forms/EditarItem.jsx";
 import PaginationControls from "../components/common/PaginationControls.jsx";
+import ModalInfoUsuario from "../components/users/ModalInfoUsuario.jsx";
+import ModalRelatorioDesligamento from "../components/users/ModalRelatorioDesligamento.jsx";
 import { formatImageUrl } from "../utils/imageHelper.js";
 
-// arquivo responsável pela administração da equipe da Organização (criar, transferir de filial e excluir preservando antigo ID)
+// arquivo responsável pela administração da equipe da Organização (matrícula, situação, filial e demissão c/ relatório)
 
 const getRoleStyle = (role) => {
   if (role === "ADMIN") return "bg-accent-purple/10 text-accent-purple border-accent-purple/25";
   if (role === "GERENTE") return "bg-accent-pink/10 text-accent-pink border-accent-pink/25";
   return "bg-white/5 text-text-secondary border-white/10";
+};
+
+const getSituationBadge = (situacao) => {
+  if (situacao === "SUSPENSO") {
+    return {
+      label: "Suspenso",
+      cls: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    };
+  }
+  if (situacao === "FERIAS") {
+    return {
+      label: "Férias",
+      cls: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+    };
+  }
+  return {
+    label: "Atuando",
+    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
+  };
 };
 
 const getInitials = (name = "") =>
@@ -41,6 +62,7 @@ const Usuarios = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("todos");
+  const [filterSituacao, setFilterSituacao] = useState("todos");
   const [filterLojaId, setFilterLojaId] = useState("todos");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -49,8 +71,11 @@ const Usuarios = () => {
   const [totalUsuarios, setTotalUsuarios] = useState(0);
   const [modal, setModal] = useState({ visible: false, mensagem: "", tipo: "" });
   const [editarUser, setEditarUser] = useState({ visible: false, userData: null, type: "usuario" });
+  const [infoUser, setInfoUser] = useState(null);
+  const [situationLoading, setSituationLoading] = useState(false);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState(null);
   const [deletingUser, setDeletingUser] = useState(false);
+  const [dismissalReport, setDismissalReport] = useState(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -64,6 +89,7 @@ const Usuarios = () => {
         limit: usuariosPorPagina,
         search,
         role: filterRole,
+        situacao: filterSituacao,
         lojaId: filterLojaId,
       });
       setUsuarios(response.data || []);
@@ -80,7 +106,7 @@ const Usuarios = () => {
     } finally {
       setLoading(false);
     }
-  }, [paginaAtual, usuariosPorPagina, search, filterRole, filterLojaId, navigate]);
+  }, [paginaAtual, usuariosPorPagina, search, filterRole, filterSituacao, filterLojaId, navigate]);
 
   useEffect(() => {
     carregarUsuarios();
@@ -88,7 +114,7 @@ const Usuarios = () => {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [search, filterRole, filterLojaId]);
+  }, [search, filterRole, filterSituacao, filterLojaId]);
 
   const abrirEditarUsuario = (user = null, tipo = "usuario") => {
     setEditarUser({ visible: true, userData: user, type: tipo });
@@ -115,8 +141,38 @@ const Usuarios = () => {
     }
   };
 
-  // função para abrir confirmação estilizada antes de excluir definitivamente o usuário preservando antigo ID
+  // função para alterar situação trabalhista (ATIVO, SUSPENSO, FERIAS) a partir do popup Info
+  const handleChangeSituation = async (user, novaSituacao) => {
+    setSituationLoading(true);
+    try {
+      const updated = await usersApi.changeUserSituation(user.id, novaSituacao);
+      const sitLabel =
+        novaSituacao === "ATIVO"
+          ? "reativado(a)"
+          : novaSituacao === "SUSPENSO"
+          ? "suspenso(a)"
+          : "colocado(a) em férias";
+      setModal({
+        visible: true,
+        mensagem: `"${user.nome}" foi ${sitLabel} com sucesso!`,
+        tipo: "sucesso",
+      });
+      setInfoUser(updated);
+      await carregarUsuarios();
+    } catch (error) {
+      setModal({
+        visible: true,
+        mensagem: error.message || "Erro ao alterar situação do colaborador.",
+        tipo: "erro",
+      });
+    } finally {
+      setSituationLoading(false);
+    }
+  };
+
+  // função para abrir confirmação estilizada antes de cancelar matrícula e excluir definitivamente o usuário preservando vendas
   const handleExcluirUsuario = (user) => {
+    setInfoUser(null);
     setConfirmDeleteUser(user);
   };
 
@@ -127,14 +183,17 @@ const Usuarios = () => {
       const result = await usersApi.deleteUser(confirmDeleteUser.id);
       setModal({
         visible: true,
-        mensagem: result?.message || `Usuário "${confirmDeleteUser.nome}" excluído definitivamente!`,
+        mensagem: result?.message || `Matrícula cancelada e usuário "${confirmDeleteUser.nome}" desligado!`,
         tipo: "sucesso",
       });
+      if (result?.relatorioDesligamento) {
+        setDismissalReport(result.relatorioDesligamento);
+      }
       await carregarUsuarios();
     } catch (error) {
       setModal({
         visible: true,
-        mensagem: error.message || "Erro ao excluir o usuário.",
+        mensagem: error.message || "Erro ao desligar o colaborador.",
         tipo: "erro",
       });
     } finally {
@@ -179,12 +238,12 @@ const Usuarios = () => {
 
         {filtrosAbertos && (
           <section className="glass-card animate-fade-up">
-            <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               <div className="relative w-full">
                 <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" size={13} />
                 <input
                   type="text"
-                  placeholder="Nome, e-mail ou ID..."
+                  placeholder="Matrícula, nome, e-mail ou ID..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none"
@@ -200,6 +259,17 @@ const Usuarios = () => {
                 <option value="admin">Admin</option>
                 <option value="gerente">Gerente</option>
                 <option value="operador">Operador</option>
+              </select>
+
+              <select
+                value={filterSituacao}
+                onChange={(e) => setFilterSituacao(e.target.value)}
+                className="w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none"
+              >
+                <option value="todos">Todas as Situações</option>
+                <option value="ATIVO">Contratado (Atuando)</option>
+                <option value="SUSPENSO">Suspenso</option>
+                <option value="FERIAS">Em Férias</option>
               </select>
 
               <select
@@ -231,7 +301,7 @@ const Usuarios = () => {
             </div>
 
             <p className="px-5 pb-4 font-mono text-xs text-center text-text-secondary">
-              {totalUsuarios} usuário(s) ativo(s) encontrado(s)
+              {totalUsuarios} usuário(s) encontrado(s)
             </p>
           </section>
         )}
@@ -260,26 +330,40 @@ const Usuarios = () => {
             {usuarios.map((user) => {
               const isSelf = currentUser?.id === user.id;
               const isAdminRow = user.role === "ADMIN";
+              const sitBadge = getSituationBadge(user.situacao);
+              const matriculaDisplay =
+                user.matricula || `MAT-${String(user.id).padStart(5, "0")}`;
 
               return (
                 <div key={user.id} className="glass-card hover-card flex flex-col p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-primary flex items-center justify-center font-semibold text-sm shrink-0">
-                      {user.imagem ? (
-                        <img
-                          src={formatImageUrl(user.imagem)}
-                          alt={user.nome}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        getInitials(user.nome)
-                      )}
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-primary flex items-center justify-center font-semibold text-sm shrink-0">
+                        {user.imagem ? (
+                          <img
+                            src={formatImageUrl(user.imagem)}
+                            alt={user.nome}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          getInitials(user.nome)
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="font-medium text-text-primary truncate">{user.nome}</h3>
+                        <p className="text-xs text-text-secondary truncate">{user.email}</p>
+                      </div>
                     </div>
 
-                    <div className="min-w-0">
-                      <h3 className="font-medium text-text-primary truncate">{user.nome}</h3>
-                      <p className="text-xs text-text-secondary truncate">{user.email}</p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setInfoUser(user)}
+                      title="Ver ficha completa, telefone, situação e opções trabalhistas"
+                      className="p-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-secondary hover:text-accent-purple hover:border-accent-purple/40 transition-colors shrink-0"
+                    >
+                      <FiInfo size={14} />
+                    </button>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -295,6 +379,12 @@ const Usuarios = () => {
                       {isAdminRow
                         ? "Todas as Lojas (Rede)"
                         : user.loja?.nome || "Sem filial"}
+                    </span>
+
+                    <span
+                      className={`inline-block px-2.5 py-0.5 rounded-full border font-mono text-[10px] tracking-wide ${sitBadge.cls}`}
+                    >
+                      {sitBadge.label}
                     </span>
                   </div>
 
@@ -320,7 +410,9 @@ const Usuarios = () => {
 
                   <div className="font-mono text-[11px] text-text-secondary space-y-1 mb-4">
                     <p>
-                      ID: <span className="text-text-primary">#{user.id}</span>
+                      Matrícula:{" "}
+                      <span className="text-text-primary font-semibold">{matriculaDisplay}</span>{" "}
+                      <span className="opacity-60">(#{user.id})</span>
                     </p>
                     <p>
                       Criado:{" "}
@@ -375,19 +467,39 @@ const Usuarios = () => {
         />
       )}
 
+      <ModalInfoUsuario
+        user={infoUser}
+        isSelf={Boolean(infoUser && currentUser?.id === infoUser.id)}
+        actionLoading={situationLoading}
+        onClose={() => setInfoUser(null)}
+        onEdit={(u) => {
+          setInfoUser(null);
+          abrirEditarUsuario(u, "usuario");
+        }}
+        onChangeSituation={handleChangeSituation}
+        onDismiss={handleExcluirUsuario}
+      />
+
       <ModalConfirmacao
         isOpen={Boolean(confirmDeleteUser)}
         variant="danger"
         loading={deletingUser}
-        title="Excluir colaborador"
+        title="Demitir e cancelar matrícula"
         message={
           confirmDeleteUser
-            ? `Deseja excluir definitivamente "${confirmDeleteUser.nome}" (ID #${confirmDeleteUser.id})?\n\nA conta e o acesso serão encerrados na hora, mas todas as vendas anteriores continuarão preservadas e pesquisáveis pelo ID #${confirmDeleteUser.id} na aba Desempenho.`
+            ? `Deseja demitir "${confirmDeleteUser.nome}" (${
+                confirmDeleteUser.matricula || `MAT-${String(confirmDeleteUser.id).padStart(5, "0")}`
+              })?\n\nA matrícula será marcada como CANCELADA no histórico, o acesso será encerrado na hora e um Relatório Final com todas as vendas filtradas pelos meses trabalhados (início e término) será gerado.`
             : ""
         }
-        confirmText="Excluir usuário"
+        confirmText="Demitir e Gerar Relatório"
         onCancel={() => setConfirmDeleteUser(null)}
         onConfirm={executeExcluirUsuario}
+      />
+
+      <ModalRelatorioDesligamento
+        relatorio={dismissalReport}
+        onClose={() => setDismissalReport(null)}
       />
     </div>
   );

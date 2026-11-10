@@ -8,17 +8,38 @@ import { formatImageUrl } from "../../utils/imageHelper.js";
 
 // arquivo responsável pelo painel lateral de criação e edição de entidades respeitando Organização e Loja alvo
 
+const SITUATION_OPTIONS = [
+  { id: "ATIVO", nome: "Contratado (Atuando)" },
+  { id: "SUSPENSO", nome: "Suspenso" },
+  { id: "FERIAS", nome: "Em Férias" },
+];
+
 const baseConfigs = {
   usuario: {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
+      { name: "telefone", label: "Telefone", type: "tel", description: "Contato profissional ou pessoal (ex: (11) 99999-9999)." },
       {
         name: "role",
         label: "Função",
         type: "select",
         options: ["ADMIN", "GERENTE", "OPERADOR"],
         required: true,
+      },
+      {
+        name: "situacao",
+        label: "Situação Funcional",
+        type: "select",
+        options: SITUATION_OPTIONS,
+        required: true,
+        description: "Colaboradores suspensos ou em férias têm o acesso temporariamente bloqueado.",
+      },
+      {
+        name: "dataAdmissao",
+        label: "Data de Admissão",
+        type: "date",
+        description: "Data de início utilizada nos relatórios trabalhistas e históricos de vendas.",
       },
       {
         name: "lojaId",
@@ -49,6 +70,12 @@ const baseConfigs = {
         description: "Seu email usado para login.",
       },
       {
+        name: "telefone",
+        label: "Telefone",
+        type: "tel",
+        description: "Seu telefone de contato cadastrado.",
+      },
+      {
         name: "imagem",
         label: "Foto",
         type: "file",
@@ -74,6 +101,12 @@ const baseConfigs = {
         description: "Seu email usado para login.",
       },
       {
+        name: "telefone",
+        label: "Telefone",
+        type: "tel",
+        description: "Seu telefone de contato cadastrado.",
+      },
+      {
         name: "role",
         label: "Role / Permissão",
         type: "select",
@@ -94,6 +127,7 @@ const baseConfigs = {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
+      { name: "telefone", label: "Telefone", type: "tel" },
       { name: "senha", label: "Senha", type: "password", required: true },
       {
         name: "role",
@@ -102,6 +136,14 @@ const baseConfigs = {
         options: ["ADMIN", "GERENTE", "OPERADOR"],
         required: true,
       },
+      {
+        name: "situacao",
+        label: "Situação Funcional",
+        type: "select",
+        options: SITUATION_OPTIONS,
+        required: true,
+      },
+      { name: "dataAdmissao", label: "Data de Admissão", type: "date" },
       {
         name: "lojaId",
         label: "Loja / Filial de Atuação",
@@ -265,7 +307,12 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
 
   const [form, setForm] = useState(() => {
     const initial = config.fields.reduce((acc, field) => {
-      acc[field.name] = itemData?.[field.name] ?? "";
+      const raw = itemData?.[field.name];
+      if (field.type === "date" && raw) {
+        acc[field.name] = String(raw).slice(0, 10);
+      } else {
+        acc[field.name] = raw ?? "";
+      }
       return acc;
     }, {});
 
@@ -276,8 +323,13 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         initial.lojaId = String(stores[0].id);
       }
     }
-    if (type === "CriarUsuario" && !initial.role) {
-      initial.role = "OPERADOR";
+    if (type === "CriarUsuario") {
+      if (!initial.role) initial.role = "OPERADOR";
+      if (!initial.situacao) initial.situacao = "ATIVO";
+      if (!initial.dataAdmissao) initial.dataAdmissao = new Date().toISOString().slice(0, 10);
+    }
+    if (type === "usuario" && !initial.situacao) {
+      initial.situacao = "ATIVO";
     }
     return initial;
   });
@@ -405,8 +457,13 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         } bg-[var(--color-bg)] border-l border-[var(--color-border-light)] shadow-[-10px_0_40px_rgba(0,0,0,0.5)] flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 sm:p-6 border-b border-[var(--color-border-light)] shrink-0">
+        <div className="p-4 sm:p-6 border-b border-[var(--color-border-light)] shrink-0 flex items-center justify-between gap-2">
           <h2 className="font-display text-lg font-semibold text-text-primary">{panelTitle}</h2>
+          {!isCreating && type === "usuario" && (itemData?.matricula || itemData?.id) && (
+            <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-accent-purple/15 text-accent-purple border border-accent-purple/30">
+              {itemData.matricula || `MAT-${String(itemData.id).padStart(5, "0")}`}
+            </span>
+          )}
         </div>
 
         <form

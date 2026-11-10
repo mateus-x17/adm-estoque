@@ -260,7 +260,7 @@ const Movimentacoes = () => {
           <section className="glass-card p-5 flex flex-col lg:flex-row gap-3 animate-fade-up">
             <input
               type="text"
-              placeholder="Buscar produto, pedido, vendedor ou ID antigo..."
+              placeholder="Buscar produto, pedido, vendedor, matrícula ou ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full lg:w-1/3 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200"

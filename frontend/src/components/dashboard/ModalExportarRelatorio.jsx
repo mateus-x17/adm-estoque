@@ -284,7 +284,7 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
           <thead>
             <tr>
               <th style="width:32px;">Pos.</th>
-              <th>Colaborador (ID)</th>
+              <th>Colaborador (Nome · E-mail · Matrícula)</th>
               <th>Loja</th>
               <th class="text-right">Pedidos</th>
               <th class="text-right">Peças</th>
@@ -298,9 +298,12 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
                 (v) => `
               <tr>
                 <td><strong>${v.posicao}º</strong></td>
-                <td>${v.nome} <span style="color:#64748b;font-size:9px;">(#${v.vendedorRefId}${
-                  v.excluido ? " · Ex-colab." : ""
-                })</span></td>
+                <td>
+                  <strong>${v.nome}</strong>
+                  <div style="color:#64748b;font-size:9px;">
+                    ${v.email || "—"} · ${v.matriculaDisplay || v.matricula || `#${v.vendedorRefId}`}
+                  </div>
+                </td>
                 <td>${v.lojaNome || "—"}</td>
                 <td class="text-right">${v.totalPedidos}</td>
                 <td class="text-right">${v.totalPecas} un.</td>
@@ -667,11 +670,10 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
                               {v.posicao}º
                             </td>
                             <td className="py-2 font-medium">
-                              {v.nome}{" "}
-                              <span className="text-[10px] font-mono text-text-secondary">
-                                #{v.vendedorRefId}
-                                {v.excluido ? " (Ex-colab.)" : ""}
-                              </span>
+                              <div>{v.nome}</div>
+                              <div className="text-[10px] font-mono text-text-secondary">
+                                {v.email || "—"} · {v.matriculaDisplay || v.matricula || `#${v.vendedorRefId}`}
+                              </div>
                             </td>
                             <td className="py-2 text-text-secondary">{v.lojaNome}</td>
                             <td className="py-2 text-right">{v.totalPedidos}</td>

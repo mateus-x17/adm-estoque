@@ -5,13 +5,14 @@ import { apiClient } from "./apiClient.js";
 export const usersApi = {
   getMe: async () => apiClient.get("/users/me"),
 
-  // função para listar usuários da Organização com filtro opcional por lojaId, cargo e busca por nome/e-mail/ID
-  getUsers: async ({ page = 1, limit = 10, search = "", role = "", lojaId = "" } = {}) => {
+  // função para listar usuários da Organização com filtro opcional por lojaId, cargo, situação e busca por matrícula/nome/e-mail/ID
+  getUsers: async ({ page = 1, limit = 10, search = "", role = "", situacao = "", lojaId = "" } = {}) => {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
       ...(search ? { search } : {}),
       ...(role && role !== "todos" ? { role } : {}),
+      ...(situacao && situacao !== "todos" ? { situacao } : {}),
       ...(lojaId && lojaId !== "todos" && lojaId !== "all" ? { lojaId: String(lojaId) } : {}),
     });
     return apiClient.get(`/users?${params.toString()}`);
@@ -29,6 +30,9 @@ export const usersApi = {
   // função exclusiva de ADMIN para transferir rapidamente um GERENTE ou OPERADOR para outra loja
   transferUserStore: (id, lojaId) => apiClient.patch(`/users/${id}/store`, { lojaId }),
 
-  // função para excluir definitivamente um colaborador preservando vendedorRefId e histórico de vendas
+  // função exclusiva de ADMIN para alterar situação funcional (ATIVO, SUSPENSO, FERIAS)
+  changeUserSituation: (id, situacao) => apiClient.patch(`/users/${id}/situation`, { situacao }),
+
+  // função para demitir (cancelar matrícula e excluir colaborador) preservando vendedorRefId e gerando relatório de vendas
   deleteUser: (id) => apiClient.delete(`/users/${id}`),
 };

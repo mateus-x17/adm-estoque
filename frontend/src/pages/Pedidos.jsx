@@ -331,7 +331,7 @@ const Pedidos = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Código, comprovante, produto, cliente ou ID..."
+              placeholder="Código, comprovante, produto, cliente, matrícula ou ID..."
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
             />
           </div>

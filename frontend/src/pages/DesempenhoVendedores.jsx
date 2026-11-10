@@ -83,17 +83,17 @@ const DesempenhoVendedores = () => {
     fetchRanking();
   }, [fetchRanking, selectedLojaId]);
 
-  // função para buscar o raio-X individual (1m, 6m, 1y, evolução e pedidos) pelo vendedorRefId
+  // função para buscar o raio-X individual (1m, 6m, 1y, evolução e pedidos) por Matrícula ou ID antigo
   const fetchSellerDetail = useCallback(async (refId) => {
     if (!refId) return;
     setLoadingDetail(true);
     setDetailError("");
     try {
-      const data = await movementsApi.getSellerPerformanceDetail(refId);
+      const data = await movementsApi.getSellerPerformanceDetail(encodeURIComponent(String(refId).trim()));
       setDetailData(data);
     } catch (err) {
       setDetailData(null);
-      setDetailError(err.message || "Colaborador não encontrado para este ID.");
+      setDetailError(err.message || "Colaborador não encontrado para esta matrícula ou ID.");
     } finally {
       setLoadingDetail(false);
     }
@@ -107,15 +107,15 @@ const DesempenhoVendedores = () => {
 
   const handleLookupById = (e) => {
     e.preventDefault();
-    const numeric = Number(directIdInput.trim());
-    if (!numeric || isNaN(numeric)) return;
-    setSelectedRefId(numeric);
+    const trimmed = directIdInput.trim();
+    if (!trimmed) return;
+    setSelectedRefId(trimmed);
   };
 
-  // função para gerar PDF A4 individual do vendedor selecionado (ativo ou ex-colaborador)
+  // função para gerar PDF A4 individual do vendedor contendo identificação enxuta (Nome, E-mail e Matrícula) e vendas pelos meses trabalhados
   const handlePrintSellerPdf = () => {
     if (!detailData) return;
-    const { vendedor, periodos, topProdutos, pedidosRecentes } = detailData;
+    const { vendedor, periodos, mesesTrabalhados = [], topProdutos, pedidosRecentes } = detailData;
     const printWindow = window.open("", "_blank", "width=850,height=900");
     if (!printWindow) {
       setToastMsg({
@@ -126,19 +126,36 @@ const DesempenhoVendedores = () => {
       return;
     }
 
+    const formatDateBR = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
+    const mesesRows = mesesTrabalhados
+      .map(
+        (m) => `
+          <tr>
+            <td>${m.label}</td>
+            <td class="right">${m.pedidosConcluidos}</td>
+            <td class="right">${m.pecas}</td>
+            <td class="right"><strong>${formatBRL(m.faturamento)}</strong></td>
+          </tr>
+        `
+      )
+      .join("");
+
     const html = `
       <!DOCTYPE html>
       <html lang="pt-BR">
       <head>
         <meta charset="UTF-8" />
-        <title>Auditoria de Vendedor - ${vendedor.nome}</title>
+        <title>Relatório de Vendas - ${vendedor.nome}</title>
         <style>
           @page { size: A4 portrait; margin: 12mm 14mm; }
           * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body { font-family: Arial, sans-serif; color: #0f172a; font-size: 11px; margin: 0; }
           .header { display:flex; justify-content:space-between; border-bottom:2px solid #4f46e5; padding-bottom:10px; margin-bottom:14px; }
-          .badge { display:inline-block; padding:2px 8px; border-radius:4px; background:#e0e7ff; color:#3730a3; font-weight:700; font-size:9px; }
-          .badge-del { background:#fee2e2; color:#991b1b; }
+          .id-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; margin-bottom:10px; }
+          .dates-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:12px; }
+          .id-item small { display:block; font-size:9px; text-transform:uppercase; color:#64748b; }
+          .id-item strong { font-size:12px; color:#0f172a; }
+          .mat-cancel { color:#991b1b; background:#fee2e2; padding:2px 7px; border-radius:999px; font-family:monospace; font-size:10px; }
           .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:14px 0; }
           .card { border:1px solid #e2e8f0; border-radius:8px; padding:10px; background:#f8fafc; }
           .card h4 { margin:0 0 6px 0; font-size:10px; color:#64748b; text-transform:uppercase; }
@@ -153,20 +170,27 @@ const DesempenhoVendedores = () => {
         <div class="header">
           <div>
             <strong style="font-size:18px;">ESTOQUE<span style="color:#4f46e5;">.OS</span></strong>
-            <div style="color:#64748b;font-size:10px;">Ficha Individual de Desempenho &amp; Auditoria</div>
+            <div style="color:#64748b;font-size:10px;">Relatório Individual de Vendas do Colaborador</div>
           </div>
           <div style="text-align:right;font-size:9.5px;color:#475569;">
-            <div><strong>Emissor:</strong> ${user?.nome} (${user?.role})</div>
-            <div><strong>Data:</strong> ${new Date().toLocaleDateString("pt-BR")}</div>
+            <div><strong>Emissão:</strong> ${new Date().toLocaleDateString("pt-BR")}</div>
           </div>
         </div>
 
-        <h2 style="margin:0 0 4px 0;">${vendedor.nome} <span style="color:#64748b;font-size:12px;">(ID #${vendedor.vendedorRefId})</span></h2>
-        <div>
-          <span class="badge ${vendedor.excluido ? "badge-del" : ""}">
-            ${vendedor.excluido ? "Conta Excluída (Histórico Preservado)" : `Ativo • ${vendedor.cargoAtual}`}
-          </span>
-          <span style="margin-left:8px;color:#475569;">E-mail: ${vendedor.email || "—"} | Loja: ${vendedor.lojaAtualNome}</span>
+        <div class="id-grid">
+          <div class="id-item"><small>Nome</small><strong>${vendedor.nome}</strong></div>
+          <div class="id-item"><small>E-mail</small><strong>${vendedor.email || "—"}</strong></div>
+          <div class="id-item">
+            <small>Matrícula</small>
+            <strong class="${vendedor.matriculaCancelada ? "mat-cancel" : ""}">
+              ${vendedor.matriculaDisplay || vendedor.matricula || `#${vendedor.vendedorRefId}`}
+            </strong>
+          </div>
+        </div>
+
+        <div class="dates-grid">
+          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Início</small><div style="font-weight:700;margin-top:2px;">${formatDateBR(vendedor.dataInicio)}</div></div>
+          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Término</small><div style="font-weight:700;margin-top:2px;">${vendedor.dataTermino ? formatDateBR(vendedor.dataTermino) : "Em atividade"}</div></div>
         </div>
 
         <div class="grid3">
@@ -189,6 +213,16 @@ const DesempenhoVendedores = () => {
             <div style="color:#64748b;font-size:9px;">Cancelados: ${periodos.ano.pedidosCancelados}</div>
           </div>
         </div>
+
+        ${
+          mesesTrabalhados.length > 0
+            ? `<h3>Vendas nos Meses Trabalhados</h3>
+               <table>
+                 <thead><tr><th>Mês</th><th class="right">Pedidos</th><th class="right">Peças</th><th class="right">Faturamento</th></tr></thead>
+                 <tbody>${mesesRows}</tbody>
+               </table>`
+            : ""
+        }
 
         <h3>Top Produtos Vendidos (Último Ano)</h3>
         <table>
@@ -254,23 +288,22 @@ const DesempenhoVendedores = () => {
             Desempenho de Colaboradores
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary mt-1">
-            Ranking do melhor ao pior vendedor, comparativo Mês/Semestre/Ano e consulta por ID antigo de contas excluídas.
+            Ranking do melhor ao pior vendedor, comparativo Mês/Semestre/Ano e consulta por Matrícula ou ID de contas ativas e desligadas.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-          {/* Busca direta por ID (inclusive antigo ID após exclusão física) */}
+          {/* Busca direta por Matrícula ou ID (inclusive matrícula cancelada) */}
           <form onSubmit={handleLookupById} className="flex items-center gap-2 flex-1 sm:flex-none">
             <input
-              type="number"
-              min="1"
+              type="text"
               value={directIdInput}
               onChange={(e) => setDirectIdInput(e.target.value)}
-              placeholder="Consultar ID (ex: 63)"
-              className="w-full sm:w-44 px-3.5 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+              placeholder="Matrícula ou ID (ex: MAT-00063)"
+              className="w-full sm:w-52 px-3.5 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
             />
             <button type="submit" className="btn-secondary px-4 py-2 text-xs font-semibold whitespace-nowrap">
-              Buscar ID
+              Buscar Matrícula
             </button>
           </form>
 
@@ -331,7 +364,7 @@ const DesempenhoVendedores = () => {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filtrar nome, email ou ID..."
+                placeholder="Filtrar matrícula, nome, email ou ID..."
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
               />
             </div>
@@ -376,7 +409,7 @@ const DesempenhoVendedores = () => {
           ) : (
             <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1 custom-scrollbar">
               {rankingData.ranking.map((seller) => {
-                const isSelected = Number(selectedRefId) === Number(seller.vendedorRefId);
+                const isSelected = Number(detailData?.vendedor?.vendedorRefId || selectedRefId) === Number(seller.vendedorRefId);
                 return (
                   <button
                     key={seller.vendedorRefId}
@@ -404,15 +437,23 @@ const DesempenhoVendedores = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-bold text-text-primary truncate">{seller.nome}</p>
-                          <span className="font-mono text-[10px] text-text-secondary">
-                            #{seller.vendedorRefId}
+                          <span className="font-mono text-[10px] text-accent-purple">
+                            {seller.matriculaDisplay || seller.matricula || `#${seller.vendedorRefId}`}
                           </span>
-                          {seller.excluido && (
+                          {seller.excluido ? (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-400 text-[9px] font-bold uppercase">
                               <UserX size={9} />
-                              Excluído
+                              Desligado
                             </span>
-                          )}
+                          ) : seller.situacao === "SUSPENSO" ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[9px] font-bold uppercase">
+                              Suspenso
+                            </span>
+                          ) : seller.situacao === "FERIAS" ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-400 text-[9px] font-bold uppercase">
+                              Férias
+                            </span>
+                          ) : null}
                         </div>
                         <p className="text-[11px] text-text-secondary truncate">
                           {seller.lojaNome} · {seller.totalPedidos} pedidos · {seller.totalPecas} un.
@@ -455,8 +496,16 @@ const DesempenhoVendedores = () => {
                     <h2 className="font-display text-xl font-bold text-text-primary">
                       {detailData.vendedor.nome}
                     </h2>
-                    <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-[var(--color-bg)] border border-[var(--color-border)] text-text-secondary">
-                      ID #{detailData.vendedor.vendedorRefId}
+                    <span
+                      className={`font-mono text-xs px-2.5 py-0.5 rounded-full border ${
+                        detailData.vendedor.matriculaCancelada
+                          ? "bg-red-500/15 border-red-500/30 text-red-400"
+                          : "bg-accent-purple/15 border-accent-purple/30 text-accent-purple"
+                      }`}
+                    >
+                      {detailData.vendedor.matriculaDisplay ||
+                        detailData.vendedor.matricula ||
+                        `#${detailData.vendedor.vendedorRefId}`}
                     </span>
                     {selectedRankInfo?.posicao && (
                       <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-accent-pink/15 text-accent-pink font-bold">
@@ -464,17 +513,31 @@ const DesempenhoVendedores = () => {
                       </span>
                     )}
                     {detailData.vendedor.excluido ? (
-                      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-500 text-[10px] font-bold uppercase">
-                        Conta Excluída (Auditoria Preservada)
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[10px] font-bold uppercase">
+                        Desligado (Matrícula Cancelada)
+                      </span>
+                    ) : detailData.vendedor.situacao === "SUSPENSO" ? (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-bold uppercase">
+                        Suspenso
+                      </span>
+                    ) : detailData.vendedor.situacao === "FERIAS" ? (
+                      <span className="px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 text-[10px] font-bold uppercase">
+                        Em Férias
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-accent-purple/15 text-accent-purple text-[10px] font-bold uppercase">
-                        {detailData.vendedor.cargoAtual}
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold uppercase">
+                        Atuando · {detailData.vendedor.cargoAtual}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-text-secondary mt-1">
                     {detailData.vendedor.email} • {detailData.vendedor.lojaAtualNome}
+                    {detailData.vendedor.dataInicio
+                      ? ` • Início: ${new Date(detailData.vendedor.dataInicio).toLocaleDateString("pt-BR")}`
+                      : ""}
+                    {detailData.vendedor.dataTermino
+                      ? ` • Término: ${new Date(detailData.vendedor.dataTermino).toLocaleDateString("pt-BR")}`
+                      : ""}
                   </p>
                 </div>
 
@@ -540,6 +603,47 @@ const DesempenhoVendedores = () => {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+
+              {/* Histórico filtrado pelos meses trabalhados (entre Início e Término) */}
+              {Array.isArray(detailData.mesesTrabalhados) && detailData.mesesTrabalhados.length > 0 && (
+                <div className="p-4 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                      Vendas por Mês Trabalhado
+                    </h3>
+                    <span className="font-mono text-[11px] text-text-secondary">
+                      Início: {new Date(detailData.vendedor.dataInicio).toLocaleDateString("pt-BR")} · Término:{" "}
+                      {detailData.vendedor.dataTermino
+                        ? new Date(detailData.vendedor.dataTermino).toLocaleDateString("pt-BR")
+                        : "Em atividade"}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto max-h-52 overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-xs">
+                      <thead className="text-text-secondary border-b border-[var(--color-border)]">
+                        <tr>
+                          <th className="text-left py-1.5 font-medium">Mês</th>
+                          <th className="text-center py-1.5 font-medium">Pedidos</th>
+                          <th className="text-center py-1.5 font-medium">Peças</th>
+                          <th className="text-right py-1.5 font-medium">Faturamento</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--color-border-light)]">
+                        {detailData.mesesTrabalhados.map((m) => (
+                          <tr key={m.mes}>
+                            <td className="py-1.5 font-medium text-text-primary">{m.label}</td>
+                            <td className="py-1.5 text-center text-text-secondary">{m.pedidosConcluidos}</td>
+                            <td className="py-1.5 text-center text-text-secondary">{m.pecas}</td>
+                            <td className="py-1.5 text-right font-semibold text-accent-purple">
+                              {formatBRL(m.faturamento)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Top Produtos + Pedidos Recentes */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
