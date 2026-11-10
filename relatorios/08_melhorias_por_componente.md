@@ -26,7 +26,7 @@
 ## 2. Melhorias Residuais Recomendadas por Componente `[RECOMENDAÇÃO]`
 
 1. **Frontend — Code-Splitting em [`routes.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/config/routes.jsx):**
-   - *Motivo:* O bundle principal atingiu `940,80 kB` no `vite build`. Adotar `React.lazy(() => import(...))` + `<Suspense>` para páginas administrativas (`DesempenhoVendedores`, `Lojas`, `Usuarios`, `Pedidos`) reduzirá o JS inicial carregado na Landing/Login.
+   - *Motivo:* O bundle principal atingiu `978,01 kB` no `vite build`. Adotar `React.lazy(() => import(...))` + `<Suspense>` para páginas administrativas (`DesempenhoVendedores`, `Lojas`, `Usuarios`, `Pedidos`) reduzirá o JS inicial carregado na Landing/Login.
 2. **Frontend — Eliminar `fetch()` Direto em [`EditarItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/EditarItem.jsx#L308-L360):**
    - *Motivo:* Último componente com `fetch()` fora de [`apiClient.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/apiClient.js) (Falha `B9`). Migrar para `apiClient` garante envio automático de `X-Loja-Id` e interceptor `401`.
 3. **Backend — Limpeza de Código Morto em [`index.js#L62`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L62):**

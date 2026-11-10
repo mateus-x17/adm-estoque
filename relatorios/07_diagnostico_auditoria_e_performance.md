@@ -45,6 +45,6 @@
   - `/movements/user-stats`, `/movements/performance`, `/movements/performance/:refId` e `/suppliers/stats` executam agregação diretamente no PostgreSQL via `$queryRaw` indexado por `(organizacaoId, lojaId, data)` e `(organizacaoId, vendedorRefId, data)`.
 - **Benchmark de Carga HTTP Pós-Fase H:** **`NÃO MEDIDO`** nesta entrega. Após as alterações da Fase H foram executados exclusivamente os **7 cenários funcionais E2E contra PostgreSQL Neon**, o lint (`eslint .`) e o build de produção (`vite build`).
 - **Métrica de Bundle Frontend (`MEDIDO Pós-Fase H` via `vite build`):**
-  - **2.416 módulos** transformados em `1m 1s`.
-  - CSS: `44,54 kB` (`gzip: 8,83 kB`).
-  - JS principal (`index-Cy6oivvd.js`): **`940,80 kB`** (`gzip: 266,41 kB`) — com alerta nativo do Rollup/Vite sugerindo *code-splitting* para chunks acima de 500 kB.
+  - **2.416 módulos** transformados em `2m 22s`.
+  - CSS: `46,70 kB` (`gzip: 9,13 kB`).
+  - JS principal (`index-L0QMFc5-.js`): **`978,01 kB`** (`gzip: 275,33 kB`) — com alerta nativo do Rollup/Vite sugerindo *code-splitting* para chunks acima de 500 kB.

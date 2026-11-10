@@ -15,7 +15,7 @@
 | **Gestão de Usuários** | Bloqueio por FK (`DELETE` falhava se houvesse histórico) | Softban (`Usuario.ativo: false`) | **Exclusão física real (`DELETE`) mantendo `vendedorRefId` e snapshots permanentes** + transferência `PATCH /:id/store` |
 | **Operação de Venda/Compra** | Ajuste unitário (`1` SKU por vez) | Ajuste unitário c/ lock `FOR UPDATE` | **Multipedidos (`/orders`)** multi-item c/ `ORDER BY id FOR UPDATE`, preço congelado e **estorno/cancelamento (`CANCELADO`)** |
 | **Auditoria & Desempenho** | Gráficos genéricos no Dashboard | `user-stats` SQL + PDF básico por escopo | **Tela `/dashboard/desempenho`** (ranking melhor→pior, busca por antigo ID, `1m/6m/1y`, ficha PDF) + ranking/fornecedores no PDF |
-| **Superfície API HTTP** | 35 rotas HTTP | 42 rotas HTTP | **54 rotas HTTP + `USE /uploads`** |
+| **Superfície API HTTP** | 35 rotas HTTP | 42 rotas HTTP | **55 rotas HTTP + `USE /uploads`** |
 | **Mídia Cloudinary** | Pasta global simples | `estoque-os/lojas/<slug>/...` | **`estoque-os/organizacoes/<org>/lojas/<loja>/...`** |
 | **Base de Demonstração (`seed`)** | Dados genéricos | 2 lojas simples | **`Grupo TechStock Varejo`** (2 lojas + ex-vendedor excluído real) + **`CyberForge Geek Store`** (12 meses de multipedidos) |
 | **Testes Automatizados** | 0% (nenhum script válido) | 6 baterias E2E | **7 cenários E2E completos** ([`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs)) |
@@ -38,7 +38,7 @@
 
 ## 3. Verificações Reais Executadas na Fase H `[IMPLEMENTADO (verificado)]`
 
-- **Banco de Dados Neon:** `npx prisma migrate deploy` e `npm --prefix backend run reset:seed` executados com código de saída `0` (`6 migrations found — Database schema is up to date!`).
-- **Auditoria Automatizada E2E:** `npm --prefix backend test` (`multitenant_audit.test.mjs`) aprovado nos **7/7 cenários reais** contra banco PostgreSQL Neon. *(Obs.: re-validação final após edição de comentários será registrada na conclusão).*
-- **Frontend Lint & Build:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.416 módulos** compilados, `index-Cy6oivvd.js` `940,80 kB`).
+- **Banco de Dados Neon:** `npx prisma generate` concluído com saída `0` (`Prisma Client v6.19.2`, incluindo migração `20261110_pedido_comprovantes`). As 6 migrações iniciais foram aplicadas e validadas no Neon antes da rotação de senha (`Database schema is up to date!`); a 7ª migração (`20261110_pedido_comprovantes`) acompanha o push para aplicação automática no Render (`npm run build` / `prisma migrate deploy`), pois o host Neon local acusou `P1001` pós-rotação.
+- **Sintaxe Backend & E2E:** `node --check` validado em 100% dos arquivos JS/MJS pós-edição final. A suíte [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) foi executada com **7/7 cenários aprovados** antes da criação offline da 7ª migração e expandida para cobrir comprovação de pedido e preservação de posição no ranking.
+- **Frontend Lint & Build:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.416 módulos** compilados, `index-L0QMFc5-.js` `978,01 kB`) aprovados após as últimas edições.
 - **Pendências Declaradas com Transparência:** Benchmark HTTP de carga Pós-Fase H (`NÃO MEDIDO`), *code-splitting* do bundle Frontend, migração dos 2 `fetch()` de `EditarItem.jsx` e remoção do `loginLimiter` não utilizado em `index.js`.

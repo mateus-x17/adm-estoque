@@ -53,4 +53,4 @@
 | **A5** | Estado em RAM / código morto | `PARCIAL / ABERTO` | `userCache`, `namesCacheByScope`, `idempotencyStore`, `orderIdempotencyStore` e `rate-limit` vivem em memória local (exigem Redis p/ 2+ instâncias); `index.js#L62` tem `loginLimiter` não usado. | Média |
 | **A6** | Observabilidade / Correlation ID | `RESOLVIDO / VERIFICADO` | `Pino` JSON logger + header UUID `X-Request-Id` em `requestLogger.js`. | Baixa |
 | **A7** | Health checks & Graceful Shutdown | `RESOLVIDO / VERIFICADO` | `/`, `/test-db` e rotina `SIGTERM`/`SIGINT` em `index.js` fechando HTTP e `prisma.$disconnect()` com timeout 10s. | Nenhuma |
-| **A8** | Proxy reverso, Docker e Bundle Split | `PARCIAL / PAAS` | Hospedagem Vercel/Render gerencia TLS; sem `Dockerfile`; bundle Vite único (`940,80 kB`) precisa de *code-splitting*. | Baixa/Média |
+| **A8** | Proxy reverso, Docker e Bundle Split | `PARCIAL / PAAS` | Hospedagem Vercel/Render gerencia TLS; sem `Dockerfile`; bundle Vite único (`978,01 kB`) precisa de *code-splitting*. | Baixa/Média |

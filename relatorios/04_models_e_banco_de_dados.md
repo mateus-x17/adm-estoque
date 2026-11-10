@@ -9,14 +9,15 @@
 
 - **SGBD Primário:** PostgreSQL (Neon Cloud Database).
 - **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2 na última checagem).
-- **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma) (227 linhas).
-- **6 Migrações Versionadas em `backend/prisma/migrations/`:**
+- **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma) (232 linhas).
+- **7 Migrações Versionadas em `backend/prisma/migrations/`:**
   1. `20250918051748_init` — Esquema base inicial.
   2. `20251012223132_add_field_imagem_usuario` — Avatar em usuários.
   3. `20260601063115_upd_tabela_fornecedores` — Expansão de fornecedores.
   4. `20261022_alter_enum_reposicao_venda` — Enum canônico `REPOSICAO` / `VENDA`.
   5. `20261110_multitenant_softdelete` — Introdução de `Empresa` + `ativo`.
   6. `20261110_organizacao_multipedidos` — Evolução de `Empresa` → `Organizacao` + `Loja` (com backfill seguro preservando IDs), criação de `PedidoStatus`, `Pedido` e `ItemPedido`, remoção de `Usuario.ativo`, e inclusão de `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `precoUnitario`, `valorTotal`, `estorno` e `pedidoId` em `Movimento`.
+  7. `20261110_pedido_comprovantes` — Inclusão de `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` e `recebidoPor` em `Pedido`.
 
 ---
 

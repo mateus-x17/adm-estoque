@@ -24,13 +24,13 @@
 
 ## Resumo de Entregas da Fase H (Verificadas no Código)
 
-1. **Banco de Dados (`6` Migrações em `backend/prisma/migrations/`):**
+1. **Banco de Dados (`7` Migrações em `backend/prisma/migrations/`):**
    - `Organizacao` como tenant raiz + `Loja` como unidade operacional com `@@unique([organizacaoId, slug])`.
-   - `Pedido` (`CONCLUIDO` | `CANCELADO`), `ItemPedido` (`precoUnitario` congelado no ato) e `Movimento` enriquecido com `precoUnitario`, `valorTotal`, `estorno`, `pedidoId`, `vendedorRefId`, `vendedorNomeSnapshot` e `vendedorEmailSnapshot`.
+   - `Pedido` (`CONCLUIDO` | `CANCELADO`) com campos comprobatórios (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`), `ItemPedido` (`precoUnitario` congelado no ato) e `Movimento` enriquecido com `precoUnitario`, `valorTotal`, `estorno`, `pedidoId`, `vendedorRefId`, `vendedorNomeSnapshot` e `vendedorEmailSnapshot`.
    - Remoção do softban em `Usuario` (sem coluna `ativo`), mantendo Soft Delete apenas onde faz sentido no domínio (`Organizacao`, `Loja`, `Produto`, `Categoria`, `Fornecedor`).
-2. **Backend (54 Rotas HTTP + `USE /uploads`):**
-   - Novos módulos completos: [`storeRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/storeRoutes.js) (`/stores`), [`orderRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/orderRoutes.js) (`/orders`) e resolvedor de escopo [`tenantScope.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/tenantScope.js) com suporte a `X-Loja-Id`.
-   - Transferência de loja (`PATCH /users/:id/store`), ranking e raio-X de vendedores (`GET /movements/performance` e `GET /movements/performance/:refId`) e exclusão real de usuário preservando `vendedorRefId`.
+2. **Backend (55 Rotas HTTP + `USE /uploads`):**
+   - Novos módulos completos: [`storeRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/storeRoutes.js) (`/stores`), [`orderRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/orderRoutes.js) (`/orders` com upload/anexo de comprovante em `PATCH /orders/:id/proof`) e resolvedor de escopo [`tenantScope.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/tenantScope.js) com suporte a `X-Loja-Id`.
+   - Transferência de loja (`PATCH /users/:id/store`), ranking e raio-X de vendedores (`GET /movements/performance` preservando posição real mesmo em buscas filtradas e `GET /movements/performance/:refId`) e exclusão real de usuário preservando `vendedorRefId`.
    - Subpastas hierárquicas isoladas no Cloudinary: `estoque-os/organizacoes/<orgSlug>/lojas/<lojaSlug>/<subpasta>`.
 3. **Frontend (`React 19` + `Vite 7` + `Zustand 5`):**
    - Portais distintos [`AdminLogin.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/AdminLogin.jsx) (`/admin/login`) e [`Auth.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Auth.jsx) (`/login` e `/auth`).

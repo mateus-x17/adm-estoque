@@ -11,8 +11,8 @@
 | Dimensão Mensurada | Quantidade Verificada | Impacto de Mercado (IP / B2B) |
 |---|---|---|
 | **Código-Fonte + Schema + Migrações + Testes** | `127` arquivos / `19.072` linhas *(pós-Fase H)* | Base full-stack coesa pronta para white-label ou SaaS |
-| **APIs HTTP Express + Prisma** | `54` rotas HTTP protegidas por JWT, RBAC e `X-Loja-Id` | Superfície completa de ERP comercial multi-filial |
-| **Modelagem & Migrações PostgreSQL** | `9` models, `3` enums, `6` migrações SQL versionadas | Hierarquia real de redes de varejo + snapshots financeiros congelados |
+| **APIs HTTP Express + Prisma** | `55` rotas HTTP protegidas por JWT, RBAC e `X-Loja-Id` | Superfície completa de ERP comercial multi-filial |
+| **Modelagem & Migrações PostgreSQL** | `9` models, `3` enums, `7` migrações SQL versionadas | Hierarquia real de redes de varejo + snapshots financeiros congelados |
 | **Cobertura E2E Automatizada** | `7/7` cenários reais contra banco Neon PostgreSQL | Segurança contratual contra IDOR cross-org, race conditions e perda de histórico |
 
 ---
@@ -52,5 +52,5 @@ Estimativa realista de custo caso uma empresa ou agência contratasse engenharia
 
 ## 4. Recomendações Práticas de Valorização Imediata
 
-1. Aplicar *code-splitting* em `routes.jsx` (reduzir o chunk único de `940,80 kB`) e migrar os 2 `fetch()` finais de `EditarItem.jsx` para `apiClient` antes de auditoria técnica externa (*due diligence*).
+1. Aplicar *code-splitting* em `routes.jsx` (reduzir o chunk único de `978,01 kB`) e migrar os 2 `fetch()` finais de `EditarItem.jsx` para `apiClient` antes de auditoria técnica externa (*due diligence*).
 2. Publicar vídeo/demonstração guiada usando os dois ambientes reais já prontos no `seed.js` (**`Grupo TechStock Varejo`** + **`CyberForge Geek Store`**) para fechar os **3 primeiros clientes piloto pagantes**, transformando valor técnico em MRR comprovado.

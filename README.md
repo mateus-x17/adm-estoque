@@ -73,7 +73,7 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 
 ## 5. Design da API
 
-### 5.1 Inventário Completo de Rotas da Aplicação (54 Rotas HTTP + Estáticos)
+### 5.1 Inventário Completo de Rotas da Aplicação (55 Rotas HTTP + Estáticos)
 
 #### Sistema e Diagnóstico (2 rotas públicas)
 - `GET /` - Healthcheck básico de disponibilidade da API.
@@ -134,10 +134,11 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 - `PATCH /suppliers/:id/status` - Soft Delete / reativação (`ADMIN`, `GERENTE`).
 - `DELETE /suppliers/:id` - Exclusão ou Soft Delete automático (`ADMIN`).
 
-#### Multipedidos & Estorno (`/orders` - 4 rotas protegidas)
-- `GET /orders` - Listagem paginada por rede/loja com busca por código, cliente, nome/e-mail ou antigo `vendedorRefId` (`OPERADOR` enxerga apenas os próprios pedidos).
-- `GET /orders/:id` - Detalhes do pedido, itens congelados e histórico de movimentos espelho (`Todos`; com sigilo `OPERADOR`).
-- `POST /orders` - Criação atômica de pedido multi-item (`VENDA`/`REPOSICAO`) com `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key` e congelamento de `precoUnitario` (`Todos`).
+#### Multipedidos, Comprovantes & Estorno (`/orders` - 5 rotas protegidas)
+- `GET /orders` - Listagem paginada por rede/loja com busca por código, comprovante, recebedor, cliente, nome/e-mail ou antigo `vendedorRefId` (`OPERADOR` enxerga apenas os próprios pedidos).
+- `GET /orders/:id` - Detalhes do pedido, itens congelados, dados comprobatórios e histórico de movimentos espelho (`Todos`; com sigilo `OPERADOR`).
+- `POST /orders` - Criação atômica de pedido multi-item (`VENDA`/`REPOSICAO`) com `ORDER BY id ASC FOR UPDATE`, `Idempotency-Key`, congelamento de `precoUnitario` e upload opcional de comprovante (`formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl`, `recebidoPor`) (`Todos`).
+- `PATCH /orders/:id/proof` - Anexa foto/PDF ou confirma comprovação de pagamento/recebimento em pedidos existentes (`Todos` respeitando sigilo `OPERADOR`).
 - `POST /orders/:id/cancel` - Cancelamento supervisionado com reversão atômica do saldo dos itens e geração de movimentos `estorno = true` (`ADMIN`, `GERENTE` — `403` para `OPERADOR`).
 
 #### Movimentações, Relatórios Executivos & Desempenho (`/movements` - 5 rotas protegidas)
@@ -169,7 +170,8 @@ backend/
 │   │   ├── 20260601063115_upd_tabela_fornecedores/
 │   │   ├── 20261022_alter_enum_reposicao_venda/
 │   │   ├── 20261110_multitenant_softdelete/
-│   │   └── 20261110_organizacao_multipedidos/
+│   │   ├── 20261110_organizacao_multipedidos/
+│   │   └── 20261110_pedido_comprovantes/
 │   ├── reset.js
 │   ├── schema.prisma
 │   ├── seed.js
@@ -470,6 +472,13 @@ Neste sétimo ciclo estrutural, o **Estoque.OS** evoluiu de uma aplicação sing
 #### 5. Validação Automatizada Integral (Backend + Build/Lint Frontend)
 - **Backend Integration Audit Suite:** `npm --prefix backend test` ([`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs)) executado contra API real + PostgreSQL Neon — **6/6 baterias aprovadas** (registro multi-loja, seleção de loja no login e bloqueio de inativo 403, isolamento cross-tenant 404, isolamento de `OPERADOR` e bloqueios de `GERENTE`, Soft Delete + invalidação de cache, importação `.xlsx`/`.csv` com rollback em erro e exportação).
 - **Frontend Build & Lint:** `npm --prefix frontend run build` (`vite build`) e `npm --prefix frontend run lint` (`eslint .`) aprovados com **0 erros e 0 warnings**.
+
+#### 6. Polimento Operacional Pós-Homologação (UX, Comprovantes & Precisão de Ranking)
+- **Toasts e Diálogos Estilizados:** Corrigido estado inicial vazio de [`ModalMensagem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/common/ModalMensagem.jsx) com fade-out gradual (`400ms`), e substituídos 100% dos `window.confirm`, `window.alert` e `window.prompt` nativos por [`ModalConfirmacao.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/common/ModalConfirmacao.jsx) (`createPortal` com variantes e input opcional de justificativa).
+- **Filtros Colapsáveis & Fornecedores Inativos:** Padronização de painéis retráteis em `Pedidos`, `DesempenhoVendedores`, `Lojas`, `Categorias`, `Fornecedores`, `Produtos`, `Movimentacoes` e `Usuarios`; inclusão de fornecedores inativos no `seed.js` e mensagens contextuais explícitas nos gráficos e tabela quando não houver inativos.
+- **Preservação de Posição no Ranking (`/dashboard/desempenho`):** Cálculo de `posicao` sobre o conjunto completo do escopo/período antes da aplicação de filtros textuais/ID.
+- **Dashboard Interativo:** Fluxo de mercadorias com seletor `Mês atual` / `6 Meses` / `Último ano`, valores absolutos + percentuais nos alertas e card de baixo estoque com modal clicável e redirecionamento para `/dashboard/produtos?focus=<id>`, além de abertura detalhada de movimentações recentes via [`ModalMovimentacao.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/ModalMovimentacao.jsx).
+- **Comprovação de Pagamento e Recebimento nos Pedidos (`20261110_pedido_comprovantes`):** Adicionados `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` (foto/PDF no Cloudinary) e `recebidoPor` em `Pedido`, rota `PATCH /orders/:id/proof`, modal de anexo posterior e recibo formal imprimível.
 
 ---
 

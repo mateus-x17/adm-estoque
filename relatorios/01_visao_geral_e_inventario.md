@@ -87,4 +87,4 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 ## 5. Avaliação de Complexidade & Arquitetura `[IMPLEMENTADO (verificado)]`
 
 - **Classificação:** `MEDIUM` com arquitetura SaaS Multi-Organização / Multi-Filial coerente, lock pessimista ordenado no PostgreSQL (`ORDER BY id ASC FOR UPDATE`) em multipedidos, isolamento estrito por `organizacaoId` / `lojaId` e trilha contábil imutável (`vendedorRefId` + snapshots).
-- **Atenção Pós-Build Frontend:** O bundle `vite build` compilou **2.416 módulos** sem erros, porém emitiu aviso de chunk único (`dist/assets/index-Cy6oivvd.js` = **940,80 kB**, gzip `266,41 kB`), recomendando *code-splitting* por rotas (`React.lazy`).
+- **Atenção Pós-Build Frontend:** O bundle `vite build` compilou **2.416 módulos** sem erros, porém emitiu aviso de chunk único (`dist/assets/index-L0QMFc5-.js` = **978,01 kB**, gzip `275,33 kB`), recomendando *code-splitting* por rotas (`React.lazy`).
