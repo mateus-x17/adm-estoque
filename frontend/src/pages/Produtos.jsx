@@ -16,6 +16,11 @@ import { useTenantStore } from "../store/useTenantStore.js";
 // 1 - Aplica controle RBAC para criação, edição e importação/exportação em lote via planilhas (.xlsx e .csv)
 // 2 - Suporta filtro por status (ativos, inativos, todos) para compatibilidade com Soft Delete
 
+// função responsável por renderizar a página de gestão de produtos por Organização e Loja.
+//
+// 1 - recebe nenhum parâmetro direto (lê parâmetros de URL, usuário logado e selectedLojaId das stores).
+// 2 - carrega catálogo paginado e categorias aplicando controle RBAC e suporte a planilhas (.xlsx e .csv).
+// 3 - retorna a interface completa de produtos com espaçamento otimizado para visualização em zoom 100%.
 const Produtos = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const focusId = searchParams.get("focus");
@@ -184,26 +189,26 @@ const Produtos = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col gap-1 border-b border-[var(--color-border)] pb-4">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto transition-colors duration-300">
+      <header className="flex flex-col gap-0.5 border-b border-[var(--color-border)] py-2 pb-3">
         <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
           Catálogo
         </span>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+        <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
           Produtos
         </h1>
-        <p className="text-xs sm:text-sm text-text-secondary mt-1">
+        <p className="text-xs text-text-secondary mt-0.5">
           Gerencie o catálogo, importe planilhas e acompanhe disponibilidade em estoque.
         </p>
       </header>
 
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           {canManage ? (
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => abrirEditarProduto()}
-                className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
+                className="btn-primary px-3.5 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
               >
                 <FaBoxOpen size={14} />
                 Novo produto
@@ -211,7 +216,7 @@ const Produtos = () => {
 
               <button
                 onClick={() => setImportModalOpen(true)}
-                className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+                className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
               >
                 <FiUploadCloud size={14} />
                 Importar Planilha
@@ -220,7 +225,7 @@ const Produtos = () => {
               <button
                 disabled={exporting}
                 onClick={() => handleExport("xlsx")}
-                className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+                className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
               >
                 <FiDownload size={14} />
                 Exportar .XLSX
@@ -229,7 +234,7 @@ const Produtos = () => {
               <button
                 disabled={exporting}
                 onClick={() => handleExport("csv")}
-                className="btn-secondary px-3.5 py-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+                className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
               >
                 <FiDownload size={14} />
                 Exportar .CSV
@@ -251,7 +256,7 @@ const Produtos = () => {
         </div>
 
         {showFilters && (
-          <section className="glass-card p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full animate-fade-up">
+          <section className="glass-card p-3.5 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full animate-fade-up">
             <div className="relative w-full">
               <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" size={14} />
               <input
@@ -300,19 +305,19 @@ const Produtos = () => {
       </div>
 
       {loaded ? (
-        <div className="flex flex-col gap-4">
-          <div className="flex justify-between items-center mb-1">
-            <h2 className="font-display text-base sm:text-lg font-semibold text-text-primary">
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <h2 className="font-display text-base font-semibold text-text-primary">
               Catálogo de produtos
             </h2>
-            <span className="font-mono text-[11px] uppercase text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-1">
+            <span className="font-mono text-[11px] uppercase text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-0.5">
               Total: {totalCount}
             </span>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {produtos.length === 0 ? (
-              <div className="glass-card p-8 text-center text-sm text-text-secondary">
+              <div className="glass-card p-6 text-center text-sm text-text-secondary">
                 Nenhum produto encontrado.
               </div>
             ) : (
@@ -328,7 +333,7 @@ const Produtos = () => {
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-3 py-20">
+        <div className="flex items-center justify-center gap-3 py-14">
           <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-text-secondary">Carregando produtos...</span>
         </div>

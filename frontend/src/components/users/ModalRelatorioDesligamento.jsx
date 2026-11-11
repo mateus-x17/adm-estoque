@@ -133,7 +133,11 @@ function printDismissalReportPdf(relatorio) {
   setTimeout(() => win.print(), 300);
 }
 
-// função para exibir modal pós-demissão com histórico mensal entre dataInicio e dataTermino
+// função responsável por exibir o modal do Relatório Final de Desligamento filtrado por meses trabalhados.
+//
+// 1 - recebe relatorio (object) e onClose (function).
+// 2 - apresenta matrícula cancelada, datas de admissão/demissão, KPIs, tabela mensal e opção de imprimir PDF A4.
+// 3 - retorna o modal via createPortal ou null quando relatorio não estiver definido.
 const ModalRelatorioDesligamento = ({ relatorio, onClose }) => {
   if (!relatorio) return null;
 
@@ -148,12 +152,12 @@ const ModalRelatorioDesligamento = ({ relatorio, onClose }) => {
         className="w-full max-w-3xl rounded-3xl bg-[var(--color-bg)] border border-[var(--color-border-light)] shadow-2xl overflow-hidden flex flex-col max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-5 sm:p-6 border-b border-[var(--color-border-light)] flex items-start justify-between gap-4 bg-[var(--color-surface)]/50">
+        <div className="p-4 sm:p-5 border-b border-[var(--color-border-light)] flex items-start justify-between gap-3 bg-[var(--color-surface)]/50">
           <div>
             <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-emerald-400">
               <FiCheckCircle size={13} /> Matrícula Cancelada &amp; Relatório Gerado
             </span>
-            <h2 className="font-display text-xl font-bold text-text-primary mt-1">
+            <h2 className="font-display text-lg sm:text-xl font-bold text-text-primary mt-0.5">
               Relatório Final de Desligamento
             </h2>
           </div>
@@ -167,7 +171,7 @@ const ModalRelatorioDesligamento = ({ relatorio, onClose }) => {
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 custom-scrollbar">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 custom-scrollbar">
           {/* Identificação enxuta: Nome, E-mail e Matrícula Cancelada */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)]">
             <div>
@@ -302,7 +306,7 @@ const ModalRelatorioDesligamento = ({ relatorio, onClose }) => {
           )}
         </div>
 
-        <div className="p-4 sm:p-5 border-t border-[var(--color-border-light)] bg-[var(--color-surface)]/30 flex flex-wrap justify-end gap-3">
+        <div className="px-4 sm:px-5 py-3 border-t border-[var(--color-border-light)] bg-[var(--color-surface)]/30 flex flex-wrap justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}

@@ -17,6 +17,11 @@ import { useTenantStore } from "../../store/useTenantStore.js";
 // 2 - Executa pré-validação ('preview') exibindo novas categorias/fornecedores e eventuais erros por linha
 // 3 - Permite ao ADMIN selecionar a loja alvo quando estiver em visão consolidada e confirma via transação atômica ('commit')
 
+// função responsável por renderizar o modal de importação em lote de produtos via planilhas .xlsx e .csv.
+//
+// 1 - recebe isOpen (boolean), onClose (function) e onImported (function).
+// 2 - gerencia download do modelo, seleção da loja alvo para ADMIN, pré-validação e efetivação transacional.
+// 3 - retorna o modal via createPortal com rolagem controlada e max-h-[92dvh] ou null quando fechado.
 const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
   const user = useUserStore((state) => state.user);
   const { stores, selectedLojaId } = useTenantStore();
@@ -180,17 +185,17 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[92vh] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.45)] flex flex-col overflow-hidden animate-scale-in"
+        className="relative w-full max-w-3xl max-h-[92dvh] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.45)] flex flex-col overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+        <header className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-accent-purple/15 text-accent-purple flex items-center justify-center shrink-0">
-              <FiUploadCloud size={18} />
+            <div className="w-8 h-8 rounded-xl bg-accent-purple/15 text-accent-purple flex items-center justify-center shrink-0">
+              <FiUploadCloud size={17} />
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-base sm:text-lg font-semibold text-text-primary truncate">
+              <h2 className="font-display text-base font-semibold text-text-primary truncate">
                 Importar Produtos por Planilha
               </h2>
               <p className="text-xs text-text-secondary truncate">
@@ -200,7 +205,7 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors shrink-0"
+            className="p-1.5 rounded-xl text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors shrink-0"
             aria-label="Fechar modal"
           >
             <FiX size={18} />
@@ -208,7 +213,7 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
         </header>
 
         {/* Conteúdo rolável */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 custom-scrollbar">
           {isAdmin && stores.length > 0 && (
             <div className="p-3.5 rounded-2xl border border-accent-purple/30 bg-accent-purple/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div>
@@ -447,7 +452,7 @@ const ModalImportarPlanilha = ({ isOpen, onClose, onImported }) => {
         </div>
 
         {/* Rodapé */}
-        <footer className="px-4 sm:px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col-reverse sm:flex-row justify-end gap-2.5">
+        <footer className="px-4 sm:px-5 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col-reverse sm:flex-row justify-end gap-2">
           <button
             type="button"
             onClick={onClose}

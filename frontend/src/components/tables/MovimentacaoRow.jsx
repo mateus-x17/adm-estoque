@@ -3,6 +3,11 @@ import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 
 // arquivo responsável por renderizar linha do livro-razão unitário com suporte a snapshot de ex-colaborador, estorno e pedido vinculado
 
+// função responsável por renderizar uma linha resumida de movimentação no histórico com snapshot de vendedor.
+//
+// 1 - recebe movimentacao (object), abrirModal (function) e index (number).
+// 2 - identifica tipo da operação, status de estorno, código do pedido e possível ex-colaborador.
+// 3 - retorna o cartão compacto com botão de abertura do modal de auditoria.
 const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
   const dataCompacta = new Date(movimentacao.data).toLocaleDateString("pt-BR");
   const isVenda = movimentacao.tipo === "VENDA" || movimentacao.tipo === "SAIDA";
@@ -29,13 +34,13 @@ const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
   return (
     <div
       style={{ animationDelay: `${index * 0.04}s` }}
-      className="glass-card hover-card flex flex-col md:flex-row md:items-center justify-between p-4 gap-4 animate-fade-up"
+      className="glass-card hover-card flex flex-col md:flex-row md:items-center justify-between p-3 sm:px-4 sm:py-3 gap-3 animate-fade-up"
     >
-      <div className="flex items-center gap-4 flex-1 min-w-0">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
         <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center border shrink-0 ${iconBg} ${iconColor}`}
+          className={`w-9 h-9 rounded-full flex items-center justify-center border shrink-0 ${iconBg} ${iconColor}`}
         >
-          <Icon size={18} strokeWidth={2} />
+          <Icon size={16} strokeWidth={2} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -74,11 +79,11 @@ const MovimentacaoRow = ({ movimentacao, abrirModal, index }) => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between md:justify-end gap-4 shrink-0">
+      <div className="flex items-center justify-between md:justify-end gap-3 shrink-0">
         <p className="font-mono text-xs text-text-secondary">{dataCompacta}</p>
         <button
           onClick={() => abrirModal(movimentacao)}
-          className="btn-secondary px-4 py-2 text-xs font-semibold"
+          className="btn-secondary px-3.5 py-1.5 text-xs font-semibold"
         >
           Detalhes
         </button>

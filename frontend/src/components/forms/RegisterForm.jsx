@@ -8,7 +8,7 @@ import { authApi } from "../../services/api/index.js";
 // arquivo responsável pelo cadastro público de nova Organização (Rede), 1ª Loja e fundador ADMIN
 
 const inputClass =
-  "w-full px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200";
+  "w-full px-3.5 py-1.5 sm:py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200";
 
 function slugifyName(value) {
   return String(value || "")
@@ -22,6 +22,11 @@ function slugifyName(value) {
     .replace(/^-|-$/g, "");
 }
 
+// função responsável por renderizar o formulário público de abertura de Organização, 1ª loja e administrador fundador.
+//
+// 1 - recebe nenhum parâmetro externo (mantém estados locais dos dados empresariais e credenciais).
+// 2 - valida senha mínima, registra via authApi.register e autentica automaticamente redirecionando ao painel.
+// 3 - retorna o JSX do formulário enxuto dimensionado para caber sem cortes verticais em zoom 100%.
 const RegisterForm = () => {
   const { setUser } = useUserStore();
   const { setToken } = useAuthStore();
@@ -92,7 +97,7 @@ const RegisterForm = () => {
 
   return (
     <div className="w-full max-w-sm">
-      <form className="w-full flex flex-col gap-2 animate-fade-up" onSubmit={submitForm}>
+      <form className="w-full flex flex-col gap-1.5 animate-fade-up" onSubmit={submitForm}>
         <input
           type="text"
           placeholder="Nome da Organização / Rede *"
@@ -169,7 +174,7 @@ const RegisterForm = () => {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary mt-1.5 w-full py-2.5 text-xs font-semibold"
+          className="btn-primary mt-1 w-full py-2 text-xs font-semibold"
         >
           {loading ? "Criando Organização..." : "Criar Rede e 1ª Loja"}
         </button>

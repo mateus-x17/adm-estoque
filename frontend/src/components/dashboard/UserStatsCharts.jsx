@@ -23,6 +23,11 @@ const CustomTooltip = ({ active, payload, label, isValue }) => {
   );
 };
 
+// função responsável por exibir ranking gráfico de vendedores em quantidade ou faturamento por mês/ano.
+//
+// 1 - recebe props com type ('value' para valor em R$ ou contagem de operações).
+// 2 - consulta getUserStats recalculando intervalo mensal ou anual conforme selectedLojaId e filtros ativos.
+// 3 - retorna o card com gráfico de barras proporcional e espaçamento ajustado para zoom 100%.
 export default function UserStatsCharts({ type }) {
   const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -78,8 +83,8 @@ export default function UserStatsCharts({ type }) {
   };
 
   return (
-    <div className="glass-card p-4 sm:p-6 flex flex-col gap-4">
-      <div className="flex flex-col gap-3">
+    <div className="glass-card p-4 sm:p-5 flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         <div>
           <h2 className="font-display text-base font-semibold text-text-primary mb-0.5">
             {isValue ? "Valor movimentado por vendedor" : "Movimentações por vendedor"}
@@ -97,7 +102,7 @@ export default function UserStatsCharts({ type }) {
               <button
                 key={opt.value}
                 onClick={() => setPeriodType(opt.value)}
-                className={`px-3 py-1.5 text-xs font-mono transition-colors duration-200 ${
+                className={`px-3 py-1 text-xs font-mono transition-colors duration-200 ${
                   periodType === opt.value
                     ? "bg-accent-purple text-white"
                     : "bg-transparent text-text-secondary hover:text-text-primary"
@@ -113,13 +118,13 @@ export default function UserStatsCharts({ type }) {
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-1.5 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="px-2.5 py-1 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             />
           ) : (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="px-3 py-1.5 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="px-2.5 py-1 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
               {years.map((y) => (
                 <option key={y} value={y}>
@@ -132,19 +137,19 @@ export default function UserStatsCharts({ type }) {
       </div>
 
       {loading ? (
-        <div className="h-[220px] flex items-center justify-center">
+        <div className="h-[195px] flex items-center justify-center">
           <span className="font-mono text-xs text-text-secondary animate-pulse">
             Carregando...
           </span>
         </div>
       ) : sorted.length === 0 ? (
-        <div className="h-[220px] flex items-center justify-center">
+        <div className="h-[195px] flex items-center justify-center">
           <span className="font-mono text-xs text-text-secondary">
             Nenhum dado encontrado no período
           </span>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={195}>
           <BarChart data={sorted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
             <XAxis
               dataKey="name"

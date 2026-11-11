@@ -7,6 +7,12 @@ import Sidebar from "./Sidebar.jsx";
 
 // arquivo responsável pelo cabeçalho móvel com acesso à barra lateral e exibição da Organização/Loja selecionada
 
+// função responsável por renderizar o cabeçalho móvel com botão de drawer, seletor de loja (ADMIN) e alternância de tema.
+//
+// 1 - recebe nenhum parâmetro direto (lê tema, usuário e lojas das stores Zustand).
+// 2 - sincroniza a classe dark no elemento raiz quando darkMode muda e controla abertura animada do menu lateral.
+// 3 - exibe seletor de filiais para ADMIN ou nome da loja vinculada para Gerente/Operador.
+// 4 - retorna o fragmento JSX com o header responsivo e drawer lateral sobreposto.
 const Header = () => {
   const { darkMode, toggleDarkMode } = useThemeStore();
   const user = useUserStore((state) => state.user);
@@ -44,7 +50,7 @@ const Header = () => {
 
   return (
     <>
-      <header className="glass-card flex justify-between items-center px-3.5 py-2.5 mx-3 mt-3 mb-1 border border-[var(--color-border-light)] rounded-full text-text-primary transition-colors duration-300 sticky top-3 z-30 shadow-lg md:hidden">
+      <header className="glass-card flex justify-between items-center px-3 py-2 mx-2.5 mt-2.5 mb-0.5 border border-[var(--color-border-light)] rounded-full text-text-primary transition-colors duration-300 sticky top-2.5 z-30 shadow-lg md:hidden">
         <button
           onClick={openSidebar}
           aria-label="Abrir menu"

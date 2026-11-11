@@ -9,8 +9,13 @@ import { authApi } from "../../services/api/index.js";
 // arquivo responsável pelo formulário de autenticação com suporte a Portal Admin/Loja e seletor de Organização
 
 const inputClass =
-  "w-full px-4 py-2.5 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200";
+  "w-full px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200";
 
+// função responsável por renderizar o formulário de autenticação com seleção opcional de Organização quando o usuário pertence a várias redes.
+//
+// 1 - recebe objeto de props com portal ('loja' ou 'admin', padrão 'loja').
+// 2 - autentica via authApi.login e trata múltiplas organizações exibindo lista clicável se necessário.
+// 3 - retorna o JSX do formulário ou seletor de redes com espaçamento ajustado para zoom 100%.
 const LoginForm = ({ portal = "loja" }) => {
   const { setUser } = useUserStore();
   const { setToken } = useAuthStore();
@@ -116,7 +121,7 @@ const LoginForm = ({ portal = "loja" }) => {
           </button>
         </div>
       ) : (
-        <form className="w-full flex flex-col gap-3 animate-fade-up" onSubmit={submitForm}>
+        <form className="w-full flex flex-col gap-2.5 animate-fade-up" onSubmit={submitForm}>
           <input
             type="email"
             placeholder="Email corporativo"
@@ -135,7 +140,7 @@ const LoginForm = ({ portal = "loja" }) => {
           />
           <input
             type="text"
-            placeholder="Código da organização (opcional, ex: grupo-techstock)"
+            placeholder="Código da organização (opcional)"
             value={organizacaoSlug}
             onChange={(e) => setOrganizacaoSlug(e.target.value)}
             className={inputClass}
@@ -143,7 +148,7 @@ const LoginForm = ({ portal = "loja" }) => {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary mt-1 w-full py-2.5 text-xs font-semibold"
+            className="btn-primary mt-0.5 w-full py-2 text-xs font-semibold"
           >
             {loading
               ? "Entrando..."
@@ -155,7 +160,7 @@ const LoginForm = ({ portal = "loja" }) => {
       )}
 
       {erro && (
-        <div className="mt-4 w-full p-3.5 rounded-xl border border-accent-red/20 bg-accent-red/10 text-accent-red text-xs text-center">
+        <div className="mt-3 w-full p-2.5 rounded-xl border border-accent-red/20 bg-accent-red/10 text-accent-red text-xs text-center">
           {erro}
         </div>
       )}

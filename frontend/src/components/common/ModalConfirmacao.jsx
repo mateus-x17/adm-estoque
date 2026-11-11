@@ -27,9 +27,11 @@ const VARIANT_CONFIG = {
   },
 };
 
-// componente modal de confirmação reutilizável via Portal
-// 1 - Substitui window.confirm, window.alert e window.prompt com identidade visual Glassmorphism Estoque.OS
-// 2 - Suporta campo opcional de justificativa/motivo (ex: estorno de pedido) e variantes semânticas
+// função responsável pelo modal padronizado de confirmação com suporte opcional a data e justificativa.
+//
+// 1 - recebe isOpen, title, message, onConfirm, onCancel, rótulos, variante semântica e campos opcionais de input/data.
+// 2 - registra atalho de teclado Escape enquanto aberto e aplica tema visual da variante selecionada.
+// 3 - retorna o modal centralizado via createPortal com rolagem segura ou null quando fechado.
 const ModalConfirmacao = ({
   isOpen,
   title,
@@ -71,28 +73,28 @@ const ModalConfirmacao = ({
       onClick={() => !loading && onCancel?.()}
     >
       <div
-        className="relative w-full max-w-md bg-[var(--color-bg)] border border-[var(--color-border)] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.55)] p-6 flex flex-col animate-scale-in"
+        className="relative w-full max-w-md max-h-[92dvh] overflow-y-auto custom-scrollbar bg-[var(--color-bg)] border border-[var(--color-border)] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.55)] p-5 flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={() => !loading && onCancel?.()}
           aria-label="Fechar"
-          className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-[var(--color-surface)] transition-colors"
+          className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-[var(--color-surface)] transition-colors"
         >
           <X size={16} />
         </button>
 
         <div className="flex flex-col items-center text-center">
-          <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center mb-4 ${cfg.iconWrap}`}>
-            <Icon size={22} />
+          <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center mb-3 ${cfg.iconWrap}`}>
+            <Icon size={20} />
           </div>
 
-          <h3 className="font-display text-lg sm:text-xl font-bold text-text-primary mb-2">
+          <h3 className="font-display text-lg font-bold text-text-primary mb-1.5">
             {title}
           </h3>
 
-          <p className="text-xs sm:text-sm text-text-secondary leading-relaxed whitespace-pre-line mb-5">
+          <p className="text-xs sm:text-sm text-text-secondary leading-relaxed whitespace-pre-line mb-4">
             {message}
           </p>
         </div>

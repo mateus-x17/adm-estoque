@@ -16,9 +16,11 @@ import { useTenantStore } from "../../store/useTenantStore.js";
 const formatBRL = (val) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val || 0);
 
-// componente modal para criação de Pedidos Multi-Item com carrinho dinâmico
-// 1 - Carrega catálogo ativo e fornecedores da loja alvo escolhida pelo ADMIN ou vinculada à equipe
-// 2 - Valida saldo por item antes de adicionar ao carrinho e envia Idempotency-Key contra cliques duplicados
+// função responsável por renderizar o modal de criação de Pedidos Multi-Item com carrinho, saldo e comprovante.
+//
+// 1 - recebe isOpen (boolean), onClose (function) e onOrderCreated (function).
+// 2 - carrega produtos e fornecedores da loja alvo, valida estoque e comprovantes e envia Idempotency-Key.
+// 3 - retorna o modal via createPortal ajustado para caber confortavelmente sem cortes em 100% de zoom, ou null.
 const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
   const user = useUserStore((state) => state.user);
   const { stores, selectedLojaId } = useTenantStore();
@@ -228,14 +230,14 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
 
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-2xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+      <div className="w-full max-w-2xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-accent-purple/10 text-accent-purple">
-              <ShoppingCart size={18} />
+              <ShoppingCart size={16} />
             </div>
             <div>
-              <h2 className="font-display text-base sm:text-lg font-bold text-text-primary">
+              <h2 className="font-display text-base font-bold text-text-primary">
                 Novo Pedido Multi-Item
               </h2>
               <p className="text-[11px] text-text-secondary">
@@ -248,7 +250,7 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 custom-scrollbar">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-3 custom-scrollbar">
           {/* Tipo + Loja */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -337,7 +339,7 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
           </div>
 
           {/* Comprovação de Pagamento e Recebimento */}
-          <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)] space-y-3">
+          <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)] space-y-2.5">
             <div className="flex items-center gap-2">
               <ShieldCheck size={15} className="text-accent-green" />
               <span className="text-[11px] font-mono uppercase tracking-wider text-text-primary font-semibold">
@@ -428,7 +430,7 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
           </div>
 
           {/* Seletor de adição ao carrinho */}
-          <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)] space-y-2.5">
+          <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)] space-y-2">
             <p className="text-[11px] font-mono uppercase tracking-wider text-text-secondary">
               Adicionar Produtos ao Pedido
             </p>
@@ -472,9 +474,9 @@ const ModalPedidoMultiItem = ({ isOpen, onClose, onOrderCreated }) => {
           </div>
 
           {/* Lista de Itens do Carrinho */}
-          <div className="border border-[var(--color-border-light)] rounded-xl overflow-hidden">
+          <div className="border border-[var(--color-border-light)] rounded-xl overflow-x-auto max-h-48 overflow-y-auto custom-scrollbar">
             {cart.length === 0 ? (
-              <div className="p-6 text-center text-xs text-text-secondary">
+              <div className="p-4 text-center text-xs text-text-secondary">
                 Nenhum item adicionado ainda. Escolha produtos acima para montar o pedido.
               </div>
             ) : (

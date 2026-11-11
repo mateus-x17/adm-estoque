@@ -20,6 +20,11 @@ import { escapeHtml } from "../../utils/validators.js";
 
 // arquivo responsável pelo modal executivo e gerador de PDF A4 (1m, 6m, 1y) com ranking de vendedores e fornecedores
 
+// função responsável por renderizar o modal executivo de faturamento com gráficos SVG e exportação em PDF A4.
+//
+// 1 - recebe isOpen (boolean) e onClose (function) com os dados do escopo carregados via movementsApi.getSalesReport.
+// 2 - permite alternar janela temporal (1m, 6m, 1y), loja (para ADMIN) e tipo de gráfico entre barras e linhas.
+// 3 - retorna o modal via createPortal dimensionado em max-h-[92dvh] ou null quando fechado.
 const ModalExportarRelatorio = ({ isOpen, onClose }) => {
   const [period, setPeriod] = useState("1m");
   const [chartType, setChartType] = useState("barras");
@@ -489,15 +494,15 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
 
   return createPortal(
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-4xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-scale-in">
+      <div className="relative w-full max-w-4xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden animate-scale-in">
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[var(--color-border)] gap-3">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[var(--color-border)] gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="p-2 rounded-xl bg-accent-purple/10 text-accent-purple shrink-0">
-              <FileText className="w-5 h-5" />
+              <FileText className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-base sm:text-lg font-bold text-text-primary truncate">
+              <h2 className="font-display text-base font-bold text-text-primary truncate">
                 Relatório Executivo &amp; Exportação PDF
               </h2>
               <p className="text-xs text-text-secondary truncate">
@@ -514,7 +519,7 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
         </div>
 
         {/* Corpo */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 custom-scrollbar">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 custom-scrollbar">
           {/* Controles */}
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]">
             <div className="flex flex-wrap items-center gap-2">
@@ -597,46 +602,46 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
-                  <div className="flex items-center gap-2 text-accent-purple text-xs font-semibold mb-1">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+                <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
+                  <div className="flex items-center gap-1.5 text-accent-purple text-xs font-semibold mb-0.5">
                     <DollarSign className="w-3.5 h-3.5" />
                     Faturamento Líquido
                   </div>
-                  <div className="font-display text-base md:text-lg font-bold text-text-primary">
+                  <div className="font-display text-sm md:text-base font-bold text-text-primary">
                     {formatCurrency(reportData?.summary?.totalVendasValor)}
                   </div>
                 </div>
-                <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
-                  <div className="flex items-center gap-2 text-accent-blue text-xs font-semibold mb-1">
+                <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
+                  <div className="flex items-center gap-1.5 text-accent-blue text-xs font-semibold mb-0.5">
                     <Package className="w-3.5 h-3.5" />
                     Itens Vendidos
                   </div>
-                  <div className="font-display text-base md:text-lg font-bold text-text-primary">
+                  <div className="font-display text-sm md:text-base font-bold text-text-primary">
                     {reportData?.summary?.totalVendasQuantidade || 0} un.
                   </div>
                 </div>
-                <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
-                  <div className="flex items-center gap-2 text-accent-pink text-xs font-semibold mb-1">
+                <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
+                  <div className="flex items-center gap-1.5 text-accent-pink text-xs font-semibold mb-0.5">
                     <TrendingUp className="w-3.5 h-3.5" />
                     Pedidos Concluídos
                   </div>
-                  <div className="font-display text-base md:text-lg font-bold text-text-primary">
+                  <div className="font-display text-sm md:text-base font-bold text-text-primary">
                     {reportData?.summary?.totalTransacoes || 0}
                   </div>
                 </div>
-                <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
-                  <div className="flex items-center gap-2 text-emerald-500 text-xs font-semibold mb-1">
+                <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
+                  <div className="flex items-center gap-1.5 text-emerald-500 text-xs font-semibold mb-0.5">
                     <DollarSign className="w-3.5 h-3.5" />
                     Ticket Médio
                   </div>
-                  <div className="font-display text-base md:text-lg font-bold text-text-primary">
+                  <div className="font-display text-sm md:text-base font-bold text-text-primary">
                     {formatCurrency(reportData?.summary?.ticketMedio)}
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
+              <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">
                     Evolução no Período ({reportData?.periodLabel})
@@ -785,7 +790,7 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
             </button>
           </div>
         )}
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 px-4 sm:px-5 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
           <span className="text-[11px] text-text-secondary text-center sm:text-left">
             Pronto para impressão / exportação PDF A4 vetorial
           </span>

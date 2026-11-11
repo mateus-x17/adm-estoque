@@ -3,9 +3,11 @@ import { FiArrowDown, FiArrowUp, FiPlus, FiLock } from "react-icons/fi";
 
 // arquivo responsável pelos controles de criação e filtragem de pedidos/movimentações com restrição RBAC
 
-// componente barra de filtros de pedidos
-// 1 - Exibe botão de novo pedido e alternância do painel avançado de filtros
-// 2 - Exibe seletor de usuário apenas para ADMIN/GERENTE, mostrando bloqueio informativo ao OPERADOR
+// função responsável pela barra de filtros colapsáveis e restrição RBAC do módulo de pedidos.
+//
+// 1 - recebe estados e setters de filtro, lista de usuários, canFilterByUser, showFilters e handlers de ação.
+// 2 - renderiza botão de criação, seletor de filtros e campo de vendedor bloqueado para OPERADOR.
+// 3 - retorna o bloco de controles de filtro com espaçamento compacto.
 const PedidosFilters = ({
   filterId,
   setFilterId,
@@ -52,7 +54,7 @@ const PedidosFilters = ({
       </div>
 
       {showFilters && (
-        <section className="glass-card p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-fade-up">
+        <section className="glass-card p-3.5 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 animate-fade-up">
           <input
             type="text"
             placeholder="ID do pedido"

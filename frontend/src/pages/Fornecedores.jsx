@@ -12,6 +12,11 @@ import { useTenantStore } from "../store/useTenantStore.js";
 
 // arquivo responsável pela página de listagem e gestão de fornecedores por Organização/Loja com RBAC, filtros colapsáveis e Soft Delete
 
+// função responsável por renderizar a página de listagem, métricas e gestão de fornecedores com RBAC.
+//
+// 1 - recebe nenhum parâmetro direto (usa usuário logado e loja selecionada via Zustand).
+// 2 - busca fornecedores e estatísticas agregadas permitindo filtros de texto e status (ativo/inativo).
+// 3 - retorna o dashboard de fornecedores, listagem e modais de criação/edição e confirmação.
 const Fornecedores = () => {
   const user = useUserStore((state) => state.user);
   const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
@@ -156,21 +161,21 @@ const Fornecedores = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-3 sm:py-4 border-b border-[var(--color-border)]">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Parceiros
           </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Fornecedores
           </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             Gerencie parceiros, visualize inativos e acompanhe métricas de desempenho da loja.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
           <button
             type="button"
             onClick={() => setFiltrosAbertos((prev) => !prev)}
@@ -192,7 +197,7 @@ const Fornecedores = () => {
       </header>
 
       {filtrosAbertos && (
-        <section className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-up">
+        <section className="glass-card p-3.5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-2.5 animate-fade-up">
           <div className="relative">
             <FiSearch size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
             <input
@@ -217,12 +222,12 @@ const Fornecedores = () => {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center gap-3 py-20">
+        <div className="flex items-center justify-center gap-3 py-14">
           <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-text-secondary">Carregando fornecedores...</span>
         </div>
       ) : (
-        <div className="space-y-6 sm:space-y-8">
+        <div className="space-y-4 sm:space-y-5">
           <FornecedorDashboard stats={stats} loading={loading} statusFiltro={statusFiltro} />
 
           <FornecedoresTable

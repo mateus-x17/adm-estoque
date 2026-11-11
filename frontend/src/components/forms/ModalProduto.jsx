@@ -9,10 +9,11 @@ import { useUserStore } from "../../store/userStore.js";
 
 // arquivo responsável por renderizar o modal de detalhes de produto com ações reais de edição, Soft Delete e exclusão RBAC
 
-// componente modal de detalhes do produto selecionado
-// 1 - Exibe imagem, status ativo/inativo, categoria, preço formatado em BRL, estoque atual e fornecedor
-// 2 - Aplica regras RBAC: GERENTE e ADMIN podem editar e inativar/reativar; apenas ADMIN pode excluir
-// 3 - Aciona endpoints reais da API para alteração de status (PATCH /status) e exclusão (DELETE /:id)
+// função responsável por exibir o modal de visualização, edição, inativação e exclusão de um produto.
+//
+// 1 - recebe produtoSelecionado (object), fecharModal (function), onItemUpdated (function) e onItemDeleted (function).
+// 2 - exibe ficha completa, aplica controle RBAC e aciona endpoints de Soft Delete ou remoção definitiva.
+// 3 - retorna o modal via createPortal ajustado com altura segura em zoom 100%.
 function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDeleted }) {
   const [editando, setEditando] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -106,10 +107,10 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
       onClick={fecharModal}
     >
       <div
-        className="relative w-full max-w-lg max-h-[90vh] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col overflow-hidden animate-scale-in"
+        className="relative w-full max-w-lg max-h-[92dvh] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)] bg-white/5">
+        <header className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[var(--color-border)] bg-white/5">
           <div className="flex items-center gap-2.5 min-w-0">
             <h2 className="font-display text-base font-semibold text-text-primary truncate">
               Detalhes do produto
@@ -129,30 +130,30 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5 custom-scrollbar">
-          <div className="flex flex-col items-center text-center mb-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 custom-scrollbar">
+          <div className="flex flex-col items-center text-center mb-4">
             {produtoSelecionado.imagem ? (
               <img
                 src={formatImageUrl(produtoSelecionado.imagem)}
                 alt={produtoSelecionado.nome}
-                className="w-24 h-24 object-cover rounded-2xl border-2 border-[var(--color-border)] mb-3 shadow-lg"
+                className="w-20 h-20 object-cover rounded-2xl border-2 border-[var(--color-border)] mb-2.5 shadow-lg"
               />
             ) : (
-              <div className="w-24 h-24 rounded-2xl border-2 border-[var(--color-border-light)] bg-[var(--color-surface)] mb-3 flex items-center justify-center text-xs text-text-secondary">
+              <div className="w-20 h-20 rounded-2xl border-2 border-[var(--color-border-light)] bg-[var(--color-surface)] mb-2.5 flex items-center justify-center text-xs text-text-secondary">
                 Sem Imagem
               </div>
             )}
 
-            <h3 className="font-display text-lg font-semibold text-text-primary">
+            <h3 className="font-display text-base sm:text-lg font-semibold text-text-primary">
               {produtoSelecionado.nome}
             </h3>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-              <span className="inline-block px-3 py-1 rounded-full border border-[var(--color-border-light)] bg-white/5 text-[10px] uppercase text-text-secondary">
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-1.5">
+              <span className="inline-block px-3 py-0.5 rounded-full border border-[var(--color-border-light)] bg-white/5 text-[10px] uppercase text-text-secondary">
                 {produtoSelecionado?.categoria?.nome || "Sem categoria"}
               </span>
               <span
-                className={`inline-block px-3 py-1 rounded-full border font-mono text-[10px] uppercase ${
+                className={`inline-block px-3 py-0.5 rounded-full border font-mono text-[10px] uppercase ${
                   isInactive
                     ? "border-accent-red/25 bg-accent-red/10 text-accent-red"
                     : "border-accent-green/25 bg-accent-green/10 text-accent-green"
@@ -163,7 +164,7 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-black/20 p-4 rounded-2xl border border-[var(--color-border)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-black/20 p-3.5 rounded-2xl border border-[var(--color-border)]">
             <div className="sm:col-span-2">
               <span className="font-mono text-[10px] uppercase tracking-wide text-text-secondary">
                 Descrição
@@ -206,7 +207,7 @@ function ModalProduto({ produtoSelecionado, fecharModal, onItemUpdated, onItemDe
           </div>
         </div>
 
-        <footer className="px-5 py-4 border-t border-[var(--color-border)] flex flex-col sm:flex-row flex-wrap gap-2 sm:justify-end bg-[var(--color-bg)]">
+        <footer className="px-4 sm:px-5 py-3 border-t border-[var(--color-border)] flex flex-col sm:flex-row flex-wrap gap-2 sm:justify-end bg-[var(--color-bg)]">
           {!canManage && (
             <button
               onClick={fecharModal}

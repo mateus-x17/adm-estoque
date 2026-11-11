@@ -267,6 +267,11 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Selecione..
   );
 };
 
+// função responsável por renderizar o drawer lateral de criação e edição dinâmica de entidades.
+//
+// 1 - recebe type (string), itemData (object opcional), onClose (function) e onItemUpdated (function).
+// 2 - carrega opções dinâmicas de selects conforme a filial selecionada e controla estado e upload de imagem.
+// 3 - retorna o painel lateral via createPortal ajustado com espaçamento compacto para zoom 100%.
 function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
   const token = useAuthStore((state) => state.token);
   const currentUser = useUserStore((state) => state.user);
@@ -457,10 +462,10 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         } bg-[var(--color-bg)] border-l border-[var(--color-border-light)] shadow-[-10px_0_40px_rgba(0,0,0,0.5)] flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 sm:p-6 border-b border-[var(--color-border-light)] shrink-0 flex items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold text-text-primary">{panelTitle}</h2>
+        <div className="p-3.5 sm:px-5 sm:py-4 border-b border-[var(--color-border-light)] shrink-0 flex items-center justify-between gap-2">
+          <h2 className="font-display text-base sm:text-lg font-semibold text-text-primary">{panelTitle}</h2>
           {!isCreating && type === "usuario" && (itemData?.matricula || itemData?.id) && (
-            <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-accent-purple/15 text-accent-purple border border-accent-purple/30">
+            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-accent-purple/15 text-accent-purple border border-accent-purple/30">
               {itemData.matricula || `MAT-${String(itemData.id).padStart(5, "0")}`}
             </span>
           )}
@@ -469,7 +474,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
         <form
           id="editar-item-form"
           onSubmit={handleSubmit}
-          className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar"
+          className="flex-1 min-h-0 overflow-y-auto p-4 sm:px-5 space-y-3.5 custom-scrollbar"
         >
           {config.fields.map((field) => {
             if (field.hideWhen && field.hideWhen(form)) return null;
@@ -553,7 +558,7 @@ function EditarItem({ type = "usuario", itemData, onClose, onItemUpdated }) {
           })}
         </form>
 
-        <div className="p-4 sm:p-6 border-t border-[var(--color-border-light)] bg-[var(--color-bg)] flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 shrink-0">
+        <div className="p-3.5 sm:px-5 sm:py-3.5 border-t border-[var(--color-border-light)] bg-[var(--color-bg)] flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2.5 shrink-0">
           <button
             type="button"
             onClick={handleClose}

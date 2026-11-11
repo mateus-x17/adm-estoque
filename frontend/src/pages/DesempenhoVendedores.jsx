@@ -35,6 +35,11 @@ const ChartTooltip = ({ active, payload, label }) => {
   );
 };
 
+// função responsável por renderizar a tela de Desempenho & Auditoria de vendedores com ranking e raio-X por período.
+//
+// 1 - recebe nenhum parâmetro direto (gerencia período, busca, includeDeleted e vendedorRefId selecionado).
+// 2 - consulta ranking agregado e detalhamento individual (1m, 6m, 1y, evolução mensal e meses trabalhados).
+// 3 - retorna a interface em duas colunas com proporções confortáveis em 100% de zoom e exportação em PDF A4.
 const DesempenhoVendedores = () => {
   const user = useUserStore((state) => state.user);
   const { stores, selectedLojaId, setSelectedLojaId } = useTenantStore();
@@ -284,16 +289,16 @@ const DesempenhoVendedores = () => {
   );
 
   return (
-    <div className="w-full min-h-screen pt-2 pb-12 space-y-6 max-w-7xl mx-auto">
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 py-3 border-b border-[var(--color-border)]">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Auditoria &amp; Metas • {rankingData.scopeLabel || "Loja"}
           </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Desempenho de Colaboradores
           </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             Ranking do melhor ao pior vendedor, comparativo Mês/Semestre/Ano e consulta por Matrícula ou ID de contas ativas e desligadas.
           </p>
         </div>
@@ -306,9 +311,9 @@ const DesempenhoVendedores = () => {
               value={directIdInput}
               onChange={(e) => setDirectIdInput(e.target.value)}
               placeholder="Matrícula ou ID (ex: MAT-00063)"
-              className="w-full sm:w-52 px-3.5 py-2 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
+              className="w-full sm:w-48 px-3 py-1.5 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary outline-none focus:border-accent-purple"
             />
-            <button type="submit" className="btn-secondary px-4 py-2 text-xs font-semibold whitespace-nowrap">
+            <button type="submit" className="btn-secondary px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap">
               Buscar Matrícula
             </button>
           </form>
@@ -316,7 +321,7 @@ const DesempenhoVendedores = () => {
           <button
             type="button"
             onClick={() => setFiltrosAbertos((prev) => !prev)}
-            className="btn-secondary px-3.5 py-2 text-xs font-medium flex items-center gap-1.5 whitespace-nowrap"
+            className="btn-secondary px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 whitespace-nowrap"
           >
             <SlidersHorizontal size={13} />
             {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
@@ -326,7 +331,7 @@ const DesempenhoVendedores = () => {
 
       {/* Filtros Colapsáveis do Ranking */}
       {filtrosAbertos && (
-        <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between animate-fade-up">
+        <div className="glass-card p-3.5 rounded-2xl flex flex-col lg:flex-row gap-2.5 items-stretch lg:items-center justify-between animate-fade-up">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 bg-[var(--color-bg)] p-1 rounded-xl border border-[var(--color-border)]">
               <Calendar size={14} className="text-text-secondary ml-1.5" />
@@ -389,31 +394,31 @@ const DesempenhoVendedores = () => {
       )}
 
       {/* Grade principal: Ranking (esq) + Detalhes 1m/6m/1y (dir) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Ranking do melhor ao pior */}
-        <div className="lg:col-span-5 glass-card p-4 sm:p-5 rounded-2xl">
-          <div className="flex items-center justify-between mb-4">
+        <div className="lg:col-span-5 glass-card p-3.5 sm:p-4 rounded-2xl">
+          <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <Award className="w-4 h-4 text-accent-purple" />
               <h2 className="font-display font-bold text-sm sm:text-base text-text-primary">
                 Ranking (Melhor ao Pior)
               </h2>
             </div>
-            <span className="font-mono text-[11px] text-accent-pink font-semibold">
+            <span className="font-mono text-[11px] text-accent-pink font-semibold shrink-0">
               Total: {formatBRL(rankingData.totalFaturadoPeriodo)}
             </span>
           </div>
 
           {loadingRanking ? (
-            <div className="py-12 text-center text-xs text-text-secondary animate-pulse">
+            <div className="py-10 text-center text-xs text-text-secondary animate-pulse">
               Calculando ranking...
             </div>
           ) : rankingData.ranking.length === 0 ? (
-            <div className="py-12 text-center text-xs text-text-secondary">
+            <div className="py-10 text-center text-xs text-text-secondary">
               Nenhum vendedor encontrado com os filtros atuais.
             </div>
           ) : (
-            <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1 custom-scrollbar">
               {rankingData.ranking.map((seller) => {
                 const isSelected = Number(detailData?.vendedor?.vendedorRefId || selectedRefId) === Number(seller.vendedorRefId);
                 return (
@@ -421,7 +426,7 @@ const DesempenhoVendedores = () => {
                     key={seller.vendedorRefId}
                     type="button"
                     onClick={() => setSelectedRefId(seller.vendedorRefId)}
-                    className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`w-full text-left p-2.5 sm:p-3 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
                       isSelected
                         ? "border-accent-purple bg-accent-purple/10 shadow-md"
                         : "border-[var(--color-border-light)] bg-[var(--color-bg)] hover:border-accent-purple/50"
@@ -483,23 +488,23 @@ const DesempenhoVendedores = () => {
         </div>
 
         {/* Detalhes Individuais 1m / 6m / 1y */}
-        <div className="lg:col-span-7 glass-card p-4 sm:p-6 rounded-2xl space-y-5">
+        <div className="lg:col-span-7 glass-card p-4 sm:p-5 rounded-2xl space-y-4">
           {loadingDetail ? (
-            <div className="py-20 text-center text-xs text-text-secondary animate-pulse">
+            <div className="py-16 text-center text-xs text-text-secondary animate-pulse">
               Carregando histórico detalhado do colaborador...
             </div>
           ) : detailError ? (
-            <div className="py-12 text-center text-xs text-accent-red">{detailError}</div>
+            <div className="py-10 text-center text-xs text-accent-red">{detailError}</div>
           ) : !detailData ? (
-            <div className="py-16 text-center text-xs text-text-secondary">
+            <div className="py-12 text-center text-xs text-text-secondary">
               Selecione um colaborador ao lado ou busque por ID para acompanhar seu desempenho.
             </div>
           ) : (
             <>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--color-border-light)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--color-border-light)]">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="font-display text-xl font-bold text-text-primary">
+                    <h2 className="font-display text-lg sm:text-xl font-bold text-text-primary">
                       {detailData.vendedor.nome}
                     </h2>
                     <span
@@ -557,7 +562,7 @@ const DesempenhoVendedores = () => {
               </div>
 
               {/* Comparativo simultâneo Mês / Semestre / Ano */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 {[
                   { title: "Último Mês (30d)", data: detailData.periodos.mes, color: "text-accent-purple" },
                   { title: "Último Semestre (6m)", data: detailData.periodos.semestre, color: "text-accent-pink" },
@@ -565,15 +570,15 @@ const DesempenhoVendedores = () => {
                 ].map((box) => (
                   <div
                     key={box.title}
-                    className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]"
+                    className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]"
                   >
-                    <p className="text-[10px] font-mono uppercase tracking-wider text-text-secondary mb-1">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-text-secondary mb-0.5">
                       {box.title}
                     </p>
-                    <p className={`font-display text-lg font-bold ${box.color}`}>
+                    <p className={`font-display text-base sm:text-lg font-bold ${box.color}`}>
                       {formatBRL(box.data.faturamento)}
                     </p>
-                    <p className="text-[11px] text-text-secondary mt-1">
+                    <p className="text-[11px] text-text-secondary mt-0.5">
                       {box.data.pedidosConcluidos} pedidos · {box.data.pecas} un.
                     </p>
                     <p className="text-[10px] text-text-secondary">
@@ -587,8 +592,8 @@ const DesempenhoVendedores = () => {
               </div>
 
               {/* Evolução Mensal 12 meses */}
-              <div className="p-4 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]">
-                <div className="flex items-center justify-between mb-3">
+              <div className="p-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-light)]">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <TrendingUp size={15} className="text-accent-purple" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">
@@ -596,7 +601,7 @@ const DesempenhoVendedores = () => {
                     </h3>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={175}>
                   <BarChart data={detailData.evolucaoMensal}>
                     <XAxis dataKey="label" stroke="var(--color-text-secondary)" fontSize={10} />
                     <YAxis

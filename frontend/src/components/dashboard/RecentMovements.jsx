@@ -6,6 +6,11 @@ import ModalMovimentacao from "../forms/ModalMovimentacao.jsx";
 
 // arquivo responsável pelo card de movimentações recentes no Dashboard com modal de detalhes ao clicar
 
+// função responsável pelo card lateral de movimentações recentes com abertura de detalhes em modal.
+//
+// 1 - não recebe parâmetros diretos (carrega últimas 10 movimentações via movementsApi ao alterar selectedLojaId).
+// 2 - exibe até 5 registros resumidos permitindo abrir o ModalMovimentacao ao clicar.
+// 3 - retorna o card glassmorphism com espaçamento enxuto.
 export default function RecentMovements() {
   const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const [movementsData, setMovementsData] = useState([]);
@@ -22,19 +27,19 @@ export default function RecentMovements() {
   }, [selectedLojaId]);
 
   return (
-    <div className="glass-card p-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+    <div className="glass-card p-4 sm:p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between gap-2 mb-3">
         <h2 className="font-display text-base font-semibold text-text-primary">
           Movimentações recentes
         </h2>
-        <span className="font-mono text-[10px] text-text-secondary">
+        <span className="font-mono text-[10px] text-text-secondary shrink-0">
           Clique para detalhes
         </span>
       </div>
 
       <div className="flex-1">
         {movementsData.length === 0 ? (
-          <p className="text-xs text-text-secondary py-6 text-center">
+          <p className="text-xs text-text-secondary py-5 text-center">
             Nenhuma movimentação registrada recentemente.
           </p>
         ) : (
@@ -45,7 +50,7 @@ export default function RecentMovements() {
                 key={mov.id}
                 type="button"
                 onClick={() => setSelectedMov(mov)}
-                className={`w-full text-left flex items-center hover:bg-white/5 transition-all duration-200 cursor-pointer rounded-lg gap-3 py-3 px-2 -mx-2 ${
+                className={`w-full text-left flex items-center hover:bg-white/5 transition-all duration-200 cursor-pointer rounded-lg gap-2.5 py-2 px-1.5 -mx-1.5 ${
                   i !== arr.length - 1 ? "border-b border-[var(--color-border-light)]" : ""
                 }`}
               >

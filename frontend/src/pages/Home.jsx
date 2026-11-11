@@ -15,6 +15,11 @@ import { Link } from "react-router-dom";
 
 // arquivo responsável pela landing page pública explicando Organização->Lojas, Multipedidos, Desempenho e Portais Admin/Loja
 
+// função responsável por renderizar a landing page institucional do Estoque.OS em proporção confortável para zoom 100%.
+//
+// 1 - recebe nenhum parâmetro direto (controla internamente o carrossel hero via estado activeHeroImg).
+// 2 - alterna automaticamente as telas de destaque a cada 2500ms em useEffect com limpeza do intervalo.
+// 3 - retorna o JSX completo da página inicial com espaçamento enxuto e seções de funcionalidades, multi-loja e CTA.
 const Home = () => {
   const [activeHeroImg, setActiveHeroImg] = useState(0);
 
@@ -73,31 +78,31 @@ const Home = () => {
     <div className="min-h-screen flex flex-col relative bg-background transition-colors duration-300">
       <HeaderHome />
 
-      <main className="flex-grow pt-28 sm:pt-36 md:pt-44 pb-12 overflow-hidden">
+      <main className="flex-grow pt-20 sm:pt-24 md:pt-28 pb-8 overflow-hidden">
         {/* HERO SECTION */}
-        <section className="px-4 sm:px-6 md:px-12 max-w-7xl mx-auto mb-16 sm:mb-20 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+        <section className="px-4 sm:px-6 md:px-10 max-w-7xl mx-auto mb-10 sm:mb-14 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="animate-fade-up">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-purple/10 border border-accent-purple/25 text-accent-purple font-mono text-[10px] uppercase tracking-widest mb-4">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-purple/10 border border-accent-purple/25 text-accent-purple font-mono text-[10px] uppercase tracking-widest mb-3">
                 Plataforma Multi-Organização &amp; Multi-Loja
               </span>
-              <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-text-primary leading-[1.1] mb-5 sm:mb-6">
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-text-primary leading-[1.1] mb-4">
                 Controle total <br /> da sua rede de{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-purple to-accent-pink">
                   lojas.
                 </span>
               </h1>
-              <p className="text-sm sm:text-base text-text-secondary max-w-lg mb-7 sm:mb-8 leading-relaxed font-secondary">
+              <p className="text-sm sm:text-base text-text-secondary max-w-lg mb-5 sm:mb-6 leading-relaxed font-secondary">
                 Crie sua Organização no Portal Admin, gerencie múltiplas filiais, feche pedidos multi-item e acompanhe o desempenho de cada vendedor com precisão em 1 mês, 6 meses e 1 ano.
               </p>
-              <div className="flex flex-wrap gap-3 items-center mb-6 sm:mb-10">
+              <div className="flex flex-wrap gap-3 items-center mb-4 sm:mb-6">
                 <Link
                   to="/admin/login?mode=register"
-                  className="btn-primary px-6 py-3 font-semibold text-sm"
+                  className="btn-primary px-5 py-2.5 font-semibold text-sm"
                 >
                   Criar Organização (Admin)
                 </Link>
-                <Link to="/login" className="btn-secondary px-6 py-3 font-semibold text-sm">
+                <Link to="/login" className="btn-secondary px-5 py-2.5 font-semibold text-sm">
                   Portal da Loja (Equipe)
                 </Link>
               </div>
@@ -141,7 +146,7 @@ const Home = () => {
         </section>
 
         {/* MARQUEE */}
-        <section className="border-y border-[var(--color-border-light)] bg-[var(--color-surface)] mb-16 sm:mb-20 overflow-hidden relative">
+        <section className="border-y border-[var(--color-border-light)] bg-[var(--color-surface)] mb-12 sm:mb-16 overflow-hidden relative">
           <div className="marquee-fade-edges w-full flex">
             <div className="flex w-max animate-marquee py-3 md:py-4">
               {marqueeMetrics.map((metric, i) => (
@@ -177,10 +182,10 @@ const Home = () => {
         {/* WHY CHOOSE US */}
         <section
           id="funcionalidades"
-          className="px-4 sm:px-6 md:px-12 max-w-7xl mx-auto mb-20 sm:mb-28 pt-6 sm:pt-12"
+          className="px-4 sm:px-6 md:px-10 max-w-7xl mx-auto mb-14 sm:mb-20 pt-4 sm:pt-8"
         >
-          <div className="mb-10 sm:mb-12">
-            <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase text-accent-purple mb-3 block">
+          <div className="mb-8 sm:mb-10">
+            <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase text-accent-purple mb-2 block">
               Diferenciais
             </span>
             <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-text-primary max-w-2xl leading-tight">
@@ -188,10 +193,10 @@ const Home = () => {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-center">
-            <div className="flex flex-col gap-5">
-              <div className="glass-card p-6 md:p-8 rounded-3xl flex-1 hover-card">
-                <FiShield className="w-8 h-8 text-accent-purple mb-4" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-center">
+            <div className="flex flex-col gap-4">
+              <div className="glass-card p-5 md:p-6 rounded-3xl flex-1 hover-card">
+                <FiShield className="w-7 h-7 text-accent-purple mb-3" />
                 <h3 className="font-display text-lg font-bold text-text-primary mb-2">
                   Portais Separados e Hierarquia Clara
                 </h3>
@@ -200,18 +205,18 @@ const Home = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="glass-card p-6 rounded-3xl hover-card flex flex-col justify-center">
-                  <h3 className="font-display text-base font-bold text-text-primary mb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="glass-card p-5 rounded-3xl hover-card flex flex-col justify-center">
+                  <h3 className="font-display text-base font-bold text-text-primary mb-1.5">
                     Exclusão com Lastro
                   </h3>
                   <p className="text-xs text-text-secondary leading-relaxed">
                     Exclua colaboradores desligados definitivamente mantendo seu antigo ID e vendas intactas nos relatórios.
                   </p>
                 </div>
-                <div className="glass-card p-6 rounded-3xl hover-card flex flex-col justify-center">
-                  <FiBox className="w-6 h-6 text-accent-pink mb-3" />
-                  <h3 className="font-display text-base font-bold text-text-primary mb-2">
+                <div className="glass-card p-5 rounded-3xl hover-card flex flex-col justify-center">
+                  <FiBox className="w-6 h-6 text-accent-pink mb-2.5" />
+                  <h3 className="font-display text-base font-bold text-text-primary mb-1.5">
                     Soft Delete no Catálogo
                   </h3>
                   <p className="text-xs text-text-secondary leading-relaxed">
@@ -241,17 +246,17 @@ const Home = () => {
         {/* MULTI-TENANT SECTION */}
         <section
           id="multitenant"
-          className="px-4 sm:px-6 md:px-12 max-w-7xl mx-auto mb-20 sm:mb-28 pt-6 sm:pt-10"
+          className="px-4 sm:px-6 md:px-10 max-w-7xl mx-auto mb-14 sm:mb-20 pt-4 sm:pt-8"
         >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-5">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-7 gap-4">
             <div>
-              <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase text-accent-pink mb-3 block">
+              <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase text-accent-pink mb-2 block">
                 Arquitetura SaaS
               </span>
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-text-primary max-w-2xl leading-tight">
                 Uma Organização, várias Lojas sob controle total
               </h2>
-              <p className="text-sm text-text-secondary mt-3 max-w-2xl leading-relaxed">
+              <p className="text-sm text-text-secondary mt-2 max-w-2xl leading-relaxed">
                 Cada rede empresarial opera em um ambiente 100% isolado, permitindo gerenciar matriz e filiais sem jamais cruzar dados com outras empresas cadastradas.
               </p>
             </div>
@@ -263,13 +268,13 @@ const Home = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             {multiTenantPillars.map((item, idx) => {
               const IconComp = item.icon;
               return (
                 <div
                   key={idx}
-                  className="glass-card hover-card p-6 sm:p-7 rounded-3xl flex flex-col gap-3"
+                  className="glass-card hover-card p-5 sm:p-6 rounded-3xl flex flex-col gap-2.5"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="w-11 h-11 rounded-2xl bg-accent-purple/10 border border-accent-purple/20 flex items-center justify-center text-accent-purple shrink-0">
@@ -294,9 +299,9 @@ const Home = () => {
         {/* MODULES */}
         <section
           id="modulos"
-          className="px-4 sm:px-6 md:px-12 max-w-7xl mx-auto mb-20 sm:mb-28 pt-6 sm:pt-12"
+          className="px-4 sm:px-6 md:px-10 max-w-7xl mx-auto mb-14 sm:mb-20 pt-4 sm:pt-8"
         >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-7 gap-4">
             <div>
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-text-primary max-w-xl leading-tight">
                 Módulos Essenciais
@@ -363,8 +368,8 @@ const Home = () => {
         </section>
 
         {/* CTA */}
-        <section className="px-4 sm:px-6 md:px-12 max-w-4xl mx-auto mb-12 sm:mb-16">
-          <div className="glass-container p-8 sm:p-10 md:p-16 text-center relative overflow-hidden flex flex-col items-center">
+        <section className="px-4 sm:px-6 md:px-10 max-w-4xl mx-auto mb-8 sm:mb-12">
+          <div className="glass-container p-6 sm:p-8 md:p-12 text-center relative overflow-hidden flex flex-col items-center">
             <div
               className="absolute -top-24 -right-24 w-64 h-64 rounded-full pointer-events-none"
               style={{ background: "radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, transparent 70%)" }}

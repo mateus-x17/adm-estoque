@@ -37,6 +37,11 @@ const PAYMENT_LABELS = {
   A_PRAZO: "A Prazo",
 };
 
+// função responsável por gerenciar pedidos multi-item com comprovação de pagamento, estorno e recibo PDF.
+//
+// 1 - recebe nenhum parâmetro direto (controla filtros, paginação, expansão de itens e modais de comprovante/estorno).
+// 2 - consulta GET /orders isolando por Organização/Loja e sigilo operacional do OPERADOR.
+// 3 - retorna a página completa de pedidos com cartões compactos e botões sem quebra em zoom 100%.
 const Pedidos = () => {
   const currentUser = useUserStore((state) => state.user);
   const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
@@ -291,16 +296,16 @@ const Pedidos = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-2 pb-12 space-y-6 max-w-7xl mx-auto">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-3 border-b border-[var(--color-border)]">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Operação Comercial · Multipedidos
           </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Pedidos
           </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             {canManage
               ? "Registre pedidos multi-item, audite comprovantes de pagamento/recebimento e realize estornos."
               : "Crie pedidos multi-item com comprovante e acompanhe exclusivamente suas próprias vendas."}
@@ -311,7 +316,7 @@ const Pedidos = () => {
           <button
             type="button"
             onClick={() => setFiltrosAbertos((prev) => !prev)}
-            className="btn-secondary px-3.5 py-2.5 text-xs font-medium flex items-center gap-1.5"
+            className="btn-secondary px-3.5 py-2 text-xs font-medium flex items-center gap-1.5"
           >
             <FiSliders size={13} />
             {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
@@ -319,7 +324,7 @@ const Pedidos = () => {
 
           <button
             onClick={() => setModalOpen(true)}
-            className="btn-primary px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none"
+            className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap"
           >
             <FiPlus size={15} />
             Novo Pedido Multi-Item
@@ -329,7 +334,7 @@ const Pedidos = () => {
 
       {/* Filtros Colapsáveis */}
       {filtrosAbertos && (
-        <div className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 items-center animate-fade-up">
+        <div className="glass-card p-3.5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 items-center animate-fade-up">
           <div className="relative lg:col-span-2">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
             <input
@@ -394,18 +399,18 @@ const Pedidos = () => {
 
       {/* Lista de Pedidos Multi-Item */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--color-border-light)] flex items-center justify-between">
+        <div className="px-4 py-2.5 border-b border-[var(--color-border-light)] flex items-center justify-between">
           <span className="text-xs font-mono text-text-secondary">
             {totalCount} pedido(s) encontrado(s)
           </span>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-xs text-text-secondary animate-pulse">
+          <div className="p-10 text-center text-xs text-text-secondary animate-pulse">
             Carregando pedidos...
           </div>
         ) : orders.length === 0 ? (
-          <div className="p-12 text-center text-xs text-text-secondary flex flex-col items-center gap-2">
+          <div className="p-10 text-center text-xs text-text-secondary flex flex-col items-center gap-2">
             <ShoppingCart size={24} className="opacity-40" />
             Nenhum pedido encontrado com os filtros selecionados.
           </div>
@@ -418,7 +423,7 @@ const Pedidos = () => {
               const payStatus = order.status === "CANCELADO" ? "ESTORNADO" : order.statusPagamento || "PAGO";
 
               return (
-                <div key={order.id} className="p-4 hover:bg-[var(--color-border-light)]/20 transition-colors">
+                <div key={order.id} className="p-3 sm:p-3.5 hover:bg-[var(--color-border-light)]/20 transition-colors">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div
                       className="flex-1 min-w-0 cursor-pointer"

@@ -3,9 +3,11 @@ import { FiEdit, FiTrash, FiTruck, FiPower } from "react-icons/fi";
 
 // arquivo responsável por exibir uma linha de fornecedor com status ativo/inativo e ações RBAC
 
-// componente de linha de fornecedor
-// 1 - Exibe nome, contato, endereço e badge de inatividade quando aplicável
-// 2 - Renderiza ações de edição, inativação/reativação e exclusão de acordo com o cargo do usuário
+// função responsável por exibir um cartão de fornecedor com contato, endereço e controles RBAC.
+//
+// 1 - recebe fornecedor (object), index (number), callbacks de ação e flags canManage/canDelete (boolean).
+// 2 - formata contato resumido e aplica estilo tracejado quando o parceiro está inativo via Soft Delete.
+// 3 - retorna o card compacto clicável para detalhes com ações de editar, inativar/reativar e excluir.
 const FornecedorRow = ({
   fornecedor,
   index,
@@ -24,14 +26,14 @@ const FornecedorRow = ({
   return (
     <div
       style={{ animationDelay: `${index * 0.04}s` }}
-      className={`glass-card hover-card flex flex-col md:flex-row justify-between p-4 md:px-5 md:py-4 gap-3 md:gap-4 animate-fade-up cursor-pointer ${
+      className={`glass-card hover-card flex flex-col md:flex-row justify-between p-3 sm:px-4 sm:py-3 gap-2.5 md:gap-4 animate-fade-up cursor-pointer ${
         isInactive ? "opacity-75 border-dashed" : ""
       }`}
       onClick={() => onOpenDetails?.(fornecedor)}
     >
-      <div className="flex items-center gap-3.5 sm:gap-4 flex-1 min-w-0">
-        <div className="w-10 h-10 rounded-full bg-accent-purple/5 border border-accent-purple/20 flex items-center justify-center text-accent-purple shrink-0">
-          <FiTruck size={18} strokeWidth={1.5} />
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="w-9 h-9 rounded-full bg-accent-purple/5 border border-accent-purple/20 flex items-center justify-center text-accent-purple shrink-0">
+          <FiTruck size={16} strokeWidth={1.5} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">

@@ -10,6 +10,8 @@ import {
 } from "recharts";
 import { movementsApi } from "../../services/api/index.js";
 
+// arquivo responsável pelo gráfico de área comparativo do montante em reais de vendas e reposições ao longo do tempo.
+
 const VENDA_COLOR = "var(--color-chart-3)"; // Verde para vendas
 const REPOSICAO_COLOR = "var(--color-chart-4)"; // Vermelho para reposições
 
@@ -38,6 +40,11 @@ const TIPO_OPTIONS = [
   { label: "Ambos", value: "AMBOS" },
 ];
 
+// função responsável por consultar movimentações e plotar a série temporal do montante em R$ por dia ou mês.
+//
+// 1 - não recebe parâmetros diretos (filtra por tipoFiltro, periodType e mês/ano selecionado).
+// 2 - busca movimentações via movementsApi.getMovements e agrega valores ordenando cronologicamente.
+// 3 - retorna o card com filtros compactos e gráfico de área ajustado para viewport padrão 100%.
 export default function MontanteGrafic() {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -118,10 +125,10 @@ export default function MontanteGrafic() {
       : "Montante de vendas ao longo do tempo";
 
   return (
-    <div className="glass-card p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 gap-4">
+    <div className="glass-card p-4 sm:p-5">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-3">
         <div>
-          <h2 className="font-display text-base sm:text-lg font-semibold text-text-primary mb-1">
+          <h2 className="font-display text-base font-semibold text-text-primary mb-0.5">
             {title}
           </h2>
           <p className="font-secondary text-xs text-text-secondary">
@@ -135,7 +142,7 @@ export default function MontanteGrafic() {
               <button
                 key={opt.value}
                 onClick={() => setTipoFiltro(opt.value)}
-                className={`px-3 py-1.5 text-xs font-mono transition-colors duration-200 ${
+                className={`px-2.5 py-1 text-xs font-mono transition-colors duration-200 ${
                   tipoFiltro === opt.value
                     ? "bg-accent-purple text-white"
                     : "bg-transparent text-text-secondary hover:text-text-primary"
@@ -151,7 +158,7 @@ export default function MontanteGrafic() {
               <button
                 key={opt.value}
                 onClick={() => setPeriodType(opt.value)}
-                className={`px-3 py-1.5 text-xs font-mono transition-colors duration-200 ${
+                className={`px-2.5 py-1 text-xs font-mono transition-colors duration-200 ${
                   periodType === opt.value
                     ? "bg-accent-purple text-white"
                     : "bg-transparent text-text-secondary hover:text-text-primary"
@@ -167,13 +174,13 @@ export default function MontanteGrafic() {
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-1.5 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="px-2.5 py-1 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             />
           ) : (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="px-3 py-1.5 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-sm text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="px-2.5 py-1 rounded-md border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
               {years.map((y) => (
                 <option key={y} value={y} className="bg-[var(--color-surface)] text-text-primary">
@@ -185,7 +192,7 @@ export default function MontanteGrafic() {
         </div>
       </div>
 
-      <div className="h-[280px] sm:h-[320px] lg:h-[360px]">
+      <div className="h-[230px] sm:h-[260px] lg:h-[280px]">
         {loading ? (
           <div className="w-full h-full flex items-center justify-center gap-3">
             <div className="w-5 h-5 border-2 border-[var(--color-accent-purple)] border-t-[var(--color-surface)] rounded-full animate-spin" />

@@ -2,6 +2,11 @@ import { createPortal } from "react-dom";
 
 // arquivo responsável pelo modal de auditoria detalhada de uma movimentação unitária do livro-razão
 
+// função responsável por exibir em modal os dados completos e o snapshot financeiro de uma movimentação.
+//
+// 1 - recebe isOpen (boolean), onClose (function) e movimentacao (object).
+// 2 - identifica tipo da movimentação, código de pedido e calcula o valor total da época.
+// 3 - retorna o modal via createPortal dimensionado em max-h-[92dvh] ou null se fechado.
 const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
   if (!isOpen || !movimentacao) return null;
 
@@ -20,9 +25,9 @@ const ModalMovimentacao = ({ isOpen, onClose, movimentacao }) => {
       : movimentacao.quantidade * Number(movimentacao.produto?.preco || 0);
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center px-4 transition-opacity duration-300">
-      <div className="w-full max-w-sm bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl p-6 space-y-4 shadow-[0_8px_30px_rgb(0,0,0,0.5)] animate-scale-in">
-        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
+    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center px-3 sm:px-4 transition-opacity duration-300">
+      <div className="w-full max-w-sm max-h-[92dvh] overflow-y-auto custom-scrollbar bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl p-5 space-y-3.5 shadow-[0_8px_30px_rgb(0,0,0,0.5)] animate-scale-in">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
           <h2 className="font-display text-base font-semibold text-text-primary">
             Detalhes da movimentação
           </h2>

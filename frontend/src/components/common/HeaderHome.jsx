@@ -6,6 +6,12 @@ import { useThemeStore } from "../../store/useThemeStore.js";
 
 // arquivo responsável pelo cabeçalho público da landing page com acesso separado para Portal da Loja e Portal Admin
 
+// função responsável por renderizar a barra de navegação pública da landing page com troca de tema e portais.
+//
+// 1 - recebe nenhum parâmetro externo direto (obtém darkMode e toggleDarkMode via useThemeStore).
+// 2 - aplica ou remove a classe dark no documento conforme o estado do tema.
+// 3 - renderiza links de âncora, atalho ao Portal Admin, acesso ao Portal da Loja e botão mobile.
+// 4 - retorna o cabeçalho fixo responsivo dimensionado para zoom 100%.
 function HeaderHome() {
   const { darkMode, toggleDarkMode } = useThemeStore();
 
@@ -21,9 +27,9 @@ function HeaderHome() {
   }, [darkMode]);
 
   return (
-    <header className="fixed top-4 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
-      <div className="w-full max-w-6xl border border-[var(--color-border-light)] rounded-full bg-[var(--color-bg)]/70 backdrop-blur-xl transition-colors duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3">
+    <header className="fixed top-3 left-0 right-0 z-50 px-4 md:px-6 flex justify-center">
+      <div className="w-full max-w-6xl border border-[var(--color-border-light)] rounded-full bg-[var(--color-bg)]/75 backdrop-blur-xl transition-colors duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-2.5">
           <NavLink to="/" className="flex items-baseline gap-1 font-display">
             <span className="text-lg sm:text-xl font-bold tracking-tight text-text-primary">
               ESTOQUE
@@ -33,7 +39,7 @@ function HeaderHome() {
             </span>
           </NavLink>
 
-          <nav className="hidden md:flex items-center gap-7">
+          <nav className="hidden md:flex items-center gap-5 lg:gap-7">
             {navLinks.map((link) =>
               link.href.startsWith("#") ? (
                 <a

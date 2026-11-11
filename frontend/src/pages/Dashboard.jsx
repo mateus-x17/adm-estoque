@@ -13,6 +13,11 @@ import { useTenantStore } from "../store/useTenantStore.js";
 
 // arquivo responsável por renderizar o Dashboard executivo multi-loja / filial com acesso a relatórios PDF e Desempenho
 
+// função responsável por renderizar o Dashboard executivo multi-loja com KPIs, gráficos analíticos e atalho de relatórios PDF.
+//
+// 1 - recebe nenhum parâmetro externo (lê usuário e loja selecionada via Zustand).
+// 2 - define permissões de visualização (canViewUserStats) e rótulo de escopo da rede/filial.
+// 3 - retorna o painel completo com espaçamento compacto ajustado para zoom 100% sem cortes.
 const Dashboard = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const user = useUserStore((state) => state.user);
@@ -29,16 +34,16 @@ const Dashboard = () => {
       : `${orgName || "Rede"} • ${user?.loja?.nome || user?.lojaNome || "Minha Loja"}`;
 
   return (
-    <div className="w-full min-h-screen pt-2 pb-8 space-y-6 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-3 border-b border-[var(--color-border)] mb-6">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div className="min-w-0">
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             {scopeSubtitle}
           </span>
-          <h1 className="font-display text-2xl md:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Visão Geral
           </h1>
-          <p className="text-xs text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             {user?.role === "ADMIN"
               ? "Monitoramento da Organização com seleção global de filiais e exportação de relatórios."
               : user?.role === "GERENTE"
@@ -51,7 +56,7 @@ const Dashboard = () => {
           {canViewUserStats && (
             <Link
               to="/dashboard/desempenho"
-              className="btn-secondary px-3 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none"
+              className="btn-secondary px-3 py-1.5 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap"
             >
               <TrendingUp className="w-3.5 h-3.5 text-accent-pink" />
               Desempenho Vendedores
@@ -59,7 +64,7 @@ const Dashboard = () => {
           )}
           <button
             onClick={() => setIsReportModalOpen(true)}
-            className="btn-primary px-3.5 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none"
+            className="btn-primary px-3.5 py-1.5 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap"
           >
             <Download className="w-3.5 h-3.5" />
             Exportar relatório (PDF)
@@ -69,18 +74,18 @@ const Dashboard = () => {
 
       <KPISection />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
         <section className="lg:col-span-2">
           <StockFlowChart />
         </section>
 
-        <aside className="flex flex-col gap-6">
+        <aside className="flex flex-col gap-4 sm:gap-5">
           <LowStockAlert />
           <RecentMovements />
         </aside>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
         {canViewUserStats && (
           <>
             <UserStatsCharts type="count" />

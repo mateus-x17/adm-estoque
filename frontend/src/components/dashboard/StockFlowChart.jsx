@@ -42,9 +42,11 @@ const CustomLegend = ({ payload }) => (
   </div>
 );
 
-// função principal para buscar movimentações e plotar barras responsivas filtradas por Mês Atual, 6 Meses e Último Ano
-// 1 - Carrega as movimentações da loja/rede (ou do operador) recarregando ao alternar selectedLojaId
-// 2 - Ignora registros de estorno/cancelamento e agrupa vendas x reposições conforme a janela (1m, 6m, 1y)
+// função responsável por buscar movimentações e plotar barras responsivas filtradas por Mês Atual, 6 Meses e Último Ano.
+//
+// 1 - não recebe parâmetros diretos (monitora selectedLojaId e janela periodo de 1m, 6m ou 1y).
+// 2 - consulta GET /movements?limit=all e ignora estornos ou pedidos cancelados no agrupamento por produto.
+// 3 - retorna o card com gráfico de barras responsivo dimensionado para caber confortavelmente em zoom 100%.
 export default function StockFlowChart() {
   const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const [loading, setLoading] = useState(true);
@@ -111,13 +113,13 @@ export default function StockFlowChart() {
   }, [allMovements, periodo]);
 
   return (
-    <div className="glass-card p-4 sm:p-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+    <div className="glass-card p-4 sm:p-5 h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3.5">
         <div>
           <h2 className="font-display text-base font-semibold text-text-primary">
             Fluxo de mercadorias
           </h2>
-          <p className="font-secondary text-xs text-text-secondary mt-1">
+          <p className="font-secondary text-xs text-text-secondary mt-0.5">
             Volume líquido de vendas e reposições por produto
           </p>
         </div>
@@ -145,7 +147,7 @@ export default function StockFlowChart() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-[260px] sm:min-h-[340px]">
+      <div className="flex-1 min-h-[220px] sm:min-h-[260px]">
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />

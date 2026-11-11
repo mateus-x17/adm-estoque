@@ -9,6 +9,11 @@ import { useTenantStore } from "../store/useTenantStore.js";
 
 // arquivo responsável pela página de gestão de categorias com RBAC, multi-loja, filtros colapsáveis e Soft Delete
 
+// função responsável por renderizar a página de gestão de categorias de produtos por Organização e Loja.
+//
+// 1 - recebe nenhum parâmetro direto (verifica permissões RBAC e filial ativa nas stores Zustand).
+// 2 - busca categorias filtradas por status/texto e executa criação, edição, Soft Delete e exclusão.
+// 3 - retorna a lista compacta de categorias e modais de edição/confirmação.
 const Categorias = () => {
   const user = useUserStore((state) => state.user);
   const { stores, selectedLojaId } = useTenantStore();
@@ -174,21 +179,21 @@ const Categorias = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-3 sm:py-4 border-b border-[var(--color-border)]">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Catálogo
           </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Categorias
           </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             Gerencie as categorias dos produtos do estabelecimento.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
           <button
             type="button"
             onClick={() => setFiltrosAbertos((prev) => !prev)}
@@ -210,7 +215,7 @@ const Categorias = () => {
       </header>
 
       {filtrosAbertos && (
-        <section className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-up">
+        <section className="glass-card p-3.5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-2.5 animate-fade-up">
           <div className="relative">
             <FiSearch size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
             <input
@@ -235,13 +240,13 @@ const Categorias = () => {
       )}
 
       {/* Lista de Cards */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         {loading ? (
-          <div className="glass-card p-8 text-center text-sm text-text-secondary">
+          <div className="glass-card p-6 text-center text-sm text-text-secondary">
             Carregando categorias...
           </div>
         ) : categoriasFiltradas.length === 0 ? (
-          <div className="glass-card p-8 text-center text-sm text-text-secondary">
+          <div className="glass-card p-6 text-center text-sm text-text-secondary">
             {statusFiltro === "inativos"
               ? "Não há categorias inativas no momento."
               : "Nenhuma categoria encontrada."}
@@ -252,7 +257,7 @@ const Categorias = () => {
             return (
               <div
                 key={cat.id}
-                className={`glass-card hover-card flex items-center justify-between p-4 px-4 sm:px-5 gap-3 ${
+                className={`glass-card hover-card flex items-center justify-between px-4 py-3 gap-3 ${
                   isInactive ? "opacity-75 border-dashed" : ""
                 }`}
               >

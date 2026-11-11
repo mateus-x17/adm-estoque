@@ -5,6 +5,11 @@ import { useTenantStore } from "../../store/useTenantStore.js";
 
 // arquivo responsável pelo painel lateral de avisos de baixo estoque com quantidades exatas, percentual e atalho direto
 
+// função responsável pelo painel lateral de alertas de baixo estoque com navegação direta ao produto.
+//
+// 1 - não recebe parâmetros diretos (consulta getProductStats sempre que selectedLojaId muda).
+// 2 - limita os itens visíveis ao top 6 crítico (< 10 unidades) e calcula o percentual restante.
+// 3 - retorna o card glassmorphism com espaçamento enxuto e nomes fluindo sem corte prematuro.
 export default function LowStockAlert() {
   const navigate = useNavigate();
   const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
@@ -24,18 +29,18 @@ export default function LowStockAlert() {
   const MIN_THRESHOLD = 10;
 
   return (
-    <div className="glass-card p-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-5">
+    <div className="glass-card p-4 sm:p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between gap-2 mb-3.5">
         <h2 className="font-display text-base font-semibold text-text-primary">
           Baixo estoque
         </h2>
-        <span className="font-mono text-[11px] text-text-secondary">
+        <span className="font-mono text-[11px] text-text-secondary shrink-0">
           {totalLowStock} {totalLowStock === 1 ? "produto" : "produtos"} (&lt; 10 un.)
         </span>
       </div>
 
       {lowStockList.length > 0 ? (
-        <div className="space-y-3 flex-1">
+        <div className="space-y-2.5 flex-1">
           {lowStockList.map((prod) => {
             const pctOfMin = Math.min(Math.round((prod.quantidade / MIN_THRESHOLD) * 100), 100);
             const deficitPct = Math.max(100 - pctOfMin, 8);
@@ -44,12 +49,12 @@ export default function LowStockAlert() {
                 key={prod.id}
                 type="button"
                 onClick={() => navigate(`/dashboard/produtos?focus=${prod.id}`)}
-                className="w-full text-left p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors group"
+                className="w-full text-left p-1.5 -mx-1.5 rounded-xl hover:bg-white/5 transition-colors group"
                 title={`Abrir "${prod.nome}" em Produtos`}
               >
-                <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center justify-between gap-2 mb-1">
                   <span
-                    className="text-sm text-text-primary truncate max-w-[165px] group-hover:text-accent-purple transition-colors"
+                    className="text-sm text-text-primary truncate flex-1 min-w-0 group-hover:text-accent-purple transition-colors"
                     title={prod.nome}
                   >
                     {prod.nome}

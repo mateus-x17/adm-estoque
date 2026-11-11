@@ -60,6 +60,11 @@ const getInitials = (name = "") =>
     .join("")
     .toUpperCase();
 
+// função responsável por renderizar a gestão completa de colaboradores, matrículas, filiais e desligamentos.
+//
+// 1 - recebe nenhum parâmetro direto (usa tema, usuário logado e lojas da Organização via hooks/stores).
+// 2 - lista usuários paginados com filtros de busca, cargo, situação trabalhista (incl. DESLIGADO) e loja.
+// 3 - retorna a grade responsiva de cards com edição, transferência de loja, ficha Info e fluxo de demissão.
 const Usuarios = () => {
   const navigate = useNavigate();
   const { darkMode } = useThemeStore();
@@ -237,23 +242,23 @@ const Usuarios = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-3 sm:py-4 border-b border-[var(--color-border)]">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Equipe da Organização
           </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Usuários &amp; Alocação
           </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             Cadastre gerentes e operadores por loja, transfira colaboradores entre filiais ou exclua contas mantendo histórico auditável por ID.
           </p>
         </div>
       </header>
 
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             onClick={() => abrirEditarUsuario(null, "CriarUsuario")}
             className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
@@ -272,7 +277,7 @@ const Usuarios = () => {
 
         {filtrosAbertos && (
           <section className="glass-card animate-fade-up">
-            <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="p-3.5 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
               <div className="relative w-full">
                 <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" size={13} />
                 <input
@@ -335,7 +340,7 @@ const Usuarios = () => {
               </select>
             </div>
 
-            <p className="px-5 pb-4 font-mono text-xs text-center text-text-secondary">
+            <p className="px-4 pb-3 font-mono text-xs text-center text-text-secondary">
               {totalUsuarios} usuário(s) encontrado(s)
             </p>
           </section>
@@ -351,17 +356,17 @@ const Usuarios = () => {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center gap-3 py-20">
+        <div className="flex items-center justify-center gap-3 py-14">
           <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-text-secondary">Carregando equipe...</span>
         </div>
       ) : usuarios.length === 0 ? (
-        <div className="glass-card text-center p-8 text-sm text-text-secondary">
+        <div className="glass-card text-center p-6 text-sm text-text-secondary">
           Nenhum colaborador encontrado.
         </div>
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <section className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
             {usuarios.map((user) => {
               const isSelf = currentUser?.id === user.id;
               const isAdminRow = user.role === "ADMIN";
@@ -376,13 +381,13 @@ const Usuarios = () => {
               return (
                 <div
                   key={`${isDismissed ? "del" : "act"}-${user.id}`}
-                  className={`glass-card hover-card flex flex-col p-5 ${
+                  className={`glass-card hover-card flex flex-col p-4 ${
                     isDismissed ? "border-accent-red/30 opacity-95" : ""
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-primary flex items-center justify-center font-semibold text-sm shrink-0">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-10 h-10 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] text-text-primary flex items-center justify-center font-semibold text-xs shrink-0">
                         {user.imagem ? (
                           <img
                             src={formatImageUrl(user.imagem)}
@@ -452,7 +457,7 @@ const Usuarios = () => {
                     </div>
                   )}
 
-                  <div className="font-mono text-[11px] text-text-secondary space-y-1 mb-4">
+                  <div className="font-mono text-[11px] text-text-secondary space-y-1 mb-3">
                     <p>
                       Matrícula:{" "}
                       <span
@@ -480,7 +485,7 @@ const Usuarios = () => {
                     )}
                   </div>
 
-                  <div className="mt-auto flex flex-wrap gap-2 pt-4 border-t border-[var(--color-border)]">
+                  <div className="mt-auto flex flex-wrap gap-2 pt-3 border-t border-[var(--color-border)]">
                     {isDismissed ? (
                       <button
                         type="button"

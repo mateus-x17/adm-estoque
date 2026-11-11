@@ -2,6 +2,13 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { FiArrowUpRight, FiArrowDownRight, FiBox } from "react-icons/fi";
 
+// arquivo responsável pelo modal de exibição detalhada de pedido unitário no histórico legado.
+
+// função responsável por exibir em modal os detalhes de um pedido selecionado.
+//
+// 1 - recebe pedido (object) e fecharModal (function).
+// 2 - retorna null imediatamente se pedido não estiver preenchido e calcula data, hora e estilos semânticos.
+// 3 - retorna o JSX via createPortal ajustado com altura máxima segura para zoom 100%.
 function ModalPedido({ pedido, fecharModal }) {
   if (!pedido) return null;
 
@@ -23,11 +30,11 @@ function ModalPedido({ pedido, fecharModal }) {
       onClick={fecharModal}
     >
       <div
-        className="relative w-full max-w-xl max-h-[90vh] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col overflow-hidden animate-scale-in"
+        className="relative w-full max-w-xl max-h-[92dvh] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-white/5">
-          <h2 className="font-display text-lg font-semibold text-text-primary truncate">
+        <header className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[var(--color-border)] bg-white/5">
+          <h2 className="font-display text-base sm:text-lg font-semibold text-text-primary truncate">
             Detalhes do Pedido
           </h2>
           <button
@@ -38,25 +45,25 @@ function ModalPedido({ pedido, fecharModal }) {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
-          <div className="flex items-center gap-4 mb-6">
-            <div className={`w-12 h-12 rounded-full border flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
-              <Icon size={20} strokeWidth={2} />
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 custom-scrollbar">
+          <div className="flex items-center gap-3.5 mb-4">
+            <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+              <Icon size={18} strokeWidth={2} />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-display text-lg font-semibold text-text-primary break-words">
+                <h3 className="font-display text-base sm:text-lg font-semibold text-text-primary break-words">
                   {pedido.produto?.nome || "Produto Desconhecido"}
                 </h3>
                 <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase border shrink-0 ${badgeClass}`}>
                   {isVenda ? "VENDA" : "REPOSIÇÃO"}
                 </span>
               </div>
-              <p className="font-mono text-xs text-text-secondary mt-1">Pedido #{pedido.id}</p>
+              <p className="font-mono text-xs text-text-secondary mt-0.5">Pedido #{pedido.id}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="font-mono text-[11px] uppercase tracking-wide text-text-secondary">
                 Quantidade
@@ -87,7 +94,7 @@ function ModalPedido({ pedido, fecharModal }) {
           </div>
         </div>
 
-        <footer className="px-6 py-5 border-t border-[var(--color-border)] flex flex-col sm:flex-row gap-3 sm:justify-end bg-[var(--color-bg)]">
+        <footer className="px-4 sm:px-5 py-3 border-t border-[var(--color-border)] flex flex-col sm:flex-row gap-2.5 sm:justify-end bg-[var(--color-bg)]">
           <button
             onClick={fecharModal}
             className="w-full sm:w-auto px-6 py-2.5 rounded-full border border-[var(--color-border-light)] text-text-primary font-semibold text-xs hover:border-accent-purple/50 transition-colors duration-200"

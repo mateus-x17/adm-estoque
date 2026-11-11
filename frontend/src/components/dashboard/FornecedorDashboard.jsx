@@ -11,9 +11,11 @@ import {
 
 // arquivo responsável pelo painel analítico de desempenho e movimentações por fornecedor
 
-// componente gráfico e de destaques por fornecedor
-// 1 - Transforma estatísticas agregadas em série comparativa de Vendas x Reposições respeitando statusFiltro
-// 2 - Quando não houver dados para o filtro atual (ex: sem inativos), exibe aviso claro nos cards do gráfico e destaques
+// função responsável por exibir o gráfico comparativo e os destaques de movimentação por fornecedor.
+//
+// 1 - recebe stats (array), loading (boolean) e statusFiltro (string opcional, padrão 'ativos').
+// 2 - oculta durante carregamento e trata estado vazio com mensagem contextual segundo o filtro.
+// 3 - retorna os dois cartões analíticos em grade responsiva com altura confortável para zoom 100%.
 const FornecedorDashboard = ({ stats, loading, statusFiltro = "ativos" }) => {
   if (loading) {
     return null;
@@ -37,18 +39,18 @@ const FornecedorDashboard = ({ stats, loading, statusFiltro = "ativos" }) => {
     : [];
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+    <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Gráfico de barras */}
-      <div className="glass-card p-4 sm:p-6 flex flex-col">
-        <h3 className="font-display text-base font-semibold text-text-primary mb-4">
+      <div className="glass-card p-4 sm:p-5 flex flex-col">
+        <h3 className="font-display text-base font-semibold text-text-primary mb-3">
           Movimentações por fornecedor
         </h3>
         {!hasData ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center text-center text-xs text-text-secondary border border-dashed border-[var(--color-border-light)] rounded-xl p-6">
+          <div className="flex-1 min-h-[180px] flex items-center justify-center text-center text-xs text-text-secondary border border-dashed border-[var(--color-border-light)] rounded-xl p-5">
             {emptyMessage}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={barChartData}>
               <XAxis
                 dataKey="name"
@@ -79,20 +81,20 @@ const FornecedorDashboard = ({ stats, loading, statusFiltro = "ativos" }) => {
       </div>
 
       {/* Destaques / Barra de informações */}
-      <div className="glass-card p-4 sm:p-6 flex flex-col">
-        <h3 className="font-display text-base font-semibold text-text-primary mb-4">
+      <div className="glass-card p-4 sm:p-5 flex flex-col">
+        <h3 className="font-display text-base font-semibold text-text-primary mb-3">
           Destaques &amp; Indicadores
         </h3>
         {!hasData ? (
-          <div className="flex-1 min-h-[200px] flex items-center justify-center text-center text-xs text-text-secondary border border-dashed border-[var(--color-border-light)] rounded-xl p-6">
+          <div className="flex-1 min-h-[180px] flex items-center justify-center text-center text-xs text-text-secondary border border-dashed border-[var(--color-border-light)] rounded-xl p-5">
             {emptyMessage}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[260px] custom-scrollbar">
+          <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 max-h-[220px] custom-scrollbar">
             {stats.map((s, i) => (
               <div
                 key={i}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 sm:p-4 rounded-xl border border-[var(--color-border-light)] bg-white/5"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl border border-[var(--color-border-light)] bg-white/5"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] flex items-center justify-center text-text-primary font-mono text-xs font-semibold shrink-0">

@@ -10,6 +10,11 @@ import ModalConfirmacao from "../components/common/ModalConfirmacao.jsx";
 
 // arquivo responsável pela gestão de Lojas/Filiais da Organização (exclusivo ADMIN)
 
+// função responsável por realizar a administração das Lojas e Filiais da Organização para o perfil ADMIN.
+//
+// 1 - recebe nenhum parâmetro direto (sincroniza a lista de lojas ativas no useTenantStore).
+// 2 - permite filtrar por texto/status, cadastrar, editar, ativar/desativar e excluir filiais com confirmação.
+// 3 - retorna a grade de cartões de unidades com totalizadores de equipe, produtos e pedidos.
 const Lojas = () => {
   const user = useUserStore((state) => state.user);
   const { setStores: syncTenantStores } = useTenantStore();
@@ -154,16 +159,16 @@ const Lojas = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-2 pb-12 space-y-6 max-w-7xl mx-auto">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-3 border-b border-[var(--color-border)]">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-purple">
             Rede • {user?.organizacaoNome || "Organização"}
           </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Lojas &amp; Filiais
           </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             Cadastre unidades da sua organização, gerencie status operacional e acompanhe equipe e catálogo por loja.
           </p>
         </div>
@@ -172,7 +177,7 @@ const Lojas = () => {
           <button
             type="button"
             onClick={() => setFiltrosAbertos((prev) => !prev)}
-            className="btn-secondary px-3.5 py-2.5 text-xs font-medium flex items-center gap-1.5"
+            className="btn-secondary px-3.5 py-2 text-xs font-medium flex items-center gap-1.5"
           >
             <FiSliders size={13} />
             {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
@@ -180,7 +185,7 @@ const Lojas = () => {
 
           <button
             onClick={() => openModal(null)}
-            className="btn-primary px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none"
+            className="btn-primary px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap"
           >
             <FiPlus size={15} />
             Nova Loja / Filial
@@ -189,7 +194,7 @@ const Lojas = () => {
       </header>
 
       {filtrosAbertos && (
-        <section className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-up">
+        <section className="glass-card p-3.5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-2.5 animate-fade-up">
           <div className="relative">
             <FiSearch size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
             <input
@@ -224,11 +229,11 @@ const Lojas = () => {
             : "Nenhuma loja encontrada com os filtros atuais."}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {lojasFiltradas.map((loja) => (
             <div
               key={loja.id}
-              className={`glass-card p-5 rounded-2xl flex flex-col justify-between gap-4 border ${
+              className={`glass-card p-4 rounded-2xl flex flex-col justify-between gap-3 border ${
                 loja.ativo ? "border-[var(--color-border)]" : "border-accent-red/30 opacity-80"
               }`}
             >

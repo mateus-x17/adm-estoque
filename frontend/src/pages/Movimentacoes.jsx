@@ -50,6 +50,11 @@ const ChartTooltip = ({ active, payload, label, isPie }) => {
   );
 };
 
+// função responsável por renderizar a tela de histórico de movimentações unitárias e gráficos de linha e pizza.
+//
+// 1 - recebe nenhum parâmetro direto (lê perfil RBAC e filial selecionada via Zustand).
+// 2 - busca movimentações paginadas e séries analíticas agregadas excluindo estornos/cancelamentos.
+// 3 - retorna a listagem filtrável sem estouro horizontal e gráficos ajustados para zoom 100%.
 const Movimentacoes = () => {
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -229,16 +234,16 @@ const Movimentacoes = () => {
   }, [search, tipoFiltro, fromDate, toDate, userFilter, selectedLojaId]);
 
   return (
-    <div className="w-full min-h-screen pt-2 sm:pt-4 pb-12 space-y-6 sm:space-y-8 max-w-7xl mx-auto transition-colors duration-300">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-3 sm:py-4 border-b border-[var(--color-border)] mb-6 sm:mb-8">
+    <div className="w-full pb-6 space-y-4 sm:space-y-5 max-w-[1440px] mx-auto transition-colors duration-300">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 py-2 pb-3 border-b border-[var(--color-border)]">
         <div>
           <span className="font-mono text-xs tracking-[0.2em] uppercase text-accent-pink">
             Estoque
           </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mt-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
             Movimentações
           </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+          <p className="text-xs text-text-secondary mt-0.5">
             {canFilterByUser
               ? "Controle de reposições e vendas da equipe no estabelecimento."
               : "Histórico das suas movimentações de reposição e vendas registradas."}
@@ -246,30 +251,30 @@ const Movimentacoes = () => {
         </div>
       </header>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center justify-end">
           <button
             onClick={() => setFiltrosAbertos(!filtrosAbertos)}
-            className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
+            className="text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
           >
             {filtrosAbertos ? "Ocultar filtros" : "Mostrar filtros"}
           </button>
         </div>
 
         {filtrosAbertos && (
-          <section className="glass-card p-5 flex flex-col lg:flex-row gap-3 animate-fade-up">
+          <section className="glass-card p-3.5 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5 animate-fade-up">
             <input
               type="text"
               placeholder="Buscar produto, pedido, vendedor, matrícula ou ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full lg:w-1/3 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="w-full sm:col-span-2 lg:col-span-1 px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary placeholder:text-text-secondary focus:border-accent-purple outline-none transition-colors duration-200"
             />
 
             <select
               value={tipoFiltro}
               onChange={(e) => setTipoFiltro(e.target.value)}
-              className="w-full lg:w-40 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="w-full px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             >
               <option value="">Todos</option>
               <option value="VENDA">Venda</option>
@@ -280,7 +285,7 @@ const Movimentacoes = () => {
               <select
                 value={userFilter}
                 onChange={(e) => setUserFilter(e.target.value)}
-                className="w-full lg:w-52 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+                className="w-full px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
               >
                 <option value="">Todos os usuários</option>
                 {usuarios.map((u) => (
@@ -290,7 +295,7 @@ const Movimentacoes = () => {
                 ))}
               </select>
             ) : (
-              <div className="w-full lg:w-52 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-white/5 text-xs text-text-secondary flex items-center gap-2 cursor-not-allowed select-none" title="Apenas Gerentes e Administradores podem filtrar por usuário">
+              <div className="w-full px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-white/5 text-xs text-text-secondary flex items-center gap-2 cursor-not-allowed select-none" title="Apenas Gerentes e Administradores podem filtrar por usuário">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 Filtro restrito
               </div>
@@ -300,19 +305,19 @@ const Movimentacoes = () => {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="w-full lg:w-44 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="w-full px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             />
 
             <input
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="w-full lg:w-44 px-4 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
+              className="w-full px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-[var(--color-surface)] text-xs text-text-primary focus:border-accent-purple outline-none transition-colors duration-200"
             />
 
             <button
               onClick={toggleOrder}
-              className="btn-secondary px-4 py-2 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 lg:w-40 shrink-0"
+              className="btn-secondary w-full px-3.5 py-2 text-[10px] font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5"
               title={order === "desc" ? "Mostrando mais recentes primeiro" : "Mostrando mais antigos primeiro"}
             >
               {order === "desc" ? <FiArrowDown size={14} /> : <FiArrowUp size={14} />}
@@ -323,25 +328,25 @@ const Movimentacoes = () => {
       </div>
 
       {!loaded ? (
-        <div className="flex items-center justify-center gap-3 py-20">
+        <div className="flex items-center justify-center gap-3 py-14">
           <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-text-secondary">Carregando movimentações...</span>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="font-display text-lg font-semibold text-text-primary">
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center">
+              <h2 className="font-display text-base font-semibold text-text-primary">
                 Histórico de movimentações
               </h2>
-              <span className="font-mono text-[11px] uppercase text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-1">
+              <span className="font-mono text-[11px] uppercase text-text-secondary border border-[var(--color-border-light)] bg-[var(--color-surface)] rounded-full px-3 py-0.5">
                 Total: {totalMovimentos}
               </span>
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               {movimentacoes.length === 0 ? (
-                <div className="glass-card p-8 text-center text-sm text-text-secondary">
+                <div className="glass-card p-6 text-center text-sm text-text-secondary">
                   Nenhuma movimentação encontrada.
                 </div>
               ) : (
@@ -358,11 +363,11 @@ const Movimentacoes = () => {
           </div>
 
           {totalPaginas > 1 && (
-            <div className="flex items-center justify-center gap-4 pt-4">
+            <div className="flex items-center justify-center gap-3 pt-2">
               <button
                 disabled={paginaAtual === 1}
                 onClick={() => setPaginaAtual((p) => p - 1)}
-                className="btn-secondary px-4 py-2 text-xs font-semibold disabled:opacity-40 disabled:hover:border-[var(--color-border-light)] disabled:hover:text-text-primary"
+                className="btn-secondary px-4 py-1.5 text-xs font-semibold disabled:opacity-40 disabled:hover:border-[var(--color-border-light)] disabled:hover:text-text-primary"
               >
                 Anterior
               </button>
@@ -374,19 +379,19 @@ const Movimentacoes = () => {
               <button
                 disabled={paginaAtual === totalPaginas}
                 onClick={() => setPaginaAtual((p) => p + 1)}
-                className="btn-secondary px-4 py-2 text-xs font-semibold disabled:opacity-40 disabled:hover:border-[var(--color-border-light)] disabled:hover:text-text-primary"
+                className="btn-secondary px-4 py-1.5 text-xs font-semibold disabled:opacity-40 disabled:hover:border-[var(--color-border-light)] disabled:hover:text-text-primary"
               >
                 Próximo
               </button>
             </div>
           )}
 
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 pt-4 sm:pt-6">
-            <div className="lg:col-span-2 glass-card p-4 sm:p-6">
-              <h3 className="font-display text-base sm:text-lg font-semibold text-text-primary mb-4 sm:mb-6">
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2">
+            <div className="lg:col-span-2 glass-card p-4">
+              <h3 className="font-display text-base font-semibold text-text-primary mb-3">
                 Reposições x vendas
               </h3>
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={210}>
                 <LineChart data={lineChartData}>
                   <XAxis
                     dataKey="label"
@@ -419,15 +424,15 @@ const Movimentacoes = () => {
               </ResponsiveContainer>
             </div>
 
-            <div className="glass-card p-4 sm:p-6">
-              <h3 className="font-display text-base sm:text-lg font-semibold text-text-primary mb-1">
+            <div className="glass-card p-4">
+              <h3 className="font-display text-base font-semibold text-text-primary mb-0.5">
                 Resumo geral
               </h3>
-              <p className="font-mono text-xs text-text-secondary mb-6">
+              <p className="font-mono text-xs text-text-secondary mb-4">
                 Quantidade e montante (R$) por tipo
               </p>
 
-              <div className="flex flex-col gap-3 mb-6">
+              <div className="flex flex-col gap-2.5 mb-4">
                 {pieChartData.map((entry, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -444,7 +449,7 @@ const Movimentacoes = () => {
                 ))}
               </div>
 
-              <ResponsiveContainer width="100%" height={180}>
+              <ResponsiveContainer width="100%" height={165}>
                 <PieChart>
                   <Pie
                     data={pieChartData}

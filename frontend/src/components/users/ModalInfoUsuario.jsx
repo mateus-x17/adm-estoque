@@ -46,9 +46,11 @@ const getInitials = (name = "") =>
     .join("")
     .toUpperCase();
 
-// função para exibir ficha detalhada do colaborador com controles de situação funcional, data de demissão e desligamento
-// 1 - Mostra nome, e-mail, matrícula, telefone, situação, cargo, filial, admissão e data de demissão (quando desligado)
-// 2 - Quando suspenso/férias destaca Reativar ou Demitir; quando desligado permite reabrir o Relatório Final de Vendas
+// função responsável por exibir a ficha detalhada do colaborador e ações de situação trabalhista.
+//
+// 1 - recebe user (object), isSelf (boolean), actionLoading (boolean) e callbacks onClose, onEdit, onChangeSituation, onDismiss e onOpenReport.
+// 2 - exibe matrícula, situação, admissão, data de demissão (quando desligado) e botões de controle condicional.
+// 3 - retorna o modal via createPortal dimensionado em max-h-[92dvh] ou null quando user for nulo.
 const ModalInfoUsuario = ({
   user,
   isSelf = false,
@@ -88,9 +90,9 @@ const ModalInfoUsuario = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <div className="p-5 sm:p-6 border-b border-[var(--color-border-light)] flex items-start justify-between gap-4 bg-[var(--color-surface)]/40">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-14 h-14 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] flex items-center justify-center font-semibold text-base text-text-primary shrink-0">
+        <div className="p-4 sm:p-5 border-b border-[var(--color-border-light)] flex items-start justify-between gap-3 bg-[var(--color-surface)]/40">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-12 h-12 rounded-full overflow-hidden border border-[var(--color-border-light)] bg-[var(--color-surface)] flex items-center justify-center font-semibold text-sm text-text-primary shrink-0">
               {user.imagem ? (
                 <img
                   src={formatImageUrl(user.imagem)}
@@ -139,9 +141,9 @@ const ModalInfoUsuario = ({
         </div>
 
         {/* Dados Cadastrais */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-4 custom-scrollbar">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-3.5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)]">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-3 custom-scrollbar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+            <div className="p-3 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-light)]">
               <span className="text-[10px] font-mono uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
                 <FiPhone size={11} /> Telefone
               </span>
@@ -211,7 +213,7 @@ const ModalInfoUsuario = ({
         </div>
 
         {/* Rodapé com ações trabalhistas */}
-        <div className="p-4 sm:p-5 border-t border-[var(--color-border-light)] bg-[var(--color-surface)]/30 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="px-4 sm:px-5 py-3 border-t border-[var(--color-border-light)] bg-[var(--color-surface)]/30 flex flex-wrap items-center justify-between gap-2">
           {isDismissed ? (
             <>
               <button
