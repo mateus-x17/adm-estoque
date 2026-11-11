@@ -58,7 +58,7 @@ const ChartTooltip = ({ active, payload, label, isPie }) => {
 const Movimentacoes = () => {
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  
+
   const currentUser = useUserStore((state) => state.user);
   const selectedLojaId = useTenantStore((state) => state.selectedLojaId);
   const canFilterByUser = currentUser?.role === "ADMIN" || currentUser?.role === "GERENTE";
@@ -70,7 +70,7 @@ const Movimentacoes = () => {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [userFilter, setUserFilter] = useState("");
   const [usuarios, setUsuarios] = useState([]);
-  
+
   const [order, setOrder] = useState("desc");
 
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -165,7 +165,7 @@ const Movimentacoes = () => {
         const pieData = (pieResult.data || []).filter((m) => !m.estorno && m.pedido?.status !== "CANCELADO");
         let pieReposicoes = 0, pieVendas = 0;
         let montanteReposicoes = 0, montanteVendas = 0;
-        
+
         pieData.forEach((m) => {
           const valor = Number(
             m.valorTotal !== undefined ? m.valorTotal : m.quantidade * Number(m.produto?.preco || 0)
@@ -178,7 +178,7 @@ const Movimentacoes = () => {
             montanteVendas += valor;
           }
         });
-        
+
         setPieChartData([
           { name: "Vendas", value: pieVendas, montante: montanteVendas },
           { name: "Reposições", value: pieReposicoes, montante: montanteReposicoes },
@@ -187,11 +187,11 @@ const Movimentacoes = () => {
 
         const lineData = (lineResult.data || []).filter((m) => !m.estorno && m.pedido?.status !== "CANCELADO");
         const grouped = {};
-        
+
         lineData.forEach((m) => {
           const dateObj = new Date(m.data);
-          const dateKey = dateObj.toISOString().split("T")[0]; 
-          
+          const dateKey = dateObj.toISOString().split("T")[0];
+
           if (!grouped[dateKey]) {
             grouped[dateKey] = {
               date: dateKey,
@@ -203,11 +203,11 @@ const Movimentacoes = () => {
           if (m.tipo === "REPOSICAO" || m.tipo === "ENTRADA") grouped[dateKey].Reposicoes += m.quantidade;
           else grouped[dateKey].Vendas += m.quantidade;
         });
-        
+
         const sortedLineData = Object.values(grouped).sort(
           (a, b) => new Date(a.date) - new Date(b.date),
         );
-        
+
         setLineChartData(sortedLineData);
       } catch (error) {
         console.error("Error fetching movements:", error);
@@ -296,7 +296,7 @@ const Movimentacoes = () => {
               </select>
             ) : (
               <div className="w-full px-3.5 py-2 rounded-full border border-[var(--color-border-light)] bg-white/5 text-xs text-text-secondary flex items-center gap-2 cursor-not-allowed select-none" title="Apenas Gerentes e Administradores podem filtrar por usuário">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                 Filtro restrito
               </div>
             )}

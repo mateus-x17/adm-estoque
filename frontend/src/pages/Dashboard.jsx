@@ -47,8 +47,8 @@ const Dashboard = () => {
             {user?.role === "ADMIN"
               ? "Monitoramento da Organização com seleção global de filiais e exportação de relatórios."
               : user?.role === "GERENTE"
-              ? "Acompanhamento completo da sua filial, equipe de vendedores e faturamento."
-              : "Resumo de catálogo e acompanhamento exclusivo das suas movimentações."}
+                ? "Acompanhamento completo da sua filial, equipe de vendedores e faturamento."
+                : "Resumo de catálogo e acompanhamento exclusivo das suas movimentações."}
           </p>
         </div>
 
