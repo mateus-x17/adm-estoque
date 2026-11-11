@@ -257,9 +257,8 @@ const Categorias = () => {
             return (
               <div
                 key={cat.id}
-                className={`glass-card hover-card flex items-center justify-between px-4 py-3 gap-3 ${
-                  isInactive ? "opacity-75 border-dashed" : ""
-                }`}
+                className={`glass-card hover-card flex items-center justify-between px-4 py-3 gap-3 ${isInactive ? "opacity-75 border-dashed" : ""
+                  }`}
               >
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <span className="font-mono text-xs text-text-secondary shrink-0">#{cat.id}</span>
@@ -288,11 +287,10 @@ const Categorias = () => {
 
                     <button
                       onClick={() => handleToggleStatus(cat)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
-                        isInactive
-                          ? "text-accent-green hover:bg-accent-green/10"
-                          : "text-text-secondary hover:text-amber-400 hover:bg-white/5"
-                      }`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${isInactive
+                        ? "text-accent-green hover:bg-accent-green/10"
+                        : "text-text-secondary hover:text-amber-400 hover:bg-white/5"
+                        }`}
                       title={isInactive ? "Reativar categoria" : "Inativar categoria"}
                     >
                       <FiPower size={16} />

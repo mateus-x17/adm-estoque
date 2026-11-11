@@ -55,7 +55,7 @@ const Produtos = () => {
     categoriesApi
       .getCategories()
       .then((res) => setCategorias(res.data || res || []))
-      .catch(() => {});
+      .catch(() => { });
   }, [selectedLojaId]);
 
   // função para consultar a listagem paginada de produtos com filtros de busca, categoria, preço e status
@@ -387,7 +387,7 @@ const Produtos = () => {
           categoriesApi
             .getCategories()
             .then((res) => setCategorias(res.data || res || []))
-            .catch(() => {});
+            .catch(() => { });
         }}
       />
 

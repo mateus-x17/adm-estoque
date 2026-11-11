@@ -115,9 +115,8 @@ const Home = () => {
               {heroImages.map((img, i) => (
                 <div
                   key={i}
-                  className={`absolute inset-0 transition-opacity duration-1000 ${
-                    i === activeHeroImg ? "opacity-100 z-10" : "opacity-0 z-0"
-                  }`}
+                  className={`absolute inset-0 transition-opacity duration-1000 ${i === activeHeroImg ? "opacity-100 z-10" : "opacity-0 z-0"
+                    }`}
                 >
                   <PlaceholderMedia
                     text={img.text}
@@ -132,11 +131,10 @@ const Home = () => {
                 {heroImages.map((_, i) => (
                   <div
                     key={i}
-                    className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
-                      i === activeHeroImg
-                        ? "w-6 bg-accent-purple"
-                        : "w-2 bg-white/50 hover:bg-white/80"
-                    }`}
+                    className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${i === activeHeroImg
+                      ? "w-6 bg-accent-purple"
+                      : "w-2 bg-white/50 hover:bg-white/80"
+                      }`}
                     onClick={() => setActiveHeroImg(i)}
                   />
                 ))}
