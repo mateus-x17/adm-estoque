@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
 import fs from "fs";
+import { removeLocalUploadIfSafe } from "../utils/sanitizers.js";
 
 // arquivo responsável por configurar a integração e pastas hierárquicas no Cloudinary por Organização e Loja
 dotenv.config();
@@ -78,6 +79,21 @@ export async function deleteFromCloudinary(imageUrlOrPublicId) {
   } catch (error) {
     console.error("Erro ao deletar imagem do Cloudinary:", error);
   }
+}
+
+// função responsável por remover uma mídia antiga armazenada no Cloudinary ou localmente na pasta uploads de forma segura.
+//
+// 1 - recebe mediaUrlOrPath (string|null) representando a URL CDN ou o caminho local salvo no banco.
+// 2 - ignora a operação se mediaUrlOrPath estiver vazio.
+// 3 - invoca deleteFromCloudinary se o endereço iniciar com http:// ou https://.
+// 4 - caso contrário, remove o arquivo local validado via removeLocalUploadIfSafe e não retorna valor.
+export async function cleanupStoredMedia(mediaUrlOrPath) {
+  if (!mediaUrlOrPath || typeof mediaUrlOrPath !== "string") return;
+  if (mediaUrlOrPath.startsWith("http://") || mediaUrlOrPath.startsWith("https://")) {
+    await deleteFromCloudinary(mediaUrlOrPath);
+    return;
+  }
+  removeLocalUploadIfSafe(mediaUrlOrPath);
 }
 
 export default cloudinary;

@@ -16,6 +16,7 @@ import {
 import { movementsApi } from "../../services/api/index.js";
 import { useUserStore } from "../../store/userStore.js";
 import { useTenantStore } from "../../store/useTenantStore.js";
+import { escapeHtml } from "../../utils/validators.js";
 
 // arquivo responsável pelo modal executivo e gerador de PDF A4 (1m, 6m, 1y) com ranking de vendedores e fornecedores
 
@@ -254,7 +255,12 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
     );
   };
 
-  // função para imprimir / salvar relatório executivo em PDF A4 contendo gráficos, ranking de vendedores e fornecedores
+  // função responsável por imprimir ou exportar em PDF A4 o relatório executivo de vendas com sanitização XSS.
+  //
+  // 1 - não recebe parâmetros, lendo reportData e gráficos SVG diretamente do estado/DOM do modal.
+  // 2 - abre popup de impressão via window.open ou exibe alerta caso o navegador bloqueie pop-ups.
+  // 3 - sanitiza todos os campos textuais dinâmicos com escapeHtml antes de gerar o HTML A4.
+  // 4 - escreve o documento no popup, aciona window.print() e não retorna valor.
   const handleExportPdf = () => {
     if (!reportData) return;
 
@@ -297,18 +303,18 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
               .map(
                 (v) => `
               <tr>
-                <td><strong>${v.posicao}º</strong></td>
+                <td><strong>${escapeHtml(v.posicao)}º</strong></td>
                 <td>
-                  <strong>${v.nome}</strong>
+                  <strong>${escapeHtml(v.nome)}</strong>
                   <div style="color:#64748b;font-size:9px;">
-                    ${v.email || "—"} · ${v.matriculaDisplay || v.matricula || `#${v.vendedorRefId}`}
+                    ${escapeHtml(v.email || "—")} · ${escapeHtml(v.matriculaDisplay || v.matricula || `#${v.vendedorRefId}`)}
                   </div>
                 </td>
-                <td>${v.lojaNome || "—"}</td>
-                <td class="text-right">${v.totalPedidos}</td>
-                <td class="text-right">${v.totalPecas} un.</td>
-                <td class="text-right"><strong>${formatCurrency(v.totalFaturado)}</strong></td>
-                <td class="text-right">${v.percentualParticipacao}%</td>
+                <td>${escapeHtml(v.lojaNome || "—")}</td>
+                <td class="text-right">${escapeHtml(v.totalPedidos)}</td>
+                <td class="text-right">${escapeHtml(v.totalPecas)} un.</td>
+                <td class="text-right"><strong>${escapeHtml(formatCurrency(v.totalFaturado))}</strong></td>
+                <td class="text-right">${escapeHtml(v.percentualParticipacao)}%</td>
               </tr>`
               )
               .join("")}
@@ -337,9 +343,9 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
               .map(
                 (s) => `
               <tr>
-                <td>${s.nome}</td>
-                <td class="text-right">${s.quantidadeVendida} un.</td>
-                <td class="text-right"><strong>${formatCurrency(s.valorTotal)}</strong></td>
+                <td>${escapeHtml(s.nome)}</td>
+                <td class="text-right">${escapeHtml(s.quantidadeVendida)} un.</td>
+                <td class="text-right"><strong>${escapeHtml(formatCurrency(s.valorTotal))}</strong></td>
               </tr>`
               )
               .join("")}
@@ -353,7 +359,7 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
       <html lang="pt-BR">
       <head>
         <meta charset="UTF-8">
-        <title>Relatório Executivo - ${displayName}</title>
+        <title>Relatório Executivo - ${escapeHtml(displayName)}</title>
         <style>
           @page { size: A4 portrait; margin: 12mm 14mm; }
           * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -382,20 +388,20 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
         <div class="header">
           <div>
             <div class="logo">ESTOQUE<span>.OS</span></div>
-            <div style="font-size:10px;color:#64748b;margin-top:2px;">${displayName}</div>
+            <div style="font-size:10px;color:#64748b;margin-top:2px;">${escapeHtml(displayName)}</div>
           </div>
           <div class="meta-info">
-            <div><strong>Escopo:</strong> ${scopeLabel}</div>
-            <div><strong>Emissor:</strong> ${currentUser?.nome || "Usuário"} (${currentUser?.role || ""})</div>
-            <div><strong>Emissão:</strong> ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+            <div><strong>Escopo:</strong> ${escapeHtml(scopeLabel)}</div>
+            <div><strong>Emissor:</strong> ${escapeHtml(currentUser?.nome || "Usuário")} (${escapeHtml(currentUser?.role || "")})</div>
+            <div><strong>Emissão:</strong> ${escapeHtml(new Date().toLocaleDateString("pt-BR"))} às ${escapeHtml(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}</div>
           </div>
         </div>
 
         <div class="title-section">
           <h1>Relatório Consolidado de Vendas &amp; Desempenho</h1>
-          <span class="badge">Período: ${reportData.periodLabel}</span>
+          <span class="badge">Período: ${escapeHtml(reportData.periodLabel)}</span>
           <span style="font-size:9.5px;color:#64748b;margin-left:8px;">
-            (${new Date(reportData.startDate).toLocaleDateString("pt-BR")} até ${new Date(reportData.endDate).toLocaleDateString("pt-BR")})
+            (${escapeHtml(new Date(reportData.startDate).toLocaleDateString("pt-BR"))} até ${escapeHtml(new Date(reportData.endDate).toLocaleDateString("pt-BR"))})
           </span>
         </div>
 
@@ -450,10 +456,10 @@ const ModalExportarRelatorio = ({ isOpen, onClose }) => {
                         (p, idx) => `
                 <tr>
                   <td><strong>${idx + 1}</strong></td>
-                  <td>${p.nome}</td>
-                  <td class="text-right">${p.quantidadeVendida} un.</td>
-                  <td class="text-right"><strong>${formatCurrency(p.valorTotal)}</strong></td>
-                  <td class="text-right">${p.percentual}%</td>
+                  <td>${escapeHtml(p.nome)}</td>
+                  <td class="text-right">${escapeHtml(p.quantidadeVendida)} un.</td>
+                  <td class="text-right"><strong>${escapeHtml(formatCurrency(p.valorTotal))}</strong></td>
+                  <td class="text-right">${escapeHtml(p.percentual)}%</td>
                 </tr>`
                       )
                       .join("")

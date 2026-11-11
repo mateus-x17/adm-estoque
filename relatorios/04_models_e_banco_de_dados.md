@@ -1,6 +1,6 @@
 # 📑 RELATÓRIO TÉCNICO 04 — MODELS, ESTRUTURAS DE DADOS E BANCO DE DADOS
 ## Projeto: Estoque.OS — Modelagem Multi-Organização, Multipedidos & Preservação Histórica (Fase H)
-**Data da Atualização:** 2026-11-10  
+**Data da Atualização:** 2026-11-11  
 **Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
@@ -8,18 +8,18 @@
 ## 1. Topologia do Banco de Dados e Histórico de Migrações `[IMPLEMENTADO (verificado)]`
 
 - **SGBD Primário:** PostgreSQL (Neon Cloud Database).
-- **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2 na última checagem).
+- **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2).
 - **Schema Oficial:** [`backend/prisma/schema.prisma`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/schema.prisma).
-- **9 Migrações Versionadas em `backend/prisma/migrations/`:**
+- **9 Migrações Versionadas em `backend/prisma/migrations/` (ordenadas cronologicamente para execução determinística em `prisma migrate deploy`):**
   1. `20250918051748_init` — Esquema base inicial.
   2. `20251012223132_add_field_imagem_usuario` — Avatar em usuários.
   3. `20260601063115_upd_tabela_fornecedores` — Expansão de fornecedores.
   4. `20261022_alter_enum_reposicao_venda` — Enum canônico `REPOSICAO` / `VENDA`.
-  5. `20261110_multitenant_softdelete` — Introdução de `Empresa` + `ativo`.
-  6. `20261110_organizacao_multipedidos` — Evolução de `Empresa` → `Organizacao` + `Loja` (com backfill seguro preservando IDs), criação de `PedidoStatus`, `Pedido` e `ItemPedido`, remoção de `Usuario.ativo`, e inclusão de `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `precoUnitario`, `valorTotal`, `estorno` e `pedidoId` em `Movimento`.
-  7. `20261110_pedido_comprovantes` — Inclusão de `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` e `recebidoPor` em `Pedido`.
-  8. `20261110_matricula_situacao_rh` — Inclusão do enum `SituacaoFuncionario` (`ATIVO` | `SUSPENSO` | `FERIAS`), `matricula` única (`MAT-00001`), `telefone`, `situacao`, `dataAdmissao` em `Usuario` e snapshots `vendedorMatriculaSnapshot`, `vendedorDataAdmissaoSnapshot` e `vendedorDataDesligamentoSnapshot` em `Pedido` e `Movimento`.
-  9. `20261110_registro_desligamento` — Criação da tabela **`RegistroDesligamento`** (`vendedorRefId`, `matricula`, `dataAdmissao`, `dataDemissao`, `motivo`, `lojaNome`, com backfill dos históricos existentes) para listar/filtrar ex-funcionários em `/dashboard/usuarios` mantendo a exclusão física em `Usuario`.
+  5. `20261110010000_multitenant_softdelete` — Introdução de `Empresa` + `ativo`.
+  6. `20261110020000_organizacao_multipedidos` — Evolução de `Empresa` → `Organizacao` + `Loja` (com backfill seguro preservando IDs), criação de `PedidoStatus`, `Pedido` e `ItemPedido`, remoção de `Usuario.ativo`, e inclusão de `vendedorRefId`, `vendedorNomeSnapshot`, `vendedorEmailSnapshot`, `precoUnitario`, `valorTotal`, `estorno` e `pedidoId` em `Movimento`.
+  7. `20261110030000_pedido_comprovantes` — Inclusão de `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` e `recebidoPor` em `Pedido`.
+  8. `20261110040000_matricula_situacao_rh` — Inclusão do enum `SituacaoFuncionario` (`ATIVO` | `SUSPENSO` | `FERIAS`), `matricula` única (`MAT-00001`), `telefone`, `situacao`, `dataAdmissao` em `Usuario` e snapshots `vendedorMatriculaSnapshot`, `vendedorDataAdmissaoSnapshot` e `vendedorDataDesligamentoSnapshot` em `Pedido` e `Movimento`.
+  9. `20261110050000_registro_desligamento` — Criação da tabela **`RegistroDesligamento`** (`vendedorRefId`, `matricula`, `dataAdmissao`, `dataDemissao`, `motivo`, `lojaNome`, com backfill dos históricos existentes) para listar/filtrar ex-funcionários em `/dashboard/usuarios` mantendo a exclusão física em `Usuario`.
 
 ---
 

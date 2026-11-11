@@ -1,6 +1,7 @@
 import { prisma, Prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
 import { formatMatricula, parseMatriculaSearch } from "../utils/matriculaHelper.js";
+import { sanitizeSafeUrl } from "../utils/sanitizers.js";
 
 // arquivo responsável pelas regras de negócio, lock pessimista multi-item e estorno atômico de Multipedidos
 
@@ -33,11 +34,13 @@ function buildOrderCode() {
   return `PED-${ts}-${rand}`;
 }
 
-// função para criar um pedido multi-item (VENDA ou REPOSICAO) em transação atômica com lock ordenado
-// 1 - Normaliza tipo e agrupa itens duplicados do mesmo produto somando quantidades
-// 2 - Aplica suporte a Idempotency-Key evitando pedidos duplicados por instabilidade de rede
-// 3 - Executa FOR UPDATE ordenado por ID de produto para prevenir deadlocks sob alta concorrência
-// 4 - Congela precoUnitario no ItemPedido e gera espelho contábil no livro-razão (Movimento)
+// função responsável por criar um pedido multi-item (VENDA ou REPOSICAO) em transação atômica com lock ordenado.
+//
+// 1 - recebe payload (object), requestingUser (object), storeScope (object) e idempotencyKey (string|null opcional).
+// 2 - valida loja/organização, normaliza tipo, agrupa itens duplicados ordenados e verifica eventual fornecedor da loja.
+// 3 - aplica suporte a Idempotency-Key evitando criação duplicada por instabilidade de rede.
+// 4 - adquire lock pessimista FOR UPDATE ordenado por ID de produto, valida saldo, calcula valorTotal e valida comprovanteUrl com sanitizeSafeUrl.
+// 5 - persiste Pedido, ItemPedido, atualização de estoque e livro-razão Movimento em transação única retornando o pedido criado.
 export async function createOrder(payload, requestingUser, storeScope, idempotencyKey = null) {
   if (!storeScope?.organizacaoId || !storeScope?.lojaId) {
     throw new AppError("Loja ou organização não identificada para registrar o pedido", 400);
@@ -172,6 +175,14 @@ export async function createOrder(payload, requestingUser, storeScope, idempoten
       valorTotal = Number(valorTotal.toFixed(2));
       const codigo = buildOrderCode();
 
+      let safeComprovanteUrl = null;
+      if (payload.comprovanteUrl && String(payload.comprovanteUrl).trim() !== "") {
+        safeComprovanteUrl = sanitizeSafeUrl(payload.comprovanteUrl, true);
+        if (!safeComprovanteUrl) {
+          throw new AppError("URL do comprovante inválida. Use apenas links https:// ou arquivos enviados.", 400);
+        }
+      }
+
       const pedido = await tx.pedido.create({
         data: {
           codigo,
@@ -183,7 +194,7 @@ export async function createOrder(payload, requestingUser, storeScope, idempoten
             ? String(payload.statusPagamento).trim().toUpperCase()
             : "PAGO",
           comprovanteCodigo: payload.comprovanteCodigo ? String(payload.comprovanteCodigo).trim() : null,
-          comprovanteUrl: payload.comprovanteUrl ? String(payload.comprovanteUrl).trim() : null,
+          comprovanteUrl: safeComprovanteUrl,
           recebidoPor: payload.recebidoPor ? String(payload.recebidoPor).trim() : null,
           observacao: payload.observacao ? String(payload.observacao).trim() : null,
           clienteNome: payload.clienteNome ? String(payload.clienteNome).trim() : null,
@@ -522,9 +533,12 @@ export async function cancelOrder(id, motivo, scope, requestingUser) {
   });
 }
 
-// função para anexar ou atualizar comprovação de pagamento/recebimento em um pedido existente
-// 1 - Garante isolamento por Organização, Loja e sigilo do OPERADOR (somente seus próprios pedidos)
-// 2 - Atualiza formaPagamento, statusPagamento, comprovanteCodigo, comprovanteUrl e recebidoPor
+// função responsável por anexar ou atualizar comprovação de pagamento e recebimento em um pedido existente.
+//
+// 1 - recebe id (number|string), data (object), scope (object) e requestingUser (object).
+// 2 - valida ID numérico e busca o pedido isolado por organização, loja e sigilo de OPERADOR.
+// 3 - bloqueia alterações se o pedido estiver CANCELADO e valida eventual comprovanteUrl com sanitizeSafeUrl.
+// 4 - atualiza os campos comprobatórios via prisma.pedido.update e retorna o pedido atualizado.
 export async function updateOrderProof(id, data = {}, scope, requestingUser) {
   const orderId = Number(id);
   if (isNaN(orderId)) throw new AppError("ID de pedido inválido", 400);
@@ -544,6 +558,18 @@ export async function updateOrderProof(id, data = {}, scope, requestingUser) {
     throw new AppError("Não é possível alterar comprovante de um pedido cancelado.", 400);
   }
 
+  let safeComprovanteUrl = undefined;
+  if (data.comprovanteUrl !== undefined) {
+    if (String(data.comprovanteUrl || "").trim() === "") {
+      safeComprovanteUrl = null;
+    } else {
+      safeComprovanteUrl = sanitizeSafeUrl(data.comprovanteUrl, true);
+      if (!safeComprovanteUrl) {
+        throw new AppError("URL do comprovante inválida. Use apenas links https:// ou arquivos enviados.", 400);
+      }
+    }
+  }
+
   return prisma.pedido.update({
     where: { id: orderId },
     data: {
@@ -559,8 +585,7 @@ export async function updateOrderProof(id, data = {}, scope, requestingUser) {
         data.comprovanteCodigo !== undefined
           ? String(data.comprovanteCodigo).trim() || null
           : undefined,
-      comprovanteUrl:
-        data.comprovanteUrl !== undefined ? String(data.comprovanteUrl).trim() || null : undefined,
+      comprovanteUrl: safeComprovanteUrl,
       recebidoPor:
         data.recebidoPor !== undefined ? String(data.recebidoPor).trim() || null : undefined,
     },

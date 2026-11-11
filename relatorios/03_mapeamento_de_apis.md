@@ -1,6 +1,6 @@
 # 📑 RELATÓRIO TÉCNICO 03 — MAPEAMENTO DE APIS, CONTRATOS E CADEIAS DE EXECUÇÃO
 ## Projeto: Estoque.OS — Catálogo Completo de Endpoints (Sincronizado Fase H)
-**Data da Atualização:** 2026-11-10  
+**Data da Atualização:** 2026-11-11  
 **Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
@@ -8,8 +8,9 @@
 ## 1. Visão Geral da Superfície da API `[IMPLEMENTADO (verificado)]`
 
 A API do **Estoque.OS** expõe **57 rotas HTTP registradas no Express** (`55` em `src/routes/*.js` + `2` na raiz `index.js`, além de estáticos em `USE /uploads`):
+- **Camada Global (`index.js`):** `trust proxy = 1` (Render), `Helmet`, `CORS` com múltiplas origens normalizadas (`FRONTEND_URL`), parser JSON/urlencoded limitado a `1MB`, logger Pino + `X-Request-Id` e `apiLimiter` global (**400 req / 15 min / IP**).
 - **Rotas Públicas (`4`):** `GET /`, `GET /test-db`, `POST /auth/login`, `POST /auth/register`.
-- **Rotas Protegidas (`53`):** Exigem JWT válido (`authMiddleware`), Organização ativa (`Organizacao.ativo = true`), situação funcional `ATIVO` (contas `SUSPENSO`/`FERIAS` recebem `403`) e, para não-`ADMIN`, Loja ativa (`Loja.ativo = true`). O isolamento segue a regra:
+- **Rotas Protegidas (`53`):** Exigem Bearer JWT válido em algoritmo `HS256` (`authMiddleware`), Organização ativa (`Organizacao.ativo = true`), situação funcional `ATIVO` (contas `SUSPENSO`/`FERIAS` recebem `403`) e, para não-`ADMIN`, Loja ativa (`Loja.ativo = true`). O isolamento segue a regra:
   - Cross-organização → HTTP **`404 Not Found`**.
   - Cross-loja para `GERENTE`/`OPERADOR` → ignorado (`req.user.lojaId` forçado no backend) ou **`403 Forbidden`**.
   - Contexto do `ADMIN` → header `X-Loja-Id` ou query `?lojaId=` (`"all"` para rede consolidada, ou ID numérico de uma filial da própria Organização).

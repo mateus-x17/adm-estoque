@@ -1,6 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { FiPrinter, FiX, FiCheckCircle } from "react-icons/fi";
+import { escapeHtml } from "../../utils/validators.js";
 
 // arquivo responsável pela exibição e impressão A4 do Relatório Final de Desligamento filtrado por meses trabalhados
 
@@ -9,7 +10,12 @@ const formatBRL = (v) =>
 
 const formatDateBR = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 
-// função para gerar impressão/PDF A4 do relatório trabalhista mantendo apenas Nome, E-mail, Matrícula Cancelada, Início e Término
+// função responsável por gerar e imprimir PDF A4 do relatório final de desligamento com sanitização XSS.
+//
+// 1 - recebe relatorio (object) contendo vendedor, resumo, vendasPorMes e topProdutos.
+// 2 - abre popup de impressão via window.open e valida disponibilidade.
+// 3 - escapa todos os textos dinâmicos com escapeHtml antes de montar as tabelas mensais e de produtos.
+// 4 - grava o HTML no popup via win.document.write, dispara win.print() e não retorna valor.
 function printDismissalReportPdf(relatorio) {
   const win = window.open("", "_blank", "width=900,height=720");
   if (!win || !relatorio) return;
@@ -20,10 +26,10 @@ function printDismissalReportPdf(relatorio) {
     .map(
       (m) => `
       <tr>
-        <td>${m.label}</td>
-        <td style="text-align:center">${m.pedidosConcluidos}</td>
-        <td style="text-align:center">${m.pecas}</td>
-        <td style="text-align:right;font-weight:700">${formatBRL(m.faturamento)}</td>
+        <td>${escapeHtml(m.label)}</td>
+        <td style="text-align:center">${escapeHtml(m.pedidosConcluidos)}</td>
+        <td style="text-align:center">${escapeHtml(m.pecas)}</td>
+        <td style="text-align:right;font-weight:700">${escapeHtml(formatBRL(m.faturamento))}</td>
       </tr>`
     )
     .join("");
@@ -33,9 +39,9 @@ function printDismissalReportPdf(relatorio) {
       (p, idx) => `
       <tr>
         <td>#${idx + 1}</td>
-        <td>${p.nome}</td>
-        <td style="text-align:center">${p.quantidade}</td>
-        <td style="text-align:right;font-weight:700">${formatBRL(p.faturamento)}</td>
+        <td>${escapeHtml(p.nome)}</td>
+        <td style="text-align:center">${escapeHtml(p.quantidade)}</td>
+        <td style="text-align:right;font-weight:700">${escapeHtml(formatBRL(p.faturamento))}</td>
       </tr>`
     )
     .join("");
@@ -44,7 +50,7 @@ function printDismissalReportPdf(relatorio) {
   <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <title>Relatório de Desligamento - ${vendedor.nome}</title>
+    <title>Relatório de Desligamento - ${escapeHtml(vendedor.nome)}</title>
     <style>
       body { font-family: Arial, sans-serif; color: #111827; padding: 28px; font-size: 12px; }
       .header { border-bottom: 2px solid #7c3aed; padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
@@ -71,28 +77,28 @@ function printDismissalReportPdf(relatorio) {
         <h1>Relatório Final de Desligamento &amp; Vendas</h1>
         <span style="color:#6b7280">Histórico consolidado filtrado pelos meses de atuação na empresa</span>
       </div>
-      <span class="badge-cancel">${vendedor.matriculaDisplay}</span>
+      <span class="badge-cancel">${escapeHtml(vendedor.matriculaDisplay)}</span>
     </div>
 
     <div class="id-box">
-      <div><small>Nome</small><strong>${vendedor.nome}</strong></div>
-      <div><small>E-mail</small><strong>${vendedor.email}</strong></div>
-      <div><small>Matrícula</small><strong>${vendedor.matriculaDisplay}</strong></div>
+      <div><small>Nome</small><strong>${escapeHtml(vendedor.nome)}</strong></div>
+      <div><small>E-mail</small><strong>${escapeHtml(vendedor.email)}</strong></div>
+      <div><small>Matrícula</small><strong>${escapeHtml(vendedor.matriculaDisplay)}</strong></div>
     </div>
 
     <div class="dates-box">
-      <div class="kpi"><small>Data de Início (Admissão)</small><strong>${formatDateBR(vendedor.dataInicio)}</strong></div>
-      <div class="kpi"><small>Data de Demissão (Término)</small><strong>${formatDateBR(vendedor.dataTermino)}</strong></div>
+      <div class="kpi"><small>Data de Início (Admissão)</small><strong>${escapeHtml(formatDateBR(vendedor.dataInicio))}</strong></div>
+      <div class="kpi"><small>Data de Demissão (Término)</small><strong>${escapeHtml(formatDateBR(vendedor.dataTermino))}</strong></div>
     </div>
 
     <div class="kpis">
-      <div class="kpi"><small>Faturamento Total</small><strong>${formatBRL(resumo.faturamentoTotal)}</strong></div>
-      <div class="kpi"><small>Pedidos Concluídos</small><strong>${resumo.totalPedidosConcluidos}</strong></div>
-      <div class="kpi"><small>Peças Vendidas</small><strong>${resumo.totalPecas} un.</strong></div>
-      <div class="kpi"><small>Ticket Médio</small><strong>${formatBRL(resumo.ticketMedio)}</strong></div>
+      <div class="kpi"><small>Faturamento Total</small><strong>${escapeHtml(formatBRL(resumo.faturamentoTotal))}</strong></div>
+      <div class="kpi"><small>Pedidos Concluídos</small><strong>${escapeHtml(resumo.totalPedidosConcluidos)}</strong></div>
+      <div class="kpi"><small>Peças Vendidas</small><strong>${escapeHtml(resumo.totalPecas)} un.</strong></div>
+      <div class="kpi"><small>Ticket Médio</small><strong>${escapeHtml(formatBRL(resumo.ticketMedio))}</strong></div>
     </div>
 
-    <h2>Vendas Mês a Mês no Período Trabalhado (${formatDateBR(vendedor.dataInicio)} a ${formatDateBR(vendedor.dataTermino)})</h2>
+    <h2>Vendas Mês a Mês no Período Trabalhado (${escapeHtml(formatDateBR(vendedor.dataInicio))} a ${escapeHtml(formatDateBR(vendedor.dataTermino))})</h2>
     <table>
       <thead>
         <tr>

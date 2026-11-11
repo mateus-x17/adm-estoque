@@ -1,16 +1,18 @@
+// arquivo responsável por validar JWT com algoritmo restrito, carregar contexto de Organização/Loja em cache e bloquear acessos inativos ou suspensos usando Prisma e jsonwebtoken.
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
 import { formatMatricula } from "../utils/matriculaHelper.js";
 
-// arquivo responsável por validar JWT, carregar o contexto de Organização/Loja com cache em memória e bloquear acessos inválidos
-
 const userCache = new Map();
 const USER_CACHE_TTL_MS = 60 * 1000; // 60 segundos
 
-// função para invalidar o cache de autenticação de um usuário específico ou de toda a aplicação
-// 1 - Se userId for informado, limpa apenas a entrada correspondente (ex: transferência de loja ou exclusão)
-// 2 - Se omitido, limpa todo o cache (ex: desativação de loja ou organização)
+// função responsável por invalidar o cache de autenticação de um usuário específico ou de toda a aplicação.
+//
+// 1 - recebe userId (number|null opcional) identificando o usuário alterado.
+// 2 - remove apenas a entrada específica do userCache se userId for informado.
+// 3 - limpa todo o userCache se userId for omitido (ex.: inativação de loja ou organização).
+// 4 - não retorna valor.
 export function invalidateUserCache(userId = null) {
   if (userId) {
     userCache.delete(Number(userId));
@@ -28,26 +30,44 @@ setInterval(() => {
   }
 }, 30 * 1000).unref();
 
-// middleware para autenticar requisições protegidas e injetar req.user com escopo de Organização e Loja
-// 1 - Extrai o Bearer Token e valida assinatura JWT
-// 2 - Tenta recuperar do cache local (TTL 60s) para evitar latência repetitiva ao Neon
-// 3 - Em cache miss, valida existência do usuário (sem soft delete em Usuario) e status ativo de Organizacao e Loja
+// função responsável por autenticar requisições protegidas via Bearer JWT e injetar req.user com escopo de Organização e Loja.
+//
+// 1 - recebe req (Request), res (Response) e next (NextFunction).
+// 2 - valida o formato Bearer no cabeçalho authorization e verifica assinatura JWT exclusivamente via HS256.
+// 3 - verifica se o ID extraído do payload é inteiro positivo válido e tenta resolver pelo cache em memória (TTL 60s).
+// 4 - consulta o usuário no banco via prisma.usuario.findUnique validando existência, situação trabalhista, organização e loja ativas.
+// 5 - armazena o contexto em userCache, atribui req.user e chama next() ou encaminha AppError apropriado.
 export async function authMiddleware(req, res, next) {
+  // 2 - valida formato Bearer e decodifica token restrito a HS256
   const authHeader = req.headers.authorization;
   if (!authHeader) return next(new AppError("Token não fornecido", 401));
 
-  const token = authHeader.split(" ")[1];
+  const bearerMatch = /^Bearer\s+(\S+)$/i.exec(authHeader.trim());
+  if (!bearerMatch) return next(new AppError("Formato de token inválido", 401));
+
+  const token = bearerMatch[1];
+  let payload;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = Number(payload.id);
+    payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+  } catch {
+    return next(new AppError("Token inválido ou expirado", 401));
+  }
 
-    const now = Date.now();
-    const cached = userCache.get(userId);
-    if (cached && now - cached.timestamp < USER_CACHE_TTL_MS) {
-      req.user = cached.user;
-      return next();
-    }
+  // 3 - valida integridade do userId no payload e tenta leitura no cache
+  const userId = Number(payload?.id);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return next(new AppError("Token inválido", 401));
+  }
 
+  const now = Date.now();
+  const cached = userCache.get(userId);
+  if (cached && now - cached.timestamp < USER_CACHE_TTL_MS) {
+    req.user = cached.user;
+    return next();
+  }
+
+  // 4 - valida usuário, situação funcional, organização e loja diretamente no banco
+  try {
     const user = await prisma.usuario.findUnique({
       where: { id: userId },
       select: {
@@ -107,6 +127,7 @@ export async function authMiddleware(req, res, next) {
       );
     }
 
+    // 5 - persiste no cache de sessão e libera continuação da rota
     const userData = {
       id: user.id,
       nome: user.nome,
@@ -129,6 +150,6 @@ export async function authMiddleware(req, res, next) {
     req.user = userData;
     next();
   } catch (err) {
-    return next(new AppError("Token inválido ou expirado", 401));
+    return next(err);
   }
 }

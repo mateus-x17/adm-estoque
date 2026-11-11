@@ -1,8 +1,15 @@
-// arquivo responsável por exibir toast informativo durante conexões e cold-start da API no Render
+// arquivo responsável por gerenciar a exibição e ocultação de toast informativo no DOM durante conexões e cold-start da API no Render.
 
 let toastContainer = null;
 let removeTimeout = null;
 
+// função responsável por exibir ou atualizar o toast de conexão com o servidor no topo da tela.
+//
+// 1 - recebe message (string opcional) descrevendo o status atual da requisição.
+// 2 - cancela eventual temporizador de remoção pendente em removeTimeout.
+// 3 - cria dinamicamente o container DOM #server-connection-toast se ainda não existir e o anexa em document.body.
+// 4 - preenche o texto com segurança via textContent em #server-toast-text e aplica classes de transição de entrada.
+// 5 - não retorna valor.
 export const showServerToast = (
   message = "Aguardando resposta da API (serviços em repouso no Render podem levar alguns segundos para inicializar)..."
 ) => {
@@ -10,6 +17,7 @@ export const showServerToast = (
 
   clearTimeout(removeTimeout);
 
+  // 3 - instancia o elemento do toast caso não esteja montado no documento
   if (!toastContainer) {
     toastContainer = document.createElement("div");
     toastContainer.id = "server-connection-toast";
@@ -37,10 +45,11 @@ export const showServerToast = (
 
     document.body.appendChild(toastContainer);
 
-    // Força reflow para aplicar animação de entrada
+    // força reflow para disparar transição CSS de entrada na primeira montagem
     void toastContainer.offsetWidth;
   }
 
+  // 4 - atualiza o texto de forma segura e exibe o toast
   const textEl = toastContainer.querySelector("#server-toast-text");
   if (textEl) {
     textEl.textContent = message;
@@ -50,6 +59,12 @@ export const showServerToast = (
   toastContainer.classList.add("opacity-100", "translate-y-0", "scale-100");
 };
 
+// função responsável por ocultar gradualmente e remover do DOM o toast de conexão com o servidor.
+//
+// 1 - verifica se document e toastContainer existem para evitar erro fora de navegador.
+// 2 - alterna classes CSS para animar o fade-out e deslocamento vertical.
+// 3 - agenda remoção definitiva de toastContainer do DOM após 350ms e limpa a referência.
+// 4 - não retorna valor.
 export const hideServerToast = () => {
   if (typeof document === "undefined" || !toastContainer) return;
 

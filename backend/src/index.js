@@ -1,3 +1,4 @@
+// arquivo responsável por inicializar o servidor Express, configurar segurança HTTP (Helmet, CORS, Rate Limit), registrar rotas e gerenciar Graceful Shutdown.
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -21,23 +22,42 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// arquivo principal que inicializa o servidor Node.js/Express
-// 1 - Carrega as variáveis de ambiente a partir do arquivo .env com caminho absoluto robusto
+// 1 - carrega as variáveis de ambiente a partir do arquivo .env com caminho absoluto robusto
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config(); // fallback caso esteja em outro diretório
 
-// 2 - Valida se a chave JWT existe e tem um tamanho seguro mínimo
+// 2 - valida se JWT_SECRET existe e possui tamanho seguro mínimo (falha imediatamente em produção)
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
-  logger.warn('JWT_SECRET is missing or too short. Define a secure JWT_SECRET in your .env');
+  if (process.env.NODE_ENV === "production") {
+    logger.fatal("JWT_SECRET ausente ou muito curto em produção. Abortando inicialização.");
+    process.exit(1);
+  }
+  logger.warn("JWT_SECRET ausente ou muito curto. Defina um segredo forte com pelo menos 16 caracteres no .env.");
 }
 
-// 3 - Cria a instância da aplicação Express
+// 3 - cria a instância da aplicação Express e ativa trust proxy para identificar IP real atrás de proxies (Render)
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
-// 4 - Configuração de Middlewares Globais
-// Helmet: injeta cabeçalhos de segurança na resposta HTTP (proteção contra XSS, Clickjacking, etc)
-// A política cross-origin permite que recursos sejam carregados por domínios diferentes, essencial se o front estiver em outro domínio/porta
+// função responsável por normalizar a lista de origens permitidas no CORS a partir de FRONTEND_URL.
+//
+// 1 - recebe rawFrontendUrl (string|undefined).
+// 2 - divide por vírgula caso múltiplas origens estejam configuradas e remove espaços/barras finais.
+// 3 - retorna o array de origens válidas com fallback seguro para http://localhost:5173.
+function parseAllowedOrigins(rawFrontendUrl) {
+  if (!rawFrontendUrl) return ["http://localhost:5173"];
+  const origins = String(rawFrontendUrl)
+    .split(",")
+    .map((url) => url.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+  return origins.length > 0 ? origins : ["http://localhost:5173"];
+}
+
+const allowedOrigins = parseAllowedOrigins(process.env.FRONTEND_URL);
+
+// 4 - configuração de middlewares globais de segurança e parsing
+// Helmet injeta cabeçalhos de segurança (CSP, nosniff, X-Frame-Options, HSTS). cross-origin libera mídia para outro domínio.
 app.use(
   helmet({
     crossOriginResourcePolicy: {
@@ -46,31 +66,54 @@ app.use(
   })
 );
 
-// CORS: Permite requisições vindas do endereço do frontend, incluindo envio de cookies/credenciais
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const cleanOrigin = origin.replace(/\/+$/, "");
+      if (allowedOrigins.includes(cleanOrigin)) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
+  })
+);
 
-// Express JSON: Faz o parse (leitura) de corpos de requisição em formato JSON
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
-// Logger Customizado: Intercepta todas as requisições para medir tempo de resposta e registrar o acesso
+// logger estruturado com Correlation ID (X-Request-Id)
 app.use(requestLogger);
 
-// Arquivos Estáticos: Expõe a pasta local "uploads" publicamente sob a rota "/uploads"
-app.use("/uploads", express.static("uploads"));
+// expõe uploads locais ignorando arquivos ocultos (dotfiles)
+app.use("/uploads", express.static("uploads", { dotfiles: "ignore" }));
 
-// 5 - Configuração do limitador de requisições
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Muitas tentativas. Tente novamente mais tarde.' });
+// 5 - rate limiter global da API para proteção contra abuso e floods (além dos limiters estritos em /auth)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 400,
+  message: {
+    message: "Muitas requisições a partir deste IP. Tente novamente em alguns instantes.",
+    statusCode: 429,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(apiLimiter);
 
-// 6 - Rota de teste simples (Healthcheck) para saber se a API subiu
+// 6 - rota de healthcheck simples para monitoramento da API
 app.get("/", (req, res) => res.send("🚀 Backend Estoque rodando"));
 
-// 7 - Rota de teste específica para verificar se a conexão com o banco de dados via Prisma foi estabelecida com sucesso
+// 7 - rota para verificar conectividade com PostgreSQL/NeonDB sem vazar detalhes internos em produção
 app.get("/test-db", async (req, res) => {
   try {
     const result = await prisma.$queryRaw`SELECT NOW()`;
     res.json({ message: "✅ Conexão com Neon/Postgres funcionando!", result });
   } catch (error) {
-    res.status(500).json({ error: "Erro ao conectar no banco", details: error.message });
+    logger.error({ err: error }, "Falha no healthcheck /test-db");
+    res.status(500).json({
+      error: "Erro ao conectar no banco",
+      ...(process.env.NODE_ENV !== "production" ? { details: error.message } : {}),
+    });
   }
 });
 

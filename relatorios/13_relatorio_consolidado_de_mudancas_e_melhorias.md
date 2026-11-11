@@ -1,6 +1,6 @@
 # 📑 RELATÓRIO TÉCNICO 13 — RESUMO EXECUTIVO CONSOLIDADO DE MUDANÇAS E MELHORIAS (FASES A → H)
 **Projeto:** Estoque.OS  
-**Data da Atualização:** 2026-11-10  
+**Data da Atualização:** 2026-11-11  
 **Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 **Conformidade Metodológica:** Consolidado final nos moldes da Seção `2.14` do catálogo unificado.
 
@@ -24,7 +24,7 @@
 
 ## 2. Registro Técnico das Mudanças por Camada na Fase H
 
-1. **Banco de Dados & Migração ([`20261110_organizacao_multipedidos`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/migrations/20261110_organizacao_multipedidos/migration.sql)):**
+1. **Banco de Dados & Migração ([`20261110020000_organizacao_multipedidos`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/prisma/migrations/20261110020000_organizacao_multipedidos/migration.sql)):**
    - Criadas tabelas `Organizacao`, `Loja`, `Pedido`, `ItemPedido` e enum `PedidoStatus` (`CONCLUIDO`, `CANCELADO`) com backfill seguro dos IDs existentes de `Empresa`.
    - Adicionados campos imutáveis em `Movimento`: `precoUnitario`, `valorTotal`, `estorno`, `pedidoId`, `vendedorRefId`, `vendedorNomeSnapshot` e `vendedorEmailSnapshot`.
    - Removida a coluna `ativo` de `Usuario`; configurados `ON DELETE SET NULL` em `Pedido.usuarioId` e `Movimento.usuarioId` para viabilizar demissão real com rastreabilidade integral pelo ID antigo.
@@ -36,9 +36,11 @@
 
 ---
 
-## 3. Verificações Reais Executadas na Fase H `[IMPLEMENTADO (verificado)]`
+## 3. Verificações Reais Executadas (Pós-Fase H & Auditoria de Segurança) `[IMPLEMENTADO (verificado)]`
 
-- **Banco de Dados Neon:** `npx prisma generate` concluído com saída `0` (`Prisma Client v6.19.2`, schema com `10` models, `4` enums e `9` migrações, incluindo `20261110_pedido_comprovantes`, `20261110_matricula_situacao_rh` e `20261110_registro_desligamento`). As 6 migrações iniciais foram aplicadas no Neon antes da rotação de senha; as últimas 3 acompanham o push para aplicação automática no Render (`prisma migrate deploy`), pois `npx prisma migrate deploy` e `reset:seed` locais acusaram `P1001` no host Neon configurado localmente.
-- **Sintaxe Backend & E2E:** `node --check` validado em 100% dos arquivos `.js`/`.mjs` pós-edição final. A suíte [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) foi expandida para validar geração de Matrícula, suspensão/reativação (`PATCH /users/:id/situation`), demissão c/ `dataDemissao`, filtro `situacao=DESLIGADO` em `GET /users`, `GET /users/:refId/dismissal-report` e busca por Matrícula.
-- **Frontend Lint & Build:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.418 módulos** compilados em `58,23s`, `index-PuhSpkQw.js` `1.011,83 kB`) aprovados após as últimas edições.
-- **Pendências Declaradas com Transparência:** Benchmark HTTP de carga Pós-Fase H (`NÃO MEDIDO`), *code-splitting* do bundle Frontend, migração dos 2 `fetch()` de `EditarItem.jsx` e remoção do `loginLimiter` não utilizado em `index.js`.
+- **Banco de Dados Neon & Deploy Render:** Reordenadas cronologicamente as 5 migrações (`20261110010000_`–`20261110050000_`), aplicadas todas as **9 migrações** via `npx prisma migrate deploy` no NeonDB ativo (`ep-bold-poetry-adxi7rof-pooler`), executado `npm run seed` + `npm run seedMovements` e confirmado deploy vivo no Render (`GET https://adm-estoque.onrender.com/test-db` -> `200 OK` com `CORS` Vercel).
+- **Segurança & `npm audit`:** `npm audit fix` zerou vulnerabilidades no **frontend (`0`)** e reduziu o **backend** de `14` (1 crítica `proxy-addr`, 10 altas incl. `multer <=2.4.0`) para `5` transitivas CLI/dev; validados unitariamente `sanitizeSafeUrl`, `sanitizeSpreadsheetCell`, `removeLocalUploadIfSafe`, `escapeHtml`, `formatImageUrl` e ocultação de erro 500 em [`errorHandler.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/errorHandler.js).
+- **Sintaxe Backend & Suíte E2E:** [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) aprovada **`7/7` cenários** contra API + NeonDB reais após todas as alterações de segurança.
+- **Frontend Lint & Build:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.420 módulos** compilados em `1m 42s`, `index-HtmucMcS.js` `1.020,48 kB`).
+- **Conformidade [`promptFuncExplic.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/ordem%20de%20prompts/promptFuncExplic.md):** `100%` das funções novas/modificadas estritamente conformes; restante do legado em estado híbrido (`20/157` estritas / `91/157` numeradas no backend; `8/75` estritas / `19/75` numeradas no frontend).
+- **Pendências Declaradas com Transparência:** Benchmark HTTP de carga Pós-Fase H (`NÃO MEDIDO`), *code-splitting* do bundle Frontend e migração dos 2 `fetch()` restantes em `EditarItem.jsx`.

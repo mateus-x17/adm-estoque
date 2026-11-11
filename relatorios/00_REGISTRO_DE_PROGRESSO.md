@@ -1,8 +1,8 @@
 # 📋 REGISTRO DE PROGRESSO — ESTOQUE.OS (AUDITORIA & EVOLUÇÃO CONTÍNUA)
 
-**Última Atualização:** 2026-11-10  
+**Última Atualização:** 2026-11-11  
 **Branch Ativa:** `main`  
-**Status Geral:** `FASE H CONCLUÍDA — Arquitetura Organização → Lojas, Portais Separados, Multipedidos c/ Estorno, Matrícula/Situação Funcional e Auditoria de Ex-Vendedores`
+**Status Geral:** `FASE H + HARDENING DE SEGURANÇA & DEPLOY NUVEM CONCLUÍDOS — Arquitetura Organização → Lojas, Migrations Ordenadas, Blindagem AppSec/XSS/Uploads & E2E 7/7 no Neon`
 
 ---
 
@@ -19,6 +19,7 @@
 | **Fase F — Confiabilidade & Docs** | 2026-11-09 | Pino + Correlation ID `X-Request-Id`, `Graceful Shutdown` (`SIGTERM`/`SIGINT`, timeout 10s) e sincronização do catálogo HTTP. | `CONCLUÍDO / INCORPORADO` |
 | **Fase G — Multi-Tenant & Planilhas** | 2026-11-10 | Modelo `Empresa` inicial, Soft Delete em catálogo/usuários, motor nativo `.xlsx`/`.csv` (`ExcelJS`), sigilo de `OPERADOR`, landing `#multitenant` e modais via `createPortal`. | `EVOLUÍDO PARA FASE H` |
 | **Fase H — Organização → Lojas, Multipedidos & Gestão RH / Matrícula** | 2026-11-10 | Evolução para **`Organizacao` → múltiplas `Loja`**, **Portais `/admin/login` e `/login`**, **Transferência de `GERENTE`**, **Multipedidos atômicos (`Pedido` + `ItemPedido`)** c/ estorno e comprovantes, **Matrícula Única (`MAT-00001`), Situação Funcional (`ATIVO`/`SUSPENSO`/`FERIAS`), Telefone, Admissão e Demissão c/ Relatório Mensal (`Matricula (CANCELADA)`)**, tela **`/dashboard/desempenho`** (`1m`/`6m`/`1y` + busca por Matrícula/ID), seed (`Grupo TechStock Varejo` + `CyberForge Geek Store`), suíte E2E `7/7` e documentação sincronizada. | `CONCLUÍDO / VERIFICADO` |
+| **Hardening de Segurança, Deploy Render/Neon & Auditoria `promptFuncExplic.md`** | 2026-11-11 | Correção cronológica das 5 migrações (`20261110010000_`–`20261110050000_`), espera `1000ms` + [`serverToast.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/serverToast.js) em [`apiClient.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/apiClient.js), `trust proxy` + `apiLimiter` global + sigilo de erro 500, restrição `HS256` + senha `>= 6`, âncora+MIME em uploads, `sanitizeSafeUrl`, `removeLocalUploadIfSafe`, proteção contra Formula Injection e `escapeHtml` XSS nos 4 PDFs A4, `npm audit fix` (`0` vulns no frontend), verificação de produção Render + E2E `7/7` no Neon e auditoria de [`promptFuncExplic.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/ordem%20de%20prompts/promptFuncExplic.md). | `CONCLUÍDO / VERIFICADO` |
 
 ---
 

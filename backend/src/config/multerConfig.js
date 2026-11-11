@@ -1,27 +1,36 @@
+// arquivo responsável por configurar o armazenamento e filtragem segura de uploads locais usando Multer, path, fs e crypto.
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
+import { AppError } from "../utils/errorHandler.js";
 
-// arquivo responsável por configurar o upload de arquivos local usando Multer
-// 1 - Define os caminhos absolutos das pastas de destino dos uploads (pasta base, usuários, produtos e comprovantes)
 const uploadsDir = path.resolve("uploads");
 const usuariosDir = path.join(uploadsDir, "usuarios");
 const produtosDir = path.join(uploadsDir, "produtos");
 const comprovantesDir = path.join(uploadsDir, "comprovantes");
 
-// 2 - Itera sobre a lista de diretórios e verifica se existem, criando-os (com a flag recursive) caso não existam
 [uploadsDir, usuariosDir, produtosDir, comprovantesDir].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
-// 3 - Configura o motor de armazenamento (diskStorage) do multer
+const ALLOWED_IMAGE_EXT = /^\.(jpeg|jpg|webp|jfif|png)$/i;
+const ALLOWED_IMAGE_MIMES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/pjpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const ALLOWED_PROOF_EXT = /^\.(jpeg|jpg|webp|jfif|png|pdf)$/i;
+const ALLOWED_PROOF_MIMES = new Set([
+  ...ALLOWED_IMAGE_MIMES,
+  "application/pdf",
+]);
+
+// Configura armazenamento em disco segregado por módulo e com nomes sanitizados para evitar sobrescrita e Path Traversal.
 const storage = multer.diskStorage({
-  // função para determinar a pasta de destino do arquivo
-  // 1 - Lê a URL original da requisição
-  // 2 - Se a rota incluir "/users", envia para a pasta usuariosDir
-  // 3 - Se a rota incluir "/products", envia para a pasta produtosDir
-  // 4 - Se a rota incluir "/orders", envia para a pasta comprovantesDir
-  // 5 - Caso contrário, usa a pasta genérica uploadsDir
   destination: function (req, file, cb) {
     const url = req.originalUrl || req.url || "";
     if (url.includes("/users")) {
@@ -31,42 +40,48 @@ const storage = multer.diskStorage({
     } else if (url.includes("/orders")) {
       cb(null, comprovantesDir);
     } else {
-      cb(null, uploadsDir); // fallback
+      cb(null, uploadsDir);
     }
   },
-  // função para gerar um nome único para o arquivo salvo
-  // 1 - Extrai a extensão original do arquivo
-  // 2 - Pega o nome base do arquivo removendo espaços (substituindo por hífen)
-  // 3 - Chama o callback concatenando o timestamp atual (Date.now) com o nome base e a extensão, garantindo unicidade
   filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, "-");
-    cb(null, `${Date.now()}-${base}${ext}`);
+    const ext = path.extname(file.originalname || "").toLowerCase().replace(/[^.a-z0-9]/g, "");
+    const rawBase = path.basename(file.originalname || "arquivo", ext);
+    const safeBase = rawBase.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) || "arquivo";
+    const randomSuffix = crypto.randomBytes(4).toString("hex");
+    cb(null, `${Date.now()}-${randomSuffix}-${safeBase}${ext}`);
   },
 });
 
-// função para filtrar quais tipos de arquivos são permitidos no upload
-// 1 - Define uma expressão regular com as extensões permitidas (jpeg, jpg, webp, png)
-// 2 - Extrai e converte a extensão do arquivo enviado para letras minúsculas
-// 3 - Se a extensão for válida, permite o upload (cb(null, true)), caso contrário, retorna um erro
-function fileFilter(req, file, cb) {
-  const extensoesPermitidas = /jpeg|jpg|webp|jfif|png/;
-  const ext = path.extname(file.originalname).toLowerCase();
-  if (extensoesPermitidas.test(ext)) cb(null, true);
-  else cb(new Error("Tipo de arquivo inválido. Apenas jpg, jpeg, jfif, png, webp."));
+// função responsável por construir filtros Multer validando extensão ancorada e MIME type permitido.
+//
+// 1 - recebe allowedExtRegex (RegExp), allowedMimes (Set<string>) e errorMessage (string).
+// 2 - retorna um middleware de filtragem para o Multer que valida extensão e mimetype do arquivo enviado.
+function createUploadFilter(allowedExtRegex, allowedMimes, errorMessage) {
+  return (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const mime = String(file.mimetype || "").toLowerCase();
+
+    if (allowedExtRegex.test(ext) && allowedMimes.has(mime)) {
+      cb(null, true);
+    } else {
+      cb(new AppError(errorMessage, 400));
+    }
+  };
 }
 
-// função para filtrar arquivos de comprovante de pedido (imagens ou PDF)
-// 1 - Permite imagens padrão e arquivos PDF como recibo/comprovante até 5MB
-function comprovanteFileFilter(req, file, cb) {
-  const extensoesPermitidas = /jpeg|jpg|webp|jfif|png|pdf/;
-  const ext = path.extname(file.originalname).toLowerCase();
-  if (extensoesPermitidas.test(ext)) cb(null, true);
-  else cb(new Error("Comprovante inválido. Apenas imagens (jpg, png, webp) ou PDF."));
-}
+const fileFilter = createUploadFilter(
+  ALLOWED_IMAGE_EXT,
+  ALLOWED_IMAGE_MIMES,
+  "Tipo de arquivo inválido. Apenas imagens jpg, jpeg, jfif, png ou webp são permitidas."
+);
 
-// 4 - Exporta os objetos de upload do Multer com limite de 5MB
-export const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
+const comprovanteFileFilter = createUploadFilter(
+  ALLOWED_PROOF_EXT,
+  ALLOWED_PROOF_MIMES,
+  "Comprovante inválido. Apenas imagens (jpg, png, webp) ou PDF são aceitos."
+);
+
+export const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 export const uploadComprovante = multer({
   storage,
   fileFilter: comprovanteFileFilter,

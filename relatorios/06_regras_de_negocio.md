@@ -1,6 +1,6 @@
 # 📑 RELATÓRIO TÉCNICO 06 — CATÁLOGO DE REGRAS DE NEGÓCIO
 ## Projeto: Estoque.OS — Regras Verificadas e Cobertura E2E (`RN-001` a `RN-031`)
-**Data da Atualização:** 2026-11-10  
+**Data da Atualização:** 2026-11-11  
 **Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 
 ---
@@ -11,12 +11,13 @@ Todas as regras abaixo foram auditadas diretamente nos middlewares, serviços, s
 
 ---
 
-## 2. Catálogo Completo de Regras (`RN-001` a `RN-031`)
+## 2. Catálogo Completo de Regras (`RN-001` a `RN-033`)
 
 ### 2.1 Autenticação, Portais e Multi-Organização
-- **[RN-001] Criptografia Bcrypt & JWT:** Senhas hashed via `bcryptjs` (custo 10); JWT válido por `8h` com `{ id, role, organizacaoId, organizacaoSlug, organizacaoNome, lojaId, lojaSlug, lojaNome }`. *Cobertura: Cenário 1.*
+- **[RN-001] Criptografia Bcrypt & JWT Restrito:** Senhas com mínimo de `6` caracteres e hash via `bcryptjs` (custo 10); JWT válido por `8h` assinado e verificado estritamente em `HS256`, carregando `{ id, matricula, role, organizacaoId, organizacaoSlug, organizacaoNome, lojaId, lojaSlug, lojaNome }`. *Cobertura: Cenário 1.*
 - **[RN-002] Cadastro Público Corporativo (`POST /auth/register`):** Cria atomicamente `Organizacao`, 1ª `Loja` e fundador `ADMIN` (`lojaId: null`). *Cobertura: Cenário 1.*
-- **[RN-003] Rate Limiting de Segurança:** `POST /auth/login` limitado a **25 tentativas / 15 min / IP** (`loginLimiter`) e `POST /auth/register` a **15 tentativas / 1h / IP** (`registerLimiter`) em [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js).
+- **[RN-003] Rate Limiting & Segurança HTTP Global:** `trust proxy = 1` em [`index.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js) com `apiLimiter` global (**400 req / 15 min / IP**), `POST /auth/login` limitado a **25 tentativas / 15 min / IP** (`loginLimiter`) e `POST /auth/register` a **15 tentativas / 1h / IP** (`registerLimiter`) em [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js).
+- **[RN-033] Sanitização de Uploads, URLs, Erros 500, Formula Injection & XSS em PDFs:** Extensão ancorada + MIME type obrigatório no Multer; `removeLocalUploadIfSafe` restringe exclusão local à pasta `uploads/`; `sanitizeSafeUrl` e `formatImageUrl` bloqueiam `javascript:`/`data:`/`//`; `sanitizeSpreadsheetCell` neutraliza fórmulas (`=`, `+`, `-`, `@`) no export `.xlsx`/`.csv`; `errorHandler.js` suprime mensagens brutas de infraestrutura em erros `>= 500`; e todos os geradores HTML/PDF A4 aplicam `escapeHtml`.
 - **[RN-022] Isolamento Estrito Cross-Organização (`404`):** Toda consulta exige `organizacaoId` do JWT; tentativas cruzadas retornam `404`. Subpastas Cloudinary isoladas por `estoque-os/organizacoes/<org>/lojas/<loja>/<subpasta>`. *Cobertura: Cenário 2.*
 - **[RN-023] Unicidade de E-mail por Organização & Seletor Multi-Org:** `@@unique([organizacaoId, email])`; credenciais válidas presentes em 2+ organizações ativas retornam `{ requiresOrgSelection: true, organizations }`. *Cobertura: Cenário 1.*
 - **[RN-027] Portais Segregados (`portal: 'admin' | 'loja'`):** `/admin/login` bloqueia `GERENTE`/`OPERADOR` (`403`); `/login` orienta `ADMIN` a entrar pelo Portal Admin (`403`). *Cobertura: Cenário 1.*

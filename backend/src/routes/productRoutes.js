@@ -25,13 +25,23 @@ import { AppError } from "../utils/errorHandler.js";
 
 const router = express.Router();
 
+const ALLOWED_SPREADSHEET_MIMES = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv",
+  "application/csv",
+  "application/vnd.ms-excel",
+  "text/plain",
+  "application/octet-stream",
+]);
+
 // 1 - Configuração dedicada do Multer em memória para recebimento seguro de planilhas (.xlsx e .csv, máximo 2MB)
 const uploadSpreadsheet = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase();
-    if ([".xlsx", ".csv"].includes(ext)) {
+    const mime = String(file.mimetype || "").toLowerCase();
+    if ([".xlsx", ".csv"].includes(ext) && (!mime || ALLOWED_SPREADSHEET_MIMES.has(mime))) {
       cb(null, true);
     } else {
       cb(new AppError("Formato inválido. Apenas arquivos .xlsx ou .csv são aceitos.", 400));

@@ -12,6 +12,7 @@ import { movementsApi } from "../services/api/index.js";
 import { useUserStore } from "../store/userStore.js";
 import { useTenantStore } from "../store/useTenantStore.js";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
+import { escapeHtml } from "../utils/validators.js";
 
 // arquivo responsável pela página de Desempenho & Auditoria de Vendedores (ADMIN e GERENTE),
 // incluindo ranking do melhor ao pior, comparação 1m/6m/1y e busca por antigo ID de ex-colaboradores excluídos
@@ -112,7 +113,12 @@ const DesempenhoVendedores = () => {
     setSelectedRefId(trimmed);
   };
 
-  // função para gerar PDF A4 individual do vendedor contendo identificação enxuta (Nome, E-mail e Matrícula) e vendas pelos meses trabalhados
+  // função responsável por gerar PDF A4 individual do vendedor com meses trabalhados e proteção contra XSS.
+  //
+  // 1 - não recebe parâmetros, utilizando detailData carregado do vendedor selecionado.
+  // 2 - abre janela de impressão via window.open exibindo toast caso bloqueado pelo navegador.
+  // 3 - escapa todos os dados cadastrais e tabelas de pedidos/produtos usando escapeHtml.
+  // 4 - escreve o HTML formatado na janela, dispara window.print() e não retorna valor.
   const handlePrintSellerPdf = () => {
     if (!detailData) return;
     const { vendedor, periodos, mesesTrabalhados = [], topProdutos, pedidosRecentes } = detailData;
@@ -131,10 +137,10 @@ const DesempenhoVendedores = () => {
       .map(
         (m) => `
           <tr>
-            <td>${m.label}</td>
-            <td class="right">${m.pedidosConcluidos}</td>
-            <td class="right">${m.pecas}</td>
-            <td class="right"><strong>${formatBRL(m.faturamento)}</strong></td>
+            <td>${escapeHtml(m.label)}</td>
+            <td class="right">${escapeHtml(m.pedidosConcluidos)}</td>
+            <td class="right">${escapeHtml(m.pecas)}</td>
+            <td class="right"><strong>${escapeHtml(formatBRL(m.faturamento))}</strong></td>
           </tr>
         `
       )
@@ -145,7 +151,7 @@ const DesempenhoVendedores = () => {
       <html lang="pt-BR">
       <head>
         <meta charset="UTF-8" />
-        <title>Relatório de Vendas - ${vendedor.nome}</title>
+        <title>Relatório de Vendas - ${escapeHtml(vendedor.nome)}</title>
         <style>
           @page { size: A4 portrait; margin: 12mm 14mm; }
           * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -178,19 +184,19 @@ const DesempenhoVendedores = () => {
         </div>
 
         <div class="id-grid">
-          <div class="id-item"><small>Nome</small><strong>${vendedor.nome}</strong></div>
-          <div class="id-item"><small>E-mail</small><strong>${vendedor.email || "—"}</strong></div>
+          <div class="id-item"><small>Nome</small><strong>${escapeHtml(vendedor.nome)}</strong></div>
+          <div class="id-item"><small>E-mail</small><strong>${escapeHtml(vendedor.email || "—")}</strong></div>
           <div class="id-item">
             <small>Matrícula</small>
             <strong class="${vendedor.matriculaCancelada ? "mat-cancel" : ""}">
-              ${vendedor.matriculaDisplay || vendedor.matricula || `#${vendedor.vendedorRefId}`}
+              ${escapeHtml(vendedor.matriculaDisplay || vendedor.matricula || `#${vendedor.vendedorRefId}`)}
             </strong>
           </div>
         </div>
 
         <div class="dates-grid">
-          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Início (Admissão)</small><div style="font-weight:700;margin-top:2px;">${formatDateBR(vendedor.dataInicio)}</div></div>
-          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Demissão (Término)</small><div style="font-weight:700;margin-top:2px;">${vendedor.dataTermino ? formatDateBR(vendedor.dataTermino) : "Em atividade"}</div></div>
+          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Início (Admissão)</small><div style="font-weight:700;margin-top:2px;">${escapeHtml(formatDateBR(vendedor.dataInicio))}</div></div>
+          <div class="card"><small style="color:#64748b;font-size:9px;text-transform:uppercase;">Data de Demissão (Término)</small><div style="font-weight:700;margin-top:2px;">${vendedor.dataTermino ? escapeHtml(formatDateBR(vendedor.dataTermino)) : "Em atividade"}</div></div>
         </div>
 
         <div class="grid3">
@@ -233,9 +239,9 @@ const DesempenhoVendedores = () => {
                 ? topProdutos
                     .map(
                       (p) =>
-                        `<tr><td>${p.nome}</td><td class="right">${p.quantidade} un.</td><td class="right"><strong>${formatBRL(
+                        `<tr><td>${escapeHtml(p.nome)}</td><td class="right">${escapeHtml(p.quantidade)} un.</td><td class="right"><strong>${escapeHtml(formatBRL(
                           p.faturamento
-                        )}</strong></td></tr>`
+                        ))}</strong></td></tr>`
                     )
                     .join("")
                 : `<tr><td colspan="3">Sem produtos vendidos.</td></tr>`
@@ -253,11 +259,11 @@ const DesempenhoVendedores = () => {
                     .slice(0, 12)
                     .map(
                       (ped) =>
-                        `<tr><td>${ped.codigo}</td><td>${new Date(ped.createdAt).toLocaleDateString(
+                        `<tr><td>${escapeHtml(ped.codigo)}</td><td>${escapeHtml(new Date(ped.createdAt).toLocaleDateString(
                           "pt-BR"
-                        )}</td><td>${ped.loja?.nome || "—"}</td><td>${
+                        ))}</td><td>${escapeHtml(ped.loja?.nome || "—")}</td><td>${escapeHtml(
                           ped.status
-                        }</td><td class="right"><strong>${formatBRL(ped.valorTotal)}</strong></td></tr>`
+                        )}</td><td class="right"><strong>${escapeHtml(formatBRL(ped.valorTotal))}</strong></td></tr>`
                     )
                     .join("")
                 : `<tr><td colspan="5">Sem pedidos registrados.</td></tr>`

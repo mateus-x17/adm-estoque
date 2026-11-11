@@ -1,9 +1,8 @@
 import bcrypt from "bcryptjs";
-import fs from "fs";
 import { prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
 import { sanitizeUser, sanitizeUsers } from "../utils/sanitizers.js";
-import { deleteFromCloudinary } from "../config/cloudinaryConfig.js";
+import { cleanupStoredMedia } from "../config/cloudinaryConfig.js";
 import { invalidateUserCache } from "../middlewares/authMiddleware.js";
 import {
   formatMatricula,
@@ -78,15 +77,22 @@ async function resolveAssignedStoreId(role, rawLojaId, organizacaoId) {
   return loja.id;
 }
 
-// função para criar novo colaborador ou administrador na Organização com geração automática de Matrícula
-// 1 - Valida obrigatoriedade, unicidade de e-mail na Organização e situação funcional válida
-// 2 - Executa criação transacional e imediatamente grava a matrícula derivada do ID único (MAT-00001)
+// função responsável por criar novo colaborador ou administrador na Organização com geração automática de Matrícula.
+//
+// 1 - recebe data (object), imagePath (string|null opcional) e organizacaoId (number).
+// 2 - valida campos obrigatórios, exige senha com no mínimo 6 caracteres, checa e-mail único na organização e valida role/situação.
+// 3 - resolve loja atribuída via resolveAssignedStoreId e calcula hash seguro da senha com bcrypt.
+// 4 - executa criação transacional gravando a matrícula única derivada do ID (MAT-00001).
+// 5 - retorna o usuário sanitizado sem o hash de senha.
 export async function createUser(data, imagePath = null, organizacaoId) {
   if (!organizacaoId) throw new AppError("Organização não identificada", 400);
 
   const { nome, email, senha, role, lojaId, telefone, situacao, dataAdmissao } = data;
   if (!nome || !email || !senha) {
     throw new AppError("Nome, email e senha são obrigatórios", 400);
+  }
+  if (String(senha).length < 6) {
+    throw new AppError("A senha deve conter pelo menos 6 caracteres", 400);
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -370,10 +376,13 @@ export async function getUserById(id, organizacaoId) {
   });
 }
 
-// função para atualizar cadastro, telefone, situação trabalhista, data de admissão, cargo, loja e foto do colaborador
-// 1 - Impede alteração fora da organização e valida unicidade do novo e-mail na rede
-// 2 - Impede rebaixar ou afastar o único Administrador ATIVO da Organização
-// 3 - Permite transferir GERENTE ou OPERADOR para outra loja ativa e invalida cache imediatamente
+// função responsável por atualizar cadastro, telefone, situação trabalhista, data de admissão, cargo, loja e foto do colaborador.
+//
+// 1 - recebe id (number|string), data (object), newImagePath (string|null opcional), removeImage (boolean) e organizacaoId (number).
+// 2 - confirma pertencimento à organização, valida novo e-mail único, cargo, situação e impede rebaixar o único ADMIN ativo.
+// 3 - valida tamanho mínimo de 6 caracteres caso nova senha seja enviada e gerencia mídia via cleanupStoredMedia.
+// 4 - atualiza o registro via prisma.usuario.update e invalida o cache de sessão em invalidateUserCache.
+// 5 - retorna o usuário atualizado e sanitizado.
 export async function updateUser(
   id,
   data,
@@ -469,35 +478,18 @@ export async function updateUser(
   }
 
   if (senha) {
+    if (String(senha).length < 6) {
+      throw new AppError("A senha deve conter pelo menos 6 caracteres", 400);
+    }
     updateData.senha = await bcrypt.hash(senha, 10);
   }
 
   let imagePath = user.imagem;
   if (removeImage) {
-    if (imagePath) {
-      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-        await deleteFromCloudinary(imagePath);
-      } else if (fs.existsSync(`.${imagePath}`)) {
-        try {
-          fs.unlinkSync(`.${imagePath}`);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
+    await cleanupStoredMedia(imagePath);
     updateData.imagem = null;
   } else if (newImagePath) {
-    if (imagePath) {
-      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-        await deleteFromCloudinary(imagePath);
-      } else if (fs.existsSync(`.${imagePath}`)) {
-        try {
-          fs.unlinkSync(`.${imagePath}`);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
+    await cleanupStoredMedia(imagePath);
     updateData.imagem = newImagePath;
   }
 
@@ -585,10 +577,13 @@ export async function updateUserSituation(id, situacao, requestingUserId = null,
   return sanitizeUser(updated);
 }
 
-// função para demitir (cancelar matrícula e excluir fisicamente) preservando histórico, RegistroDesligamento, antigo ID e relatório mensal
-// 1 - Impede autoexclusão e exclusão do último administrador ativo da Organização
-// 2 - Grava snapshots imutáveis em Pedido/Movimento e cria RegistroDesligamento com dataAdmissao e dataDemissao antes de apagar Usuario
-// 3 - Compila relatório completo mês a mês entre dataInicio e dataTermino usando buildDismissalReportPayload
+// função responsável por demitir (cancelar matrícula e excluir fisicamente) preservando histórico, RegistroDesligamento, antigo ID e relatório mensal.
+//
+// 1 - recebe id (number|string), requestingUserId (number|null), organizacaoId (number) e options (object opcional).
+// 2 - impede autoexclusão e proteção do último administrador da Organização.
+// 3 - grava snapshots imutáveis em Pedido/Movimento, registra RegistroDesligamento e exclui Usuario em transação única.
+// 4 - remove eventual avatar remoto/local via cleanupStoredMedia e invalida userCache.
+// 5 - retorna resumo da demissão com relatorioDesligamento compilado mês a mês.
 export async function deleteUser(id, requestingUserId = null, organizacaoId, options = {}) {
   if (!organizacaoId) throw new AppError("Organização não identificada", 400);
   const orgIdNum = Number(organizacaoId);
@@ -729,17 +724,7 @@ export async function deleteUser(id, requestingUserId = null, organizacaoId, opt
     return { salesMovements: movs, sellerOrders: peds };
   });
 
-  if (user.imagem) {
-    if (user.imagem.startsWith("http://") || user.imagem.startsWith("https://")) {
-      await deleteFromCloudinary(user.imagem);
-    } else if (fs.existsSync(`.${user.imagem}`)) {
-      try {
-        fs.unlinkSync(`.${user.imagem}`);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
+  await cleanupStoredMedia(user.imagem);
 
   invalidateUserCache(targetId);
 

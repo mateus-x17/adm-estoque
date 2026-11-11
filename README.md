@@ -37,7 +37,7 @@ O sistema elimina planilhas soltas, erros de saldo sob concorrência e quebras h
 8. O sistema deve garantir sigilo absoluto do perfil `OPERADOR` em pedidos, movimentações e relatórios (`scope: 'user'`).
 
 ### 2.2 Requisitos Não Funcionais
-- **Segurança:** Autenticação via JWT (`expiresIn: '8h'`), hash BcryptJS (custo 10), Helmet, CORS configurável, Rate Limit no login (`25 req/15min`) e cadastro (`15 req/h`), e invalidação imediata de cache (`invalidateUserCache`) em transferências, exclusões ou desativação de loja/organização.
+- **Segurança:** Autenticação via JWT (`HS256` estrito, `expiresIn: '8h'`), hash BcryptJS (custo 10) com senha mínima de 6 caracteres, `JWT_SECRET` validado no startup em produção, `Helmet`, `CORS` com múltiplas origens normalizadas, `trust proxy` para Render, Rate Limit global (`400 req/15min`) + estrito no login (`25 req/15min`) e cadastro (`15 req/h`), supressão de erros internos de banco em respostas HTTP 500, validação ancorada + MIME em uploads (`.jpg`, `.png`, `.webp`, `.pdf`, `.xlsx`, `.csv`), proteção contra Path Traversal (`removeLocalUploadIfSafe`), Formula Injection em planilhas, XSS armazenado (`escapeHtml` em todos os PDFs A4 e validação de URLs em `sanitizeSafeUrl`/`formatImageUrl`), e invalidação imediata de cache (`invalidateUserCache`).
 - **Performance:** Cache em memória por usuário (TTL 60s) e dropdown por escopo (TTL 30s), consultas SQL nativas sem N+1 e índices compostos indexados por `(organizacaoId, lojaId, ...)` e `(organizacaoId, vendedorRefId, ...)`.
 - **Integridade Financeira:** Preços e totais congelados tipados como `Decimal(10, 2)` (`numeric(10,2)` no PostgreSQL).
 - **Usabilidade:** SPA em React 19 + Vite + Tailwind CSS com tema escuro/claro e responsividade mobile aprimorada.
@@ -64,8 +64,8 @@ O projeto segue arquitetura desacoplada Cliente-Servidor RESTful Multi-Organiza�
 - **Frontend:** Single Page Application (SPA) em React 19 + Vite, Tailwind CSS e Zustand (`useAuthStore`, `userStore`, `useTenantStore`, `useThemeStore`).
 
 ### 4.2 Stack Tecnológica
-- **Frontend:** React 19, Vite 7, Tailwind CSS 3, Zustand 5, React Router DOM 7, Lucide React, React Icons, Framer Motion, Recharts 3.
-- **Backend:** Node.js (ES Modules), Express.js 5 (`^5.1.0`), Prisma ORM 6 (`^6.16.2`), ExcelJS (`^4.4.0`), Cloudinary SDK (`^2.10.0`), Multer 2, Pino Logger, BcryptJS, JsonWebToken, Helmet, Express Rate Limit.
+- **Frontend:** React 19, Vite 7 (`^7.3.8`), Tailwind CSS 3, Zustand 5, React Router DOM 7 (`^7.18.5`), Lucide React, React Icons, Framer Motion, Recharts 3.
+- **Backend:** Node.js (ES Modules), Express.js 5 (`^5.2.1`), Prisma ORM 6 (`^6.16.2`), ExcelJS (`^4.4.0`), Cloudinary SDK (`^2.10.0`), Multer 2 (`^2.5.0`), Pino Logger, BcryptJS, JsonWebToken, Helmet, Express Rate Limit.
 - **Banco de Dados:** PostgreSQL (Neon Database com Pooler PgBouncer).
 - **Armazenamento de Mídias:** Cloudinary CDN em estrutura hierárquica por Organização e Loja (`estoque-os/organizacoes/<orgSlug>/lojas/<lojaSlug>/produtos` e `.../usuarios`).
 
@@ -171,11 +171,11 @@ backend/
 │   │   ├── 20251012223132_add_field_imagem_usuario/
 │   │   ├── 20260601063115_upd_tabela_fornecedores/
 │   │   ├── 20261022_alter_enum_reposicao_venda/
-│   │   ├── 20261110_multitenant_softdelete/
-│   │   ├── 20261110_organizacao_multipedidos/
-│   │   ├── 20261110_pedido_comprovantes/
-│   │   ├── 20261110_matricula_situacao_rh/
-│   │   └── 20261110_registro_desligamento/
+│   │   ├── 20261110010000_multitenant_softdelete/
+│   │   ├── 20261110020000_organizacao_multipedidos/
+│   │   ├── 20261110030000_pedido_comprovantes/
+│   │   ├── 20261110040000_matricula_situacao_rh/
+│   │   └── 20261110050000_registro_desligamento/
 │   ├── reset.js
 │   ├── schema.prisma
 │   ├── seed.js
@@ -249,12 +249,12 @@ Siga os passos abaixo para clonar, instalar e rodar o projeto na sua máquina.
    cd Estoque.OS
    ```
 
-2. Configure as variáveis de ambiente do Backend (`backend/.env`):
+2. Configure as variáveis de ambiente do Backend (`backend/.env`, sem aspas duplas ao redor das URLs):
    ```env
    PORT=5000
-   DATABASE_URL="postgresql://usuario:senha@host:5432/banco?sslmode=require"
-   JWT_SECRET="seu_jwt_secret_com_pelo_menos_16_caracteres"
-   FRONTEND_URL="http://localhost:5173"
+   DATABASE_URL=postgresql://usuario:senha@host:5432/banco?sslmode=require&connect_timeout=15
+   JWT_SECRET=seu_jwt_secret_com_pelo_menos_16_caracteres
+   FRONTEND_URL=http://localhost:5173
 
    # Cloudinary configuration (opcional em dev; se configurado, envia para estoque-os/organizacoes/<orgSlug>/lojas/<lojaSlug>/...)
    CLOUDINARY_CLOUD_NAME=seu_cloud_name
@@ -452,7 +452,7 @@ Neste sétimo ciclo estrutural, o **Estoque.OS** evoluiu de uma aplicação sing
 #### 1. Arquitetura Multi-Tenant Nativa (`Empresa` + `empresaId`)
 - **Problema Anterior:** Todas as lojas compartilhavam o mesmo namespace de banco e mídia sem chave de estabelecimento, impossibilitando operação SaaS segura.
 - **Implementação:**
-  - Adicionado model `Empresa` (`nome`, `slug` único, `cnpj`, `telefone`, `ativo`) e chave estrangeira obrigatória `empresaId` com índices compostos em `Usuario`, `Produto`, `Categoria`, `Fornecedor` e `Movimento` (migração `20261110_multitenant_softdelete`).
+  - Adicionado model `Empresa` (`nome`, `slug` único, `cnpj`, `telefone`, `ativo`) e chave estrangeira obrigatória `empresaId` com índices compostos em `Usuario`, `Produto`, `Categoria`, `Fornecedor` e `Movimento` (migração `20261110010000_multitenant_softdelete`).
   - Unicidade de e-mail e nome de categoria escopada por loja (`@@unique([empresaId, email])` e `@@unique([empresaId, nome])`).
   - Login inteligente (`POST /auth/login`): aceita `lojaSlug` opcional ou detecta múltiplas lojas ativas devolvendo `requiresStoreSelection: true` para escolha na UI.
   - Cadastro público (`POST /auth/register`): cria estabelecimento (`Empresa`) e usuário fundador `ADMIN` em transação atômica.
@@ -484,7 +484,7 @@ Neste sétimo ciclo estrutural, o **Estoque.OS** evoluiu de uma aplicação sing
 - **Filtros Colapsáveis & Fornecedores Inativos:** Padronização de painéis retráteis em `Pedidos`, `DesempenhoVendedores`, `Lojas`, `Categorias`, `Fornecedores`, `Produtos`, `Movimentacoes` e `Usuarios`; inclusão de fornecedores inativos no `seed.js` e mensagens contextuais explícitas nos gráficos e tabela quando não houver inativos.
 - **Preservação de Posição no Ranking (`/dashboard/desempenho`):** Cálculo de `posicao` sobre o conjunto completo do escopo/período antes da aplicação de filtros textuais/ID.
 - **Dashboard Interativo:** Fluxo de mercadorias com seletor `Mês atual` / `6 Meses` / `Último ano`, valores absolutos + percentuais nos alertas e card de baixo estoque com modal clicável e redirecionamento para `/dashboard/produtos?focus=<id>`, além de abertura detalhada de movimentações recentes via [`ModalMovimentacao.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/ModalMovimentacao.jsx).
-- **Comprovação de Pagamento e Recebimento nos Pedidos (`20261110_pedido_comprovantes`):** Adicionados `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` (foto/PDF no Cloudinary) e `recebidoPor` em `Pedido`, rota `PATCH /orders/:id/proof`, modal de anexo posterior e recibo formal imprimível.
+- **Comprovação de Pagamento e Recebimento nos Pedidos (`20261110030000_pedido_comprovantes`):** Adicionados `formaPagamento`, `statusPagamento`, `comprovanteCodigo`, `comprovanteUrl` (foto/PDF no Cloudinary) e `recebidoPor` em `Pedido`, rota `PATCH /orders/:id/proof`, modal de anexo posterior e recibo formal imprimível.
 
 ---
 
@@ -495,7 +495,7 @@ Neste oitavo ciclo estrutural, o **Estoque.OS** evoluiu do modelo de loja isolad
 #### 1. Hierarquia `Organizacao → Lojas` & Portais Separados
 - **Problema Anterior:** Uma conta de proprietário só enxergava uma única `Empresa` sem poder gerenciar múltiplas filiais consolidadas, transferir gerentes entre unidades ou separar o login administrativo do login operacional.
 - **Implementação:**
-  - Schema migrado em `20261110_organizacao_multipedidos`: criada tabela `Organizacao` (raiz) → `Loja` (filiais), substituindo `Empresa` com backfill seguro preservando IDs.
+  - Schema migrado em `20261110020000_organizacao_multipedidos`: criada tabela `Organizacao` (raiz) → `Loja` (filiais), substituindo `Empresa` com backfill seguro preservando IDs.
   - Resolvedor [`tenantScope.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/tenantScope.js) (`resolveReadScope` e `resolveWriteStore`): lê cabeçalho `X-Loja-Id` apenas para `ADMIN` (`"all"` ou filial específica), travando `GERENTE` e `OPERADOR` estritamente em sua própria `lojaId`.
   - Novo módulo `/stores` ([`storeService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/storeService.js)) com tela `/dashboard/lojas` e seletor global de filial na [`Sidebar.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/common/Sidebar.jsx) via `useTenantStore`.
   - Portais segregados: [`AdminLogin.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/AdminLogin.jsx) (`/admin/login`, `portal: 'admin'`) e [`Auth.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/Auth.jsx) (`/login`, `portal: 'loja'`).
@@ -503,7 +503,7 @@ Neste oitavo ciclo estrutural, o **Estoque.OS** evoluiu do modelo de loja isolad
 
 #### 2. Gestão de RH, Matrícula Determinística, Data de Demissão & Exclusão Real c/ Relatório Mensal
 - **Revisão de Regra de Negócio:** Diferente de produtos, categorias, fornecedores ou lojas (onde inativação lógica faz sentido para itens descontinuados), dar *softban* permanente em funcionários impedia desligamento real. Por outro lado, gestores precisavam controlar suspensões temporárias, férias, telefone, admissão, matrícula e consultar posteriormente colaboradores desligados com sua respectiva **Data de Demissão**.
-- **Implementação (`20261110_matricula_situacao_rh` + `20261110_registro_desligamento`):**
+- **Implementação (`20261110040000_matricula_situacao_rh` + `20261110050000_registro_desligamento`):**
   - Todo colaborador recebe **`matricula` única gerada do ID (`MAT-00001`)**, `telefone`, `dataAdmissao` e `situacao` (`ATIVO` | `SUSPENSO` | `FERIAS`). Contas suspensas ou em férias ficam bloqueadas (`403`) com efeito imediato até reativação em `/dashboard/usuarios` (`ModalInfoUsuario`) ou demissão definitiva.
   - Ao demitir (`DELETE /users/:id`, aceitando `{ dataDemissao, motivo }` opcionais), o registro de `Usuario` e seu avatar são **apagados definitivamente** (`ON DELETE SET NULL`), gravando o arquivamento **`RegistroDesligamento`** + snapshots imutáveis (`MAT-XXXXX (CANCELADA)`, admissão e demissão). Assim, ex-colaboradores continuam filtráveis na própria página `/dashboard/usuarios` (`situacao=DESLIGADO`), com **Data de Demissão** no popup `Info` e botão para reemitir o **Relatório Final de Desligamento** (`GET /users/:refId/dismissal-report`).
 
@@ -517,9 +517,29 @@ Neste oitavo ciclo estrutural, o **Estoque.OS** evoluiu do modelo de loja isolad
 - **Implementação:** Nova página [`DesempenhoVendedores.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/pages/DesempenhoVendedores.jsx) e endpoints `GET /movements/performance` e `GET /movements/performance/:refId` com ranking melhor→pior, switch `includeDeleted`, busca direta por antigo ID (`vendedorRefId`), comparativo simultâneo de `1m`, `6m`, `1y` e ficha PDF A4. O modal [`ModalExportarRelatorio.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/dashboard/ModalExportarRelatorio.jsx) passou a incluir ranking de vendedores, giro por fornecedor e escolha de filial/rede pelo `ADMIN`.
 
 #### 5. Validação Automatizada & Estado do Build
-- **Seed & Migrações Neon:** 9 migrações em `backend/prisma/migrations/` (incluindo `20261110_pedido_comprovantes`, `20261110_matricula_situacao_rh` e `20261110_registro_desligamento`) e `seed.js` cobrindo `Grupo TechStock Varejo` + `CyberForge Geek Store` (com colaboradores ativos, suspenso, em férias e ex-vendedor com matrícula cancelada em `RegistroDesligamento`).
-- **Backend E2E Suite:** [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) expandida nos 7 cenários (portais, multi-loja, multipedidos c/ estorno, suspensão/reativação, demissão c/ data de demissão, filtro de desligados na rota `/users`, reemissão do relatório e planilhas `.xlsx`/`.csv`).
-- **Frontend Build & Lint:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.418 módulos** compilados, `1.011,83 kB`).
+- **Seed & Migrações Neon:** 9 migrações em `backend/prisma/migrations/` (sequenciadas cronologicamente de `20261110010000_multitenant_softdelete` até `20261110050000_registro_desligamento`) e `seed.js` cobrindo `Grupo TechStock Varejo` + `CyberForge Geek Store` (com colaboradores ativos, suspenso, em férias e ex-vendedor com matrícula cancelada em `RegistroDesligamento`).
+- **Backend E2E Suite:** [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) aprovada (`7/7` cenários) contra PostgreSQL Neon real (`ep-bold-poetry-adxi7rof-pooler`).
+- **Frontend Build & Lint:** `eslint .` (`0` erros, `0` warnings) e `vite build` (**2.420 módulos** compilados, `1.020,48 kB`).
+
+---
+
+### 8.9 Auditoria Integral de Segurança, Estabilidade em Nuvem & Padrão Documental (11/11/2026)
+
+Após a estabilização do deploy Render + NeonDB, todo o sistema passou por uma auditoria completa de **Segurança de Aplicação (AppSec)**, **Dependências (`npm audit`)** e **Conformidade Documental (`promptFuncExplic.md`)**:
+
+#### 1. Hardening de Segurança Backend (`Express 5`, `Prisma`, `JWT`, `Multer` & `ExcelJS`)
+- **Proxy Reverso & Rate Limit Global ([`index.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js)):** Ativado `app.set("trust proxy", 1)` para leitura real de IP atrás do Render, removido `loginLimiter` morto e acoplado `apiLimiter` global (`400 req / 15 min / IP`), `express.json({ limit: "1mb" })`, normalização multi-origem no `CORS`, `express.static(..., { dotfiles: "ignore" })`, validação estrita de `JWT_SECRET` no boot em produção e omissão de `details` de banco em `/test-db` quando `NODE_ENV=production`.
+- **Sigilo de Erros Internos ([`errorHandler.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/errorHandler.js)):** Erros não operacionais `>= 500` (falhas Prisma, conexão SQL ou FS) são logados apenas internamente via `Pino`, retornando mensagem genérica segura ao cliente HTTP; erros de upload `MulterError` e exceções Prisma (`P2002`, `P2025`, `P2003`) passaram a ser normalizados sem vazar detalhes de infraestrutura.
+- **Autenticação & Senha ([`authMiddleware.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/middlewares/authMiddleware.js), [`authService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/authService.js), [`userService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/userService.js)):** Exigência estrita de prefixo `Bearer`, verificação `jwt.verify(..., { algorithms: ["HS256"] })`, checagem de `userId` inteiro positivo, isolamento do `try/catch` de JWT para não deslogar usuários em quedas momentâneas de DB e exigência de senha com mínimo de `6` caracteres no registro e criação/edição de colaboradores.
+- **Uploads, Path Traversal, URLs & Formula Injection ([`multerConfig.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/config/multerConfig.js), [`productRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/productRoutes.js), [`sanitizers.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/sanitizers.js), [`cloudinaryConfig.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/config/cloudinaryConfig.js), [`productSpreadsheetService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/productSpreadsheetService.js)):** Extensões ancoradas `^\.(...)$` + validação de MIME type em imagens, comprovantes (`.pdf`/imagem) e planilhas (`.xlsx`/`.csv`); nomes de arquivo sanitizados com `crypto.randomBytes`; `removeLocalUploadIfSafe` via `path.resolve` prevenindo *Path Traversal*; `sanitizeSafeUrl` bloqueando `javascript:`/`data:` em comprovantes de pedidos; e `sanitizeSpreadsheetCell` neutralizando *Formula Injection* (`=`, `+`, `-`, `@`) na exportação `.xlsx`/`.csv`.
+
+#### 2. Hardening Frontend & Resiliência de Cold-Start
+- **Prevenção de XSS em Relatórios PDF & Mídias ([`validators.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/utils/validators.js), [`imageHelper.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/utils/imageHelper.js)):** Criada `escapeHtml` aplicada em 100% dos 4 geradores HTML/PDF (`ModalExportarRelatorio`, `ModalRelatorioDesligamento`, `DesempenhoVendedores`, `Pedidos`), links externos protegidos com `rel="noopener noreferrer"` e `formatImageUrl` endurecida contra `javascript:`, `data:` e `//`.
+- **Feedback de Inicialização do Servidor ([`apiClient.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/apiClient.js) + [`serverToast.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/services/api/serverToast.js)):** Espera controlada de `1000ms` com toast flutuante enquanto aguarda o despertar do servidor no Render.
+
+#### 3. Correção de Dependências (`npm audit fix`) & Estado do Padrão Documental
+- **Dependências:** `npm audit fix` executado nos dois pacotes (`frontend`: **`0` vulnerabilidades**, incluindo `react-router-dom` `7.18.5` e `vite` `7.3.8`; `backend`: redução de `14` para `5` alertas transitivos de CLI/dev em `deepmerge-ts` no `@prisma/config` e `uuid` no `exceljs`, atualizando `multer` para `2.5.0`, `express` para `5.2.1` e eliminando a falha crítica em `proxy-addr`).
+- **Aderência a [`promptFuncExplic.md`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/ordem%20de%20prompts/promptFuncExplic.md):** `100%` das funções criadas/alteradas nesta auditoria seguem estritamente o cabeçalho, linha vazia e passos numerados exigidos. No restante do legado do repositório (onde a regra pede para não reescrever código não afetado), a adoção global medida é parcial/híbrida: `20/157` funções no backend estritas (`91/157` com passos numerados) e `8/75` no frontend (`19/75` com passos numerados).
 
 
 

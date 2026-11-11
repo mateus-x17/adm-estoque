@@ -1,7 +1,6 @@
-import fs from "fs";
 import { prisma, Prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
-import { deleteFromCloudinary } from "../config/cloudinaryConfig.js";
+import { cleanupStoredMedia } from "../config/cloudinaryConfig.js";
 import { parseBooleanFlag } from "../utils/sanitizers.js";
 import { formatMatricula } from "../utils/matriculaHelper.js";
 
@@ -162,7 +161,13 @@ export async function createProduct(data, imagePath = null, storeScope) {
   });
 }
 
-// função para atualizar produto respeitando pertencimento à Organização e Loja
+// função responsável por atualizar dados e mídia de um produto respeitando pertencimento à Organização e Loja.
+//
+// 1 - recebe id (number|string), data (object), newImagePath (string|null), removeImage (boolean) e scope (object).
+// 2 - valida pertencimento à organização e à loja do usuário (quando aplicável).
+// 3 - limpa imagem anterior no Cloudinary ou disco local com segurança via cleanupStoredMedia ao remover ou substituir mídia.
+// 4 - valida categoria/fornecedor pertencentes à mesma loja e persiste atualização via prisma.produto.update.
+// 5 - retorna o produto atualizado com categoria, fornecedor e loja.
 export async function updateProduct(
   id,
   data,
@@ -183,30 +188,10 @@ export async function updateProduct(
 
   let imagePath = product.imagem;
   if (removeImage) {
-    if (imagePath) {
-      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-        await deleteFromCloudinary(imagePath);
-      } else if (fs.existsSync(`.${imagePath}`)) {
-        try {
-          fs.unlinkSync(`.${imagePath}`);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
+    await cleanupStoredMedia(imagePath);
     imagePath = null;
   } else if (newImagePath) {
-    if (imagePath) {
-      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-        await deleteFromCloudinary(imagePath);
-      } else if (fs.existsSync(`.${imagePath}`)) {
-        try {
-          fs.unlinkSync(`.${imagePath}`);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
+    await cleanupStoredMedia(imagePath);
     imagePath = newImagePath;
   }
 
@@ -261,7 +246,12 @@ export async function toggleProductStatus(id, ativo, scope) {
   });
 }
 
-// função exclusiva de ADMIN para excluir produto (ou aplicar Soft Delete automático se houver movimentações/pedidos)
+// função responsável por excluir definitivamente um produto ou aplicar Soft Delete automático caso haja histórico.
+//
+// 1 - recebe id (number|string) e organizacaoId (number).
+// 2 - busca o produto na organização contando movimentos e itens de pedido associados.
+// 3 - inativa logicamente (ativo = false) se houver histórico vinculado e retorna o registro inativado.
+// 4 - sem histórico, remove mídia via cleanupStoredMedia, deleta fisicamente o registro e retorna confirmação.
 export async function deleteProduct(id, organizacaoId) {
   if (!organizacaoId) throw new AppError("Organização não identificada", 400);
 
@@ -290,17 +280,7 @@ export async function deleteProduct(id, organizacaoId) {
     };
   }
 
-  if (product.imagem) {
-    if (product.imagem.startsWith("http://") || product.imagem.startsWith("https://")) {
-      await deleteFromCloudinary(product.imagem);
-    } else if (fs.existsSync(`.${product.imagem}`)) {
-      try {
-        fs.unlinkSync(`.${product.imagem}`);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
+  await cleanupStoredMedia(product.imagem);
 
   await prisma.produto.delete({ where: { id: Number(id) } });
   return {

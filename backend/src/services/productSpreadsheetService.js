@@ -3,6 +3,7 @@ import { Readable } from "stream";
 import path from "path";
 import { prisma } from "../config/prismaClient.js";
 import { AppError } from "../utils/errorHandler.js";
+import { sanitizeSpreadsheetCell } from "../utils/sanitizers.js";
 
 // arquivo responsável pela importação e exportação nativa de planilhas (.xlsx e .csv) via ExcelJS por Organização e Loja
 
@@ -152,7 +153,12 @@ export async function generateImportTemplate(format = "xlsx") {
   };
 }
 
-// função para exportar produtos do escopo atual (uma loja ou toda a Organização do ADMIN) em .xlsx ou .csv
+// função responsável por exportar produtos do escopo atual em planilha .xlsx ou .csv protegida contra Formula Injection.
+//
+// 1 - recebe scope (object), orgSlug (string opcional), format ('xlsx'|'csv') e status ('ativos'|'inativos'|'todos').
+// 2 - consulta produtos filtrados no banco via prisma.produto.findMany ordenados por status e nome.
+// 3 - monta a planilha no ExcelJS sanitizando campos textuais com sanitizeSpreadsheetCell contra fórmulas maliciosas.
+// 4 - retorna objeto com buffer, filename, contentType e totalExported.
 export async function exportProductsSpreadsheet(
   scope,
   orgSlug = "rede",
@@ -201,16 +207,16 @@ export async function exportProductsSpreadsheet(
 
   for (const prod of products) {
     const rowData = {
-      nome: prod.nome,
-      descricao: prod.descricao || "",
+      nome: sanitizeSpreadsheetCell(prod.nome),
+      descricao: sanitizeSpreadsheetCell(prod.descricao || ""),
       preco: Number(prod.preco || 0),
       quantidade: Number(prod.quantidade || 0),
-      categoria: prod.categoria?.nome || "",
-      fornecedor: prod.fornecedor?.nome || "",
+      categoria: sanitizeSpreadsheetCell(prod.categoria?.nome || ""),
+      fornecedor: sanitizeSpreadsheetCell(prod.fornecedor?.nome || ""),
       ativo: prod.ativo ? "Sim" : "Não",
     };
     if (!scope.lojaId) {
-      rowData.loja = prod.loja?.nome || "";
+      rowData.loja = sanitizeSpreadsheetCell(prod.loja?.nome || "");
     }
     sheet.addRow(rowData);
   }

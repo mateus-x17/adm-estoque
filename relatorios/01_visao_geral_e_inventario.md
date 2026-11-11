@@ -1,6 +1,6 @@
 # RELATÓRIO 01 — VISÃO GERAL E INVENTÁRIO DO PROJETO
 **Projeto:** Estoque.OS  
-**Data da Auditoria:** 2026-11-10  
+**Data da Auditoria:** 2026-11-11  
 **Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
 **Nível de Classificação Detectado:** **MEDIUM / PRODUCTION-READY CORE** *(Plataforma SaaS Multi-Organização / Multi-Filial com Multipedidos Atômicos & Comprovantes, Estornos, Matrícula/Situação Funcional e Demissão com Relatório Mensal)*
 
@@ -17,10 +17,10 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 ### 2.1 Backend (`/backend`)
 *Verificado em [`backend/package.json`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/package.json):*
 - **Runtime:** Node.js (Módulos ES `import/export`)
-- **Framework Web:** `express` `^5.1.0`
+- **Framework Web:** `express` `^5.2.1`
 - **ORM e Banco de Dados:** `@prisma/client` `^6.16.2` / `prisma` `^6.16.2` conectado a **PostgreSQL (Neon Cloud)**
-- **Planilhas Nativas:** `exceljs` `^4.4.0` (importação/exportação `.xlsx` e `.csv` UTF-8 BOM sem microserviço externo)
-- **Armazenamento de Mídia:** `cloudinary` `^2.10.0` + `multer` `^2.0.2` (disco local temporário para mídias + memória até 2MB para planilhas)
+- **Planilhas Nativas:** `exceljs` `^4.4.0` (importação/exportação `.xlsx` e `.csv` UTF-8 BOM sem microserviço externo, com neutralização contra Formula Injection)
+- **Armazenamento de Mídia:** `cloudinary` `^2.10.0` + `multer` `^2.5.0` (disco local temporário com validação ancorada de extensão + MIME type + memória até 2MB para planilhas)
 - **Segurança & Rede:** `bcryptjs` `^3.0.2`, `jsonwebtoken` `^9.0.2`, `helmet` `^7.2.0`, `express-rate-limit` `^6.8.0`, `cors` `^2.8.5`
 - **Observabilidade:** `pino` `^8.14.0` com Correlation ID (`X-Request-Id`)
 - **Testes:** Script oficial `npm test` (`node --test tests/multitenant_audit.test.mjs`) executando 7 baterias E2E contra API + PostgreSQL reais
@@ -28,8 +28,8 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 ### 2.2 Frontend (`/frontend`)
 *Verificado em [`frontend/package.json`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/package.json):*
 - **Biblioteca UI:** `react` `^19.1.1` / `react-dom` `^19.1.1`
-- **Bundler & Dev Server:** `vite` `^7.1.6` com `@vitejs/plugin-react` `^5.0.2`
-- **Roteamento:** `react-router-dom` `^7.9.1`
+- **Bundler & Dev Server:** `vite` `^7.3.8` com `@vitejs/plugin-react` `^5.0.2`
+- **Roteamento:** `react-router-dom` `^7.18.5`
 - **Gerenciamento de Estado Global:** `zustand` `^5.0.8` (`persist` no `localStorage` para `auth-token`, `user-data`, `tenant-scope`, `theme`)
 - **Estilização & Animações:** `tailwindcss` `^3.4.17` + CSS custom properties + `framer-motion` `^12.23.22`
 - **Visualização & Ícones:** `recharts` `^3.3.0`, `lucide-react` `^0.562.0`, `react-icons` `^5.5.0`
@@ -37,17 +37,17 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 
 ---
 
-## 3. Métricas de Inventário do Repositório `(MEDIDO em 10/11/2026)`
+## 3. Métricas de Inventário do Repositório `(MEDIDO em 11/11/2026)`
 
-> Medições coletadas diretamente via filesystem PowerShell excluindo `node_modules`, `.git`, `dist`, `build`, `uploads` e `.vscode`.
+> Medições coletadas diretamente via script Node/filesystem excluindo `node_modules`, `.git`, `dist`, `build`, `uploads` e `.vscode`.
 
 | Escopo / Diretório | Quantidade de Arquivos | Contagem Real de Linhas | Finalidade |
 |---|---:|---:|---|
-| `backend/src` | 38 arquivos | 6.302 linhas | Servidor Express, rotas, controllers, services, middlewares, configs, `tenantScope` e `matriculaHelper` |
-| `backend/prisma` | 14 arquivos | 1.556 linhas | `schema.prisma`, `9` diretórios SQL de migração (`migration.sql`), `seed.js`, `seedMovements.js`, `reset.js` |
-| `backend/tests` | 1 arquivo | 542 linhas | Suíte E2E real [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) |
-| `frontend/src` | 80 arquivos | 12.283 linhas | Páginas, portais, componentes, modais (`ModalInfoUsuario`, `ModalRelatorioDesligamento`, `ModalMovimentacao`, `ModalConfirmacao`), stores e hooks |
-| **Subtotal Código + Dados + Testes** | **133 arquivos** | **20.683 linhas** | Núcleo executável completo da plataforma |
+| `backend/src` | 38 arquivos | 7.333 linhas | Servidor Express, rotas, controllers, services, middlewares, configs, `tenantScope` e `matriculaHelper` |
+| `backend/prisma` | 14 arquivos | 1.792 linhas | `schema.prisma`, `9` diretórios SQL de migração (`migration.sql`), `seed.js`, `seedMovements.js`, `reset.js` |
+| `backend/tests` | 1 arquivo | 607 linhas | Suíte E2E real [`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs) |
+| `frontend/src` | 81 arquivos | 13.694 linhas | Páginas, portais, componentes, modais (`ModalInfoUsuario`, `ModalRelatorioDesligamento`, `ModalMovimentacao`, `ModalConfirmacao`), `serverToast.js`, stores e hooks |
+| **Subtotal Código + Dados + Testes** | **134 arquivos** | **23.426 linhas** | Núcleo executável completo da plataforma |
 | `relatorios` + `README` + config raiz | 41 arquivos | — | Relatórios 01–14, `00_REGISTRO_DE_PROGRESSO.md`, `README.md`, manifests e prompts |
 | **Total do Repositório (excluindo artefatos)** | **168 arquivos** | — | Árvore completa versionável |
 

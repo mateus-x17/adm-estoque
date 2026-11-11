@@ -1,6 +1,6 @@
 # 💰 RELATÓRIO 14 — ANÁLISE MINUCIOSA DE VALOR DE MERCADO, PRECIFICAÇÃO E MONETIZAÇÃO (PÓS-FASE H)
 **Projeto:** Estoque.OS (`Organização → Múltiplas Lojas` · Multipedidos · Exclusão Real Auditável · `.xlsx`/`.csv`)  
-**Data da Atualização:** 2026-11-10  
+**Data da Atualização:** 2026-11-11  
 **Branch Base:** `main` (sincronizada com `feature/multitenant`)  
 **Observação Metodológica Estrita:** Este documento separa claramente o **Custo de Substituição de Engenharia / Ativo de Software (Código IP)** da **Avaliação de Empresa SaaS Operacional** — onde o **MRR/ARR atual comprovado é `R$ 0,00`** por ainda não possuir assinantes pagantes ativos.
 
@@ -10,10 +10,10 @@
 
 | Dimensão Mensurada | Quantidade Verificada | Impacto de Mercado (IP / B2B) |
 |---|---|---|
-| **Código-Fonte + Schema + Migrações + Testes** | `133` arquivos / `20.683` linhas *(medido em 10/11/2026)* | Base full-stack coesa pronta para white-label ou SaaS |
-| **APIs HTTP Express + Prisma** | `57` rotas HTTP protegidas por JWT, RBAC e `X-Loja-Id` | Superfície completa de ERP comercial multi-filial |
-| **Modelagem & Migrações PostgreSQL** | `10` models, `4` enums, `9` migrações SQL versionadas | Hierarquia real de redes de varejo + RH (`SituacaoFuncionario`, `RegistroDesligamento`) + snapshots congelados |
-| **Cobertura E2E Automatizada** | `7` cenários E2E completos ([`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs)) | Segurança contratual contra IDOR cross-org, race conditions, RH e perda de histórico *(execução local bloqueada por `P1001` no Neon pós-rotação)* |
+| **Código-Fonte + Schema + Migrações + Testes** | `134` arquivos / `23.426` linhas *(medido em 11/11/2026)* | Base full-stack coesa pronta para white-label ou SaaS, com hardening AppSec aplicado |
+| **APIs HTTP Express + Prisma** | `57` rotas HTTP protegidas por JWT (`HS256`), RBAC, `apiLimiter` e `X-Loja-Id` | Superfície completa de ERP comercial multi-filial |
+| **Modelagem & Migrações PostgreSQL** | `10` models, `4` enums, `9` migrações SQL versionadas e ordenadas | Hierarquia real de redes de varejo + RH (`SituacaoFuncionario`, `RegistroDesligamento`) + snapshots congelados |
+| **Cobertura E2E Automatizada** | `7` cenários E2E completos ([`multitenant_audit.test.mjs`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/tests/multitenant_audit.test.mjs)) aprovados contra NeonDB | Segurança contratual contra IDOR cross-org, race conditions, RH e perda de histórico (`7/7` validados após hardening) |
 
 ---
 
@@ -52,5 +52,5 @@ Estimativa realista de custo caso uma empresa ou agência contratasse engenharia
 
 ## 4. Recomendações Práticas de Valorização Imediata
 
-1. Aplicar *code-splitting* em `routes.jsx` (reduzir o chunk único de `1.011,83 kB`) e migrar os 2 `fetch()` finais de `EditarItem.jsx` para `apiClient` antes de auditoria técnica externa (*due diligence*).
+1. Aplicar *code-splitting* em `routes.jsx` (reduzir o chunk único de `1.020,48 kB`) e migrar os 2 `fetch()` finais de `EditarItem.jsx` para `apiClient` antes de auditoria técnica externa (*due diligence*).
 2. Publicar vídeo/demonstração guiada usando os dois ambientes reais já prontos no `seed.js` (**`Grupo TechStock Varejo`** + **`CyberForge Geek Store`**) para fechar os **3 primeiros clientes piloto pagantes**, transformando valor técnico em MRR comprovado.

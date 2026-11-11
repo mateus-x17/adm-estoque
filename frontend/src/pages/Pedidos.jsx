@@ -16,6 +16,7 @@ import { ordersApi, usersApi } from "../services/api/index.js";
 import { useUserStore } from "../store/userStore.js";
 import { useTenantStore } from "../store/useTenantStore.js";
 import { formatImageUrl } from "../utils/imageHelper.js";
+import { escapeHtml } from "../utils/validators.js";
 import PaginationControls from "../components/common/PaginationControls.jsx";
 import ModalPedidoMultiItem from "../components/forms/ModalPedidoMultiItem.jsx";
 import ModalMensagem from "../components/common/ModalMensagem.jsx";
@@ -203,8 +204,12 @@ const Pedidos = () => {
     }
   };
 
-  // função para imprimir recibo/comprovante formal do pedido em PDF A4
-  // 1 - Consolida loja, código, forma e status de pagamento, NSU/E2E, recebedor e itens com preço congelado
+  // função responsável por gerar recibo e comprovante formal de pedido em PDF A4 com sanitização HTML.
+  //
+  // 1 - recebe order (object) com os dados do pedido, pagamento, comprovação e itens congelados.
+  // 2 - abre popup A4 via window.open ou notifica caso pop-ups estejam bloqueados.
+  // 3 - escapa todos os dados dinâmicos com escapeHtml para prevenir XSS armazenado no documento.
+  // 4 - escreve o HTML no popup, aciona window.print() e não retorna valor.
   const handlePrintReceipt = (order) => {
     const win = window.open("", "_blank", "width=820,height=880");
     if (!win) {
@@ -220,7 +225,7 @@ const Pedidos = () => {
       <html lang="pt-BR">
       <head>
         <meta charset="UTF-8" />
-        <title>Comprovante ${order.codigo}</title>
+        <title>Comprovante ${escapeHtml(order.codigo)}</title>
         <style>
           @page { size: A4 portrait; margin: 14mm; }
           body { font-family: Arial, sans-serif; color: #0f172a; font-size: 12px; }
@@ -242,19 +247,19 @@ const Pedidos = () => {
             <div style="font-size:11px;color:#475569;">Comprovante de Pedido e Entrega / Pagamento</div>
           </div>
           <div style="text-align:right;">
-            <strong style="font-size:15px;">${order.codigo}</strong>
-            <div style="font-size:10px;color:#64748b;">${new Date(order.createdAt).toLocaleString("pt-BR")}</div>
+            <strong style="font-size:15px;">${escapeHtml(order.codigo)}</strong>
+            <div style="font-size:10px;color:#64748b;">${escapeHtml(new Date(order.createdAt).toLocaleString("pt-BR"))}</div>
           </div>
         </div>
         <div class="box grid">
-          <div><strong>Loja:</strong> ${order.loja?.nome || "—"}</div>
-          <div><strong>Operação:</strong> ${order.tipo} (${order.status})</div>
-          <div><strong>Cliente / Fornecedor:</strong> ${order.clienteNome || order.fornecedor?.nome || "Balcão"}</div>
-          <div><strong>Responsável:</strong> ${order.vendedorNomeSnapshot} (#${order.vendedorRefId})</div>
-          <div><strong>Pagamento:</strong> ${PAYMENT_LABELS[order.formaPagamento] || order.formaPagamento || "Não informado"} · <strong>${order.statusPagamento || "PAGO"}</strong></div>
-          <div><strong>Cód. Comprovante / NSU / PIX:</strong> ${order.comprovanteCodigo || "—"}</div>
-          <div><strong>Recebido / Conferido por:</strong> ${order.recebidoPor || "—"}</div>
-          <div><strong>Valor Total:</strong> <strong>${formatBRL(order.valorTotal)}</strong></div>
+          <div><strong>Loja:</strong> ${escapeHtml(order.loja?.nome || "—")}</div>
+          <div><strong>Operação:</strong> ${escapeHtml(order.tipo)} (${escapeHtml(order.status)})</div>
+          <div><strong>Cliente / Fornecedor:</strong> ${escapeHtml(order.clienteNome || order.fornecedor?.nome || "Balcão")}</div>
+          <div><strong>Responsável:</strong> ${escapeHtml(order.vendedorNomeSnapshot)} (#${escapeHtml(order.vendedorRefId)})</div>
+          <div><strong>Pagamento:</strong> ${escapeHtml(PAYMENT_LABELS[order.formaPagamento] || order.formaPagamento || "Não informado")} · <strong>${escapeHtml(order.statusPagamento || "PAGO")}</strong></div>
+          <div><strong>Cód. Comprovante / NSU / PIX:</strong> ${escapeHtml(order.comprovanteCodigo || "—")}</div>
+          <div><strong>Recebido / Conferido por:</strong> ${escapeHtml(order.recebidoPor || "—")}</div>
+          <div><strong>Valor Total:</strong> <strong>${escapeHtml(formatBRL(order.valorTotal))}</strong></div>
         </div>
         <table>
           <thead><tr><th>Item</th><th class="right">Unit.</th><th class="right">Qtd.</th><th class="right">Subtotal</th></tr></thead>
@@ -262,19 +267,19 @@ const Pedidos = () => {
             ${(order.itens || [])
               .map(
                 (i) =>
-                  `<tr><td>${i.produtoNomeSnapshot}</td><td class="right">${formatBRL(
+                  `<tr><td>${escapeHtml(i.produtoNomeSnapshot)}</td><td class="right">${escapeHtml(formatBRL(
                     i.precoUnitario
-                  )}</td><td class="right">${i.quantidade}</td><td class="right"><strong>${formatBRL(
+                  ))}</td><td class="right">${escapeHtml(i.quantidade)}</td><td class="right"><strong>${escapeHtml(formatBRL(
                     i.subtotal
-                  )}</strong></td></tr>`
+                  ))}</strong></td></tr>`
               )
               .join("")}
           </tbody>
         </table>
-        ${order.observacao ? `<p style="margin-top:12px;"><strong>Observações:</strong> ${order.observacao}</p>` : ""}
+        ${order.observacao ? `<p style="margin-top:12px;"><strong>Observações:</strong> ${escapeHtml(order.observacao)}</p>` : ""}
         <div class="sign">
-          <div class="line">Assinatura do Responsável (${order.vendedorNomeSnapshot})</div>
-          <div class="line">Assinatura / Recebimento (${order.recebidoPor || order.clienteNome || "Cliente / Recebedor"})</div>
+          <div class="line">Assinatura do Responsável (${escapeHtml(order.vendedorNomeSnapshot)})</div>
+          <div class="line">Assinatura / Recebimento (${escapeHtml(order.recebidoPor || order.clienteNome || "Cliente / Recebedor")})</div>
         </div>
         <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); };</script>
       </body>
@@ -566,7 +571,7 @@ const Pedidos = () => {
                             <a
                               href={formatImageUrl(order.comprovanteUrl)}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-accent-pink hover:underline font-medium"
                             >
                               <FiFileText size={12} />

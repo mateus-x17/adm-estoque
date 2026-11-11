@@ -1,18 +1,28 @@
-// arquivo responsável por centralizar requisições HTTP com JWT, cabeçalho de loja selecionada (X-Loja-Id), uploads e downloads binários
+// arquivo responsável por centralizar requisições HTTP do frontend com JWT, cabeçalho de loja (X-Loja-Id), espera de 1000ms para cold-start, toast de status e tratamento de respostas usando Fetch API.
 import { showServerToast, hideServerToast } from "./serverToast.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 let activeRequestsCount = 0;
+
+// função responsável por aguardar um intervalo de tempo em milissegundos de forma assíncrona.
+//
+// 1 - recebe ms (number) indicando a duração da pausa em milissegundos.
+// 2 - retorna uma Promise resolvida após setTimeout expirar.
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Função para gerenciar espera de 1000ms e toast informativo enquanto a requisição à API não completa
+// função responsável por executar requisições ao backend exibindo toast de conexão e aguardando 1000ms antes do envio.
+//
+// 1 - recebe fetchCallback (Function) contendo a execução real da chamada fetch.
+// 2 - incrementa activeRequestsCount e exibe showServerToast informando aguardo da API no Render.
+// 3 - aguarda 1000ms com delay(1000) antes de invocar fetchCallback.
+// 4 - decrementa activeRequestsCount no bloco finally e chama hideServerToast quando zerar.
+// 5 - retorna a resposta resolvida pelo fetchCallback ou propaga o erro capturado.
 const executeRequest = async (fetchCallback) => {
   activeRequestsCount++;
   showServerToast("Aguardando resposta da API (serviços em repouso no Render podem levar alguns segundos para inicializar)...");
 
   try {
-    // 1000ms de espera antes de efetivamente enviar a requisição ao backend
     await delay(1000);
     return await fetchCallback();
   } finally {
@@ -24,7 +34,11 @@ const executeRequest = async (fetchCallback) => {
   }
 };
 
-// função para recuperar o token JWT persistido no localStorage pelo Zustand
+// função responsável por recuperar o token JWT persistido no localStorage pelo store de autenticação.
+//
+// 1 - não recebe parâmetros.
+// 2 - lê e faz parse da chave auth-token no localStorage.
+// 3 - retorna a string do token ou null caso ausente ou corrompida.
 const getToken = () => {
   const storeData = localStorage.getItem("auth-token");
   if (!storeData) return null;
@@ -37,7 +51,11 @@ const getToken = () => {
   }
 };
 
-// função para recuperar a filial atualmente selecionada pelo ADMIN no localStorage ('all' ou ID numérico)
+// função responsável por recuperar o identificador da filial selecionada pelo ADMIN no localStorage.
+//
+// 1 - não recebe parâmetros.
+// 2 - lê e faz parse da chave tenant-scope no localStorage.
+// 3 - retorna o ID da loja em string se diferente de 'all', ou null caso contrário.
 const getSelectedLojaId = () => {
   const scopeData = localStorage.getItem("tenant-scope");
   if (!scopeData) return null;
@@ -51,7 +69,12 @@ const getSelectedLojaId = () => {
   }
 };
 
-// função para montar headers padrão com Bearer Token e X-Loja-Id (quando aplicável)
+// função responsável por montar os cabeçalhos HTTP padrão com JSON, Bearer JWT e X-Loja-Id.
+//
+// 1 - recebe customHeaders (object opcional) e skipAuth (boolean opcional, padrão false).
+// 2 - combina Content-Type application/json com customHeaders.
+// 3 - quando skipAuth for falso, injeta Authorization Bearer e X-Loja-Id se disponíveis.
+// 4 - retorna o objeto headers montado.
 const buildHeaders = (customHeaders = {}, skipAuth = false) => {
   const headers = {
     "Content-Type": "application/json",
@@ -71,7 +94,12 @@ const buildHeaders = (customHeaders = {}, skipAuth = false) => {
   return headers;
 };
 
-// função para tratar respostas HTTP e limpar sessão expirada (401)
+// função responsável por tratar respostas HTTP, limpar sessões expiradas (401) e lançar erros padronizados.
+//
+// 1 - recebe response (Response) retornada pelo fetch.
+// 2 - quando response.ok for falso, lê o JSON de erro ou define mensagem amigável pelo status HTTP.
+// 3 - em status 401 fora das páginas públicas de login, remove token e redireciona para o portal correspondente.
+// 4 - lança Error enriquecido com status e data caso falhe, ou retorna response.json() se bem-sucedido.
 const handleResponse = async (response) => {
   if (!response.ok) {
     let errorMessage = "Erro ao processar requisição";
@@ -124,6 +152,12 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
+// função responsável por montar configuração da requisição e executá-la via executeRequest com espera de 1000ms.
+//
+// 1 - recebe endpoint (string) e options (object opcional contendo skipAuth e parâmetros do fetch).
+// 2 - combina API_BASE_URL com endpoint e monta os cabeçalhos via buildHeaders.
+// 3 - executa fetch e handleResponse dentro de executeRequest.
+// 4 - retorna o payload JSON já tratado pela API.
 const request = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
   const { skipAuth = false, ...fetchOptions } = options;

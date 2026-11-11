@@ -162,11 +162,13 @@ export async function authenticateUser(email, senha, organizacaoSlug = null, por
   return session;
 }
 
-// serviço para registrar uma nova Organização (Rede), sua 1ª Loja e o usuário fundador ADMIN
-// 1 - Valida presença de nome da organização/loja, responsável, e-mail e senha
-// 2 - Gera slugs únicos para a Organização e para a Loja Matriz inicial
-// 3 - Executa transação atômica criando Organizacao -> Loja -> Usuario (role ADMIN, lojaId null)
-// 4 - Emite o JWT inicial e devolve token, usuário, organização e loja criada
+// serviço responsável por registrar uma nova Organização (Rede), sua 1ª Loja e o usuário fundador ADMIN.
+//
+// 1 - recebe objeto contendo nomeOrganizacao, nomeLoja, slug, cnpj, telefone, endereco, nome, email e senha.
+// 2 - valida presença de campos obrigatórios e exige tamanho mínimo de 6 caracteres para a senha.
+// 3 - normaliza e-mail e gera slugs únicos para a Organização e para a Loja Matriz inicial.
+// 4 - gera hash seguro da senha com bcrypt e cria Organizacao, Loja e Usuario fundador em transação atômica gravando matrícula.
+// 5 - retorna payload de sessão com token JWT, usuário sanitizado, organização e lista de lojas.
 export async function registerOrganizationAndAdmin({
   nomeOrganizacao,
   nomeLoja,
@@ -186,6 +188,9 @@ export async function registerOrganizationAndAdmin({
       "Nome do administrador, nome da organização/loja, e-mail e senha são obrigatórios",
       400
     );
+  }
+  if (String(senha).length < 6) {
+    throw new AppError("A senha deve conter pelo menos 6 caracteres", 400);
   }
 
   const normalizedEmail = email.trim().toLowerCase();
