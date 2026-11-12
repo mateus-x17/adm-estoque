@@ -1,19 +1,41 @@
+// arquivo responsável por validar esquemas e regras de integridade nos dados do corpo (body) das requisições HTTP.
+// atua na camada de middlewares de validação de entrada do backend.
+// tecnologias principais: Express.js e AppError.
+// usado por: rotas de criação e edição para garantir dados obrigatórios, formatos de e-mail e números positivos antes de atingir os controladores.
+
+// importações de erros: AppError formata exceções operacionais com código HTTP 400 (Bad Request).
 import { AppError } from '../utils/errorHandler.js';
 
-// middleware fábrica para validação de esquemas dos dados da requisição
-// 1 - Recebe um "schema" que pode ser uma função validadora customizada ou um objeto definindo os campos requeridos
-// 2 - Retorna um middleware que avalia os dados de req.body antes que o controlador seja alcançado
-// 3 - Se schema for uma função, executa passando o body. Se a função falhar, ela mesma deve lançar um erro
-// 4 - Se schema for um objeto listando campos "required", itera sobre eles e verifica a existência de cada chave no body
-// 5 - Caso falte alguma chave exigida, lança um erro formatado de AppError (Status 400 - Bad Request)
-// 6 - Em caso de sucesso, chama next()
-// 7 - O catch captura os erros e os envia ao manipulador central de erros (next(err)), formatando fallback caso não seja um AppError conhecido
+// função responsável por construir um middleware de validação que avalia campos obrigatórios e formatos de entrada no corpo da requisição.
+//
+// contexto: invocada nas rotas antes dos controllers para barrar dados ausentes ou mal formatados na entrada.
+//
+// parâmetros:
+//   - schema (objeto|função, obrigatório): especificação de validação contendo array required ou função validadora síncrona.
+//
+// retorno: função middleware do Express (req, res, next) => void.
+// erros:
+//   - AppError(400) se algum campo obrigatório de schema.required estiver ausente ou vazio.
+//   - AppError(400) se e-mail, preço ou quantidade possuírem formato ou valor inválido.
+// efeitos colaterais: nenhum (validação de entrada síncrona em memória).
+//
+// passo a passo:
+// 1 - recebe o parâmetro schema.
+// 2 - retorna a função middleware do Express com req, res e next.
+// 3 - se schema for uma função, executa-a passando req.body.
+// 4 - se schema possuir a propriedade required em array, verifica se cada chave existe e não é vazia em req.body.
+// 5 - valida o formato de e-mail com regex caso req.body.email esteja presente.
+// 6 - valida se req.body.preco é um número positivo caso informado.
+// 7 - valida se req.body.quantidade é um número positivo caso informado.
+// 8 - chama next() se todas as validações passarem, ou encaminha o erro capturado para o handler central com next(err).
 export const validateRequest = (schema) => {
   return (req, res, next) => {
     try {
+      // 3 - validação via função customizada
       if (typeof schema === 'function') {
         schema(req.body);
       } else if (schema && Array.isArray(schema.required)) {
+        // 4 - validação de campos obrigatórios
         for (const key of schema.required) {
           const val = req.body[key];
           if (val === undefined || val === null || val === '') {
@@ -22,7 +44,7 @@ export const validateRequest = (schema) => {
         }
       }
 
-      // Validações básicas de formato e integridade de tipos quando os campos estão presentes
+      // 5 - validação de formato de e-mail
       if (req.body.email && typeof req.body.email === 'string') {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(req.body.email.trim())) {
@@ -30,6 +52,7 @@ export const validateRequest = (schema) => {
         }
       }
 
+      // 6 - validação de preço positivo
       if (req.body.preco !== undefined && req.body.preco !== null && req.body.preco !== '') {
         const p = Number(req.body.preco);
         if (isNaN(p) || p < 0) {
@@ -37,6 +60,7 @@ export const validateRequest = (schema) => {
         }
       }
 
+      // 7 - validação de quantidade positiva
       if (req.body.quantidade !== undefined && req.body.quantidade !== null && req.body.quantidade !== '') {
         const q = Number(req.body.quantidade);
         if (isNaN(q) || q < 0) {
@@ -44,6 +68,7 @@ export const validateRequest = (schema) => {
         }
       }
 
+      // 8 - libera para o controlador
       next();
     } catch (err) {
       if (err instanceof AppError) return next(err);

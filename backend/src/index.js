@@ -40,11 +40,22 @@ const app = express();
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
-// função responsável por normalizar a lista de origens permitidas no CORS a partir de FRONTEND_URL.
+// função responsável por normalizar a lista de origens permitidas no CORS a partir da variável FRONTEND_URL.
 //
-// 1 - recebe rawFrontendUrl (string|undefined).
-// 2 - divide por vírgula caso múltiplas origens estejam configuradas e remove espaços/barras finais.
-// 3 - retorna o array de origens válidas com fallback seguro para http://localhost:5173.
+// contexto: invocada durante a inicialização do servidor para configurar a lista de domínios com acesso permitido ao backend.
+//
+// parâmetros:
+//   - rawFrontendUrl (string|undefined, opcional): string com URLs separadas por vírgula vindas do ambiente.
+//
+// retorno: array de strings contendo as origens limpas e sem barras finais (com fallback para http://localhost:5173).
+// erros: nenhum.
+// efeitos colaterais: nenhum (função pura de parsing).
+//
+// passo a passo:
+// 1 - recebe rawFrontendUrl (string ou undefined).
+// 2 - retorna array padrão ["http://localhost:5173"] se rawFrontendUrl for nulo ou indefinido.
+// 3 - converte para string, divide por vírgulas e remove espaços e barras finais de cada URL.
+// 4 - filtra URLs vazias e retorna o array resultante ou o fallback padrão.
 function parseAllowedOrigins(rawFrontendUrl) {
   if (!rawFrontendUrl) return ["http://localhost:5173"];
   const origins = String(rawFrontendUrl)
@@ -137,7 +148,24 @@ const server = app.listen(PORT, () => {
   logger.info(`URL: http://localhost:${PORT}`);
 });
 
-// 11 - Graceful Shutdown (A7): Encerramento gracioso de conexões HTTP e Prisma
+// função responsável por encerrar graciosamente conexões HTTP e do banco de dados (Graceful Shutdown) ao receber sinais do SO.
+//
+// contexto: registrada nos ouvintes dos eventos de encerramento SIGTERM e SIGINT do processo Node.js.
+//
+// parâmetros:
+//   - signal (string, obrigatório): nome do sinal do sistema operacional disparado (ex.: 'SIGTERM', 'SIGINT').
+//
+// retorno: nenhum (função assíncrona que encerra o processo via process.exit).
+// erros: nenhum.
+// efeitos colaterais: fecha o servidor HTTP, desconecta o cliente Prisma do PostgreSQL e finaliza o processo Node.js.
+//
+// passo a passo:
+// 1 - recebe o sinal signal do sistema operacional.
+// 2 - registra log informando início do graceful shutdown.
+// 3 - fecha o servidor HTTP server com server.close().
+// 4 - após fechar o servidor, desconecta o cliente Prisma via prisma.$disconnect().
+// 5 - encerra o processo com código 0 (sucesso) ou 1 (erro ao desconectar).
+// 6 - ativa timer de contingência de 10 segundos caso conexões fiquem pendentes para forçar encerramento.
 const shutdown = async (signal) => {
   logger.info({ signal }, 'Recebido sinal de encerramento. Iniciando Graceful Shutdown...');
   server.close(async () => {

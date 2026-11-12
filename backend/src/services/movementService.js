@@ -1,4 +1,14 @@
+// arquivo responsável por auditar movimentações de estoque, calcular métricas de vendas e consolidar relatórios de desempenho de vendedores.
+// atua na camada de serviços (services) do backend.
+// tecnologias principais: Prisma Client, PostgreSQL Raw SQL com Agregações, JavaScript ES Modules.
+// usado por: movementController.js para atender listagem do livro-razão, rankings de vendedores e relatórios analíticos.
+
+// importações de acesso a banco de dados e utilitários SQL:
+// prisma provê comunicação ORM e Prisma fornece helpers para montagem segura de queries parametrizadas.
 import { prisma, Prisma } from "../config/prismaClient.js";
+
+// importações de utilitários de erros e manipulação funcional de matrículas:
+// AppError padroniza lançamento de erros com status HTTP; formatMatricula, formatMatriculaDisplay, parseMatriculaSearch e buildWorkedMonthsTimeline tratam identificação e linha do tempo de colaboradores.
 import { AppError } from "../utils/errorHandler.js";
 import {
   formatMatricula,
@@ -7,21 +17,63 @@ import {
   buildWorkedMonthsTimeline,
 } from "../utils/matriculaHelper.js";
 
-// arquivo responsável pelas consultas de auditoria de estoque, relatórios executivos e desempenho individual de vendedores
-
-// função auxiliar para construir Date local sem deslocamento de fuso UTC
-// 1 - Interpreta YYYY-MM-DD posicionando no início ou último milissegundo do dia
+// função responsável por converter uma data no formato textual YYYY-MM-DD em objeto Date local sem deslocamento de fuso UTC.
+//
+// contexto: invocada internamente por resolveDateRange, listMovementsPaginated e getUserStatsAggregated para delimitar intervalos temporais de consultas.
+//
+// parâmetros:
+//   - ymd (string, obrigatório): representação de data no formato ISO YYYY-MM-DD.
+//   - endOfDay (booleano, opcional, padrão false): flag indicando se deve posicionar no último milissegundo do dia (23:59:59.999) ou no início (00:00:00.000).
+//
+// retorno: instância de Date configurada no horário local do servidor.
+// erros: nenhum.
+// efeitos colaterais: nenhum (função pura).
+//
+// passo a passo:
+// 1 - recebe ymd (string obrigatória) e endOfDay (booleano opcional com padrão false).
+// 2 - divide a string pelos hifens convertendo ano, mês e dia em valores numéricos.
+// 3 - ajusta o mês subtraindo um para adequação ao padrão de base zero da API Date do JavaScript.
+// 4 - instancia o objeto Date configurando para o último milissegundo caso endOfDay seja verdadeiro ou para meia-noite caso falso.
+// 5 - retorna a instância de Date calculada.
 function dateFromYMD(ymd, endOfDay = false) {
+  // 1 - recebe ymd (string obrigatória) e endOfDay (booleano opcional com padrão false).
+  // 2 - divide a string pelos hifens convertendo ano, mês e dia em valores numéricos.
   const [year, month, day] = String(ymd).split("-").map(Number);
+
+  // 3 - ajusta o mês subtraindo um para adequação ao padrão de base zero da API Date do JavaScript.
+  // 4 - instancia o objeto Date configurando para o último milissegundo caso endOfDay seja verdadeiro ou para meia-noite caso falso.
+  // 5 - retorna a instância de Date calculada.
   return endOfDay
     ? new Date(year, month - 1, day, 23, 59, 59, 999)
     : new Date(year, month - 1, day, 0, 0, 0, 0);
 }
 
-// função auxiliar para calcular intervalo inicial/final baseado em período ('1m', '6m', '1y') ou datas customizadas
-// 1 - Quando recebe from/to explícitos, utiliza os limites customizados; caso contrário, subtrai 30, 180 ou 365 dias de hoje
+// função responsável por resolver o intervalo de datas inicial e final para filtros temporais predefinidos ou customizados.
+//
+// contexto: invocada internamente por getSellerPerformanceRanking e getSalesReportData para determinar a janela de tempo de relatórios analíticos.
+//
+// parâmetros:
+//   - period (string, opcional, padrão "1m"): código do período predefinido ('1m' para 30 dias, '6m' para 180 dias ou '1y' para 365 dias).
+//   - from (string, opcional, padrão null): data inicial personalizada em formato YYYY-MM-DD ou ISO.
+//   - to (string, opcional, padrão null): data final personalizada em formato YYYY-MM-DD ou ISO.
+//
+// retorno: objeto contendo period ('custom' ou código normalizado), startDate (instância Date inicial) e endDate (instância Date final).
+// erros: nenhum.
+// efeitos colaterais: nenhum (função pura).
+//
+// passo a passo:
+// 1 - recebe period (string opcional), from (string opcional) e to (string opcional).
+// 2 - obtém a data atual como referência de término.
+// 3 - avalia se datas customizadas from ou to foram informadas calculando os limites personalizados correspondentes.
+// 4 - caso não sejam informadas datas customizadas, normaliza o período selecionado para '1m', '6m' ou '1y'.
+// 5 - subtrai o número de dias correspondente (30, 180 ou 365 dias) a partir da data atual para definir startDate.
+// 6 - retorna objeto com o código do período resolvido, startDate e endDate.
 function resolveDateRange(period = "1m", from = null, to = null) {
+  // 1 - recebe period (string opcional), from (string opcional) e to (string opcional).
+  // 2 - obtém a data atual como referência de término.
   const now = new Date();
+
+  // 3 - avalia se datas customizadas from ou to foram informadas calculando os limites personalizados correspondentes.
   if (from || to) {
     const startDate =
       from && from !== "undefined" ? dateFromYMD(from, false) : new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
@@ -29,20 +81,45 @@ function resolveDateRange(period = "1m", from = null, to = null) {
     return { period: "custom", startDate, endDate };
   }
 
+  // 4 - caso não sejam informadas datas customizadas, normaliza o período selecionado para '1m', '6m' ou '1y'.
   const normalizedPeriod = ["1m", "6m", "1y"].includes(period) ? period : "1m";
   const startDate = new Date(now);
+
+  // 5 - subtrai o número de dias correspondente (30, 180 ou 365 dias) a partir da data atual para definir startDate.
   if (normalizedPeriod === "1m") startDate.setDate(now.getDate() - 30);
   else if (normalizedPeriod === "6m") startDate.setDate(now.getDate() - 180);
   else if (normalizedPeriod === "1y") startDate.setDate(now.getDate() - 365);
 
+  // 6 - retorna objeto com o código do período resolvido, startDate e endDate.
   return { period: normalizedPeriod, startDate, endDate: now };
 }
 
-// função para listar movimentações unitárias do livro-razão (com busca por ID antigo de ex-funcionário e sigilo OPERADOR)
-// 1 - Trava filtro de vendedor em req.user.id quando o solicitante possui papel OPERADOR
-// 2 - Aplica filtros de Organização/Loja, período, pedido vinculado, tipo, produto e pesquisa textual/numérica por vendedorRefId
-// 3 - Executa busca paginada e contagem paralela incluindo snapshots preservados de ex-vendedores
+// função responsável por listar movimentações de estoque do livro-razão com paginação, filtros avançados e sigilo por perfil.
+//
+// contexto: invocada por movementController.js na rota GET /api/movements para alimentar o extrato operacional no frontend.
+//
+// parâmetros:
+//   - filters (objeto, opcional): parâmetros de busca (id, date, produtoId, pedidoId, from, to, order, page, limit, tipo, usuarioId, vendedorRefId, estorno, search).
+//   - scope (objeto, obrigatório): escopo contendo organizacaoId e opcionalmente lojaId.
+//   - requestingUser (objeto, opcional, padrão null): usuário da sessão para aplicação de sigilo funcional (operadores veem apenas seus próprios registros).
+//
+// retorno: objeto contendo a lista data de movimentos com produtos, pedidos, lojas e usuários incluídos e metadados de pagination.
+// erros: AppError (400) se scope.organizacaoId não for fornecido.
+// efeitos colaterais: realiza consultas de leitura e contagem na tabela Movimento do banco de dados.
+//
+// passo a passo:
+// 1 - recebe filters (objeto opcional), scope (objeto obrigatório) e requestingUser (objeto opcional).
+// 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
+// 3 - normaliza o tipo de movimentação convertendo entradas e saídas para REPOSICAO ou VENDA.
+// 4 - aplica regra de sigilo restringindo vendedorRefId ao próprio id do usuário caso seja OPERADOR.
+// 5 - interpreta termo de busca textual ou matrícula aplicando busca insensível e resolução de identificadores numéricos.
+// 6 - constrói a cláusula where com isolamento multi-tenant de organização, loja, intervalos de datas e produtos.
+// 7 - calcula parâmetros de paginação skip e limitSafe tratando opção de exportação total (limit 'all').
+// 8 - executa consultas paralelas findMany e count no banco de dados via Promise.all com ordenação por data.
+// 9 - retorna objeto contendo registros de movimentos e metadados estruturados de paginação.
 export async function listMovementsPaginated(filters = {}, scope, requestingUser = null) {
+  // 1 - recebe filters (objeto opcional), scope (objeto obrigatório) e requestingUser (objeto opcional).
+  // 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
   if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
 
   const {
@@ -149,18 +226,39 @@ export async function listMovementsPaginated(filters = {}, scope, requestingUser
   };
 }
 
-// função SQL nativa para agregar movimentações e faturamento válido por vendedor (incluindo ex-colaboradores excluídos)
-// 1 - Ignora estornos (estorno = true) e movimentações pertencentes a pedidos cancelados
-// 2 - Agrupa pelo vendedorRefId permanente mantendo identificação de contas excluídas
+// função responsável por agregar o volume de movimentações e faturamento total por colaborador utilizando consultas SQL nativas.
+//
+// contexto: invocada por movementController.js na rota GET /api/movements/stats-by-user para alimentar gráficos de produtividade.
+//
+// parâmetros:
+//   - dateRange (objeto, opcional): objeto com propriedades from e to delimitando o intervalo temporal.
+//   - scope (objeto, obrigatório): escopo organizacional contendo organizacaoId e opcionalmente lojaId.
+//
+// retorno: array de objetos com o resumo de cada vendedor (usuarioId, vendedorRefId, name, email, excluido, count, totalQuantity, totalValue).
+// erros: AppError (400) se scope.organizacaoId não for fornecido.
+// efeitos colaterais: executa consulta raw SQL com agregação no banco de dados.
+//
+// passo a passo:
+// 1 - recebe dateRange (objeto opcional com from e to) e scope (objeto obrigatório).
+// 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
+// 3 - monta cláusula de condições ignorando estornos e pedidos que não estejam com status CONCLUIDO.
+// 4 - anexa restrições de loja e limites temporais inicial e final conforme parâmetros fornecidos.
+// 5 - executa query SQL raw agrupando por vendedorRefId com snapshots preservados para colaboradores excluídos.
+// 6 - formata os resultados calculando tags de ex-colaborador e convertendo totais monetários para ponto flutuante.
+// 7 - retorna o array consolidado de estatísticas por colaborador.
 export async function getUserStatsAggregated({ from, to } = {}, scope) {
+  // 1 - recebe dateRange (objeto opcional com from e to) e scope (objeto obrigatório).
+  // 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
   if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
 
+  // 3 - monta cláusula de condições ignorando estornos e pedidos que não estejam com status CONCLUIDO.
   const conditions = [
     Prisma.sql`m."organizacaoId" = ${Number(scope.organizacaoId)}`,
     Prisma.sql`m."estorno" = false`,
     Prisma.sql`(m."pedidoId" IS NULL OR ped."status" = 'CONCLUIDO')`,
   ];
 
+  // 4 - anexa restrições de loja e limites temporais inicial e final conforme parâmetros fornecidos.
   if (scope.lojaId) {
     conditions.push(Prisma.sql`m."lojaId" = ${Number(scope.lojaId)}`);
   }
@@ -183,6 +281,7 @@ export async function getUserStatsAggregated({ from, to } = {}, scope) {
 
   const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
 
+  // 5 - executa query SQL raw agrupando por vendedorRefId com snapshots preservados para colaboradores excluídos.
   const rawResults = await prisma.$queryRaw`
     SELECT
       m."vendedorRefId"::int AS "vendedorRefId",
@@ -200,6 +299,8 @@ export async function getUserStatsAggregated({ from, to } = {}, scope) {
     ORDER BY "totalValue" DESC, "count" DESC
   `;
 
+  // 6 - formata os resultados calculando tags de ex-colaborador e convertendo totais monetários para ponto flutuante.
+  // 7 - retorna o array consolidado de estatísticas por colaborador.
   return rawResults.map((r) => {
     const isDeleted = Boolean(r.excluido);
     const refId = Number(r.vendedorRefId);
@@ -220,22 +321,45 @@ export async function getUserStatsAggregated({ from, to } = {}, scope) {
   });
 }
 
-// função dedicada para ranquear vendedores do melhor ao pior (ativos e contas excluídas via vendedorRefId)
-// 1 - Soma vendas líquidas válidas no período (1m, 6m, 1y ou intervalo customizado) dentro da Rede ou Loja
-// 2 - Combina resultados com vendedores/gerentes ativos sem vendas no período para ranking completo
-// 3 - Permite busca por antigo ID numérico, nome ou e-mail e ordena do maior para o menor faturamento
+// função responsável por gerar o ranking de desempenho de vendas dos colaboradores do melhor ao pior faturamento.
+//
+// contexto: invocada por movementController.js na rota GET /api/movements/performance/ranking para visualização executiva de produtividade.
+//
+// parâmetros:
+//   - options (objeto, opcional): parâmetros de controle do ranking (period, from, to, search, includeDeleted).
+//   - scope (objeto, obrigatório): escopo de consulta com organizacaoId, lojaId e lojaNome opcionais.
+//
+// retorno: objeto contendo metadados de período, faturamento global do intervalo e array ordenado de vendedores ranqueados com indicadores de ticket médio e posições.
+// erros: AppError (400) se scope.organizacaoId não for fornecido.
+// efeitos colaterais: executa query raw SQL e consultas relacionais na base de dados.
+//
+// passo a passo:
+// 1 - recebe options (objeto opcional) e scope (objeto obrigatório).
+// 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
+// 3 - resolve o intervalo de datas do período solicitado através de resolveDateRange.
+// 4 - executa consulta raw SQL agregando vendas líquidas concluídas por vendedorRefId no período.
+// 5 - consulta colaboradores ativos na organização para incluí-los no ranking mesmo sem vendas no período.
+// 6 - mescla os dados consolidando métricas de peças vendidas, faturamento, ticket médio e matrícula formatada.
+// 7 - calcula faturamento global somando o total faturado de todos os colaboradores avaliados.
+// 8 - ordena a listagem do maior faturamento para o menor atribuindo as posições no ranking.
+// 9 - aplica filtro de pesquisa textual por nome, e-mail ou matrícula caso especificado pelo usuário.
+// 10 - retorna objeto com metadados de período, escopo, faturamento global e lista ranqueada.
 export async function getSellerPerformanceRanking(
   { period = "1m", from, to, search = "", includeDeleted = true } = {},
   scope
 ) {
+  // 1 - recebe options (objeto opcional) e scope (objeto obrigatório).
+  // 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
   if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
 
+  // 3 - resolve o intervalo de datas do período solicitado através de resolveDateRange.
   const { startDate, endDate, period: resolvedPeriod } = resolveDateRange(period, from, to);
   const orgId = Number(scope.organizacaoId);
   const lojaFilterSql = scope.lojaId
     ? Prisma.sql`AND m."lojaId" = ${Number(scope.lojaId)}`
     : Prisma.empty;
 
+  // 4 - executa consulta raw SQL agregando vendas líquidas concluídas por vendedorRefId no período.
   const rawSales = await prisma.$queryRaw`
     SELECT
       m."vendedorRefId"::int AS "vendedorRefId",
@@ -490,12 +614,34 @@ export async function getSellerPerformanceRanking(
   };
 }
 
-// função para raio-X completo de um vendedor específico (ativo, suspenso ou desligado por matrícula/ID antigo)
-// 1 - Interpreta Matrícula (ex: MAT-00063) ou ID numérico e consulta conta viva ou snapshots históricos (Pedido/Movimento)
-// 2 - Calcula faturamento, pedidos e peças em 1m, 6m, 1y, total e todos os meses trabalhados entre dataInicio e dataTermino
-// 3 - Gera evolução mensal, top produtos e pedidos recentes mantendo identificação enxuta (Nome, E-mail e Matrícula)
+// função responsável por consolidar o histórico completo de desempenho individual de um colaborador ativo ou desligado.
+//
+// contexto: invocada por movementController.js na rota GET /api/movements/performance/:refId para detalhamento executivo e auditoria funcional.
+//
+// parâmetros:
+//   - refId (número ou string, obrigatório): matrícula formatada ou identificador numérico de referência do colaborador.
+//   - scope (objeto, obrigatório): escopo de autorização contendo organizacaoId e opcionalmente lojaId.
+//
+// retorno: objeto consolidado com perfil funcional, faturamento por período, evolução mensal trabalhada, produtos mais vendidos e pedidos recentes.
+// erros: AppError (400) se organizacaoId faltar ou refId for inválido; AppError (404) se o colaborador não for localizado no histórico.
+// efeitos colaterais: realiza consultas paralelas no banco de dados nas tabelas Usuario, Movimento e Pedido.
+//
+// passo a passo:
+// 1 - recebe refId (número ou string) e scope (objeto obrigatório).
+// 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
+// 3 - interpreta o refId extraindo o identificador numérico seguro via parseMatriculaSearch.
+// 4 - busca em paralelo no banco a conta ativa do usuário, histórico em movimentos e pedidos associados ao vendedor.
+// 5 - consolida perfil unificado com nome, email, matrícula e datas de admissão e desligamento.
+// 6 - calcula totais de vendas e peças em janelas temporais de um mês, seis meses, um ano e histórico global.
+// 7 - constrói linha do tempo mês a mês dos períodos trabalhados integrando faturamento e quantidade de pedidos.
+// 8 - compõe o ranking dos produtos mais comercializados pelo colaborador agregando volume e valor.
+// 9 - retorna o relatório analítico estruturado com dados de evolução e pedidos recentes.
 export async function getSellerPerformanceDetail(refId, scope) {
+  // 1 - recebe refId (número ou string) e scope (objeto obrigatório).
+  // 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
   if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
+
+  // 3 - interpreta o refId extraindo o identificador numérico seguro via parseMatriculaSearch.
   const parsedRef = parseMatriculaSearch(refId);
   const sellerRefId = parsedRef.numericId;
   if (!sellerRefId || isNaN(sellerRefId) || sellerRefId <= 0) {
@@ -505,6 +651,7 @@ export async function getSellerPerformanceDetail(refId, scope) {
   const orgId = Number(scope.organizacaoId);
   const lojaId = scope.lojaId ? Number(scope.lojaId) : null;
 
+  // 4 - busca em paralelo no banco a conta ativa do usuário, histórico em movimentos e pedidos associados ao vendedor.
   const [aliveUser, dismissedRecord, validSalesMovements, sellerOrders] = await Promise.all([
     prisma.usuario.findFirst({
       where: { id: sellerRefId, organizacaoId: orgId },
@@ -801,15 +948,39 @@ export async function getSellerPerformanceDetail(refId, scope) {
   };
 }
 
-// função consolidada para relatórios executivos de vendas e PDF A4 ('1m', '6m', '1y')
-// 1 - ADMIN vê rede inteira ('network') ou filial selecionada ('store'); GERENTE vê apenas sua loja ('store'); OPERADOR vê suas vendas ('user')
-// 2 - Calcula faturamento congelado (mov.valorTotal) ignorando estornos e pedidos cancelados
-// 3 - Inclui ranking de vendedores (melhor ao pior) e resumo de vendas por fornecedor para ADMIN e GERENTE
+// função responsável por consolidar dados analíticos de vendas para emissão de relatórios executivos e impressão de relatórios em PDF A4.
+//
+// contexto: invocada por movementController.js na rota GET /api/movements/sales-report para relatórios gerenciais e dashboards.
+//
+// parâmetros:
+//   - period (string, opcional, padrão "1m"): código do período de agregação ('1m', '6m' ou '1y').
+//   - scope (objeto, obrigatório): escopo contendo organizacaoId, lojaId e lojaNome.
+//   - requestingUser (objeto, opcional, padrão null): dados da sessão do solicitante para aplicação de regras de visibilidade e sigilo.
+//
+// retorno: objeto contendo resumo executivo (receita total, pedidos concluídos, peças vendidas, ticket médio), dados de gráficos diários e mensais, top produtos, rankings de vendedores e fornecedores.
+// erros: AppError (400) se scope.organizacaoId não for fornecido.
+// efeitos colaterais: realiza consultas de leitura nas tabelas Movimento, Produto, Pedido e Loja.
+//
+// passo a passo:
+// 1 - recebe period (string opcional), scope (objeto obrigatório) e requestingUser (objeto opcional).
+// 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
+// 3 - resolve o intervalo temporal com startDate e endDate via resolveDateRange.
+// 4 - busca no banco todas as movimentações de venda válidas e não estornadas no período respeitando restrições de sigilo.
+// 5 - calcula os totais consolidados de faturamento, volume de peças e pedidos únicos finalizados.
+// 6 - agrega a distribuição temporal de vendas por dia e por mês para renderização de gráficos.
+// 7 - consolida a lista dos produtos mais vendidos calculando faturamento e participação percentual.
+// 8 - monta o ranking de vendedores e o demonstrativo de vendas por fornecedor parceiro.
+// 9 - retorna o relatório executivo completo estruturado para visualização em tela ou exportação em PDF.
 export async function getSalesReportData(period = "1m", scope, requestingUser = null) {
+  // 1 - recebe period (string opcional), scope (objeto obrigatório) e requestingUser (objeto opcional).
+  // 2 - valida a presença de organizacaoId no escopo lançando AppError (400) se ausente.
   if (!scope?.organizacaoId) throw new AppError("Organização não identificada", 400);
 
+  // 3 - resolve o intervalo temporal com startDate e endDate via resolveDateRange.
   const { period: normalizedPeriod, startDate, endDate } = resolveDateRange(period);
   const isOperador = requestingUser?.role === "OPERADOR";
+
+  // 4 - busca no banco todas as movimentações de venda válidas e não estornadas no período respeitando restrições de sigilo.
 
   const movements = await prisma.movimento.findMany({
     where: {

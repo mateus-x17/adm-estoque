@@ -1,13 +1,18 @@
+// arquivo responsável por configurar e instanciar o sistema de logs estruturados em formato JSON com Pino.
+// atua na camada de configuração e infraestrutura do backend.
+// tecnologias principais: Pino e pino-pretty.
+// usado por: index.js, requestLogger.js, errorHandler.js e todos os controllers e middlewares para auditoria e rastreamento.
+
+// importações da biblioteca de logging: pino é a fábrica de instâncias de logger ultrarrápido em JSON.
 import pino from 'pino';
 
-// arquivo responsável por configurar o sistema de logs (Pino)
-// 1 - Determina se está em ambiente de desenvolvimento (padrão quando NODE_ENV não é 'production')
+// flag booleana que detecta se o ambiente atual é diferente de produção (development/test).
 const isDev = process.env.NODE_ENV !== 'production';
 
-// 2 - Obtém o nível de log (level) a partir da variável de ambiente LOG_LEVEL, ou define "debug" em dev e "info" em prod
+// nível de severidade mínimo de log (debug em desenvolvimento, info em produção, ou o valor de LOG_LEVEL).
 const level = process.env.LOG_LEVEL || (isDev ? 'debug' : 'info');
 
-// 3 - Configuração de transporte: utiliza pino-pretty em desenvolvimento para formatação legível e colorida
+// configuração de transporte visual: formata logs de forma colorida com pino-pretty em desenvolvimento e JSON bruto em produção.
 const transport = isDev
   ? {
       target: 'pino-pretty',
@@ -19,18 +24,30 @@ const transport = isDev
     }
   : undefined;
 
-// 4 - Instancia e exporta o logger principal configurado
+// instância singleton do logger configurado para a aplicação.
 export const logger = pino({
   level,
   transport,
 });
 
-// função para criar loggers filhos específicos por módulo
-// 1 - Recebe o nome do módulo como argumento (ex: "userController")
-// 2 - Retorna um novo logger filho a partir do logger principal, anexando a propriedade { module: moduleName } em todos os logs deste filho
+// função responsável por criar instâncias de loggers filhos anotados com o nome do módulo solicitante.
+//
+// contexto: invocada no topo dos controllers, services e middlewares para associar logs ao seu componente de origem.
+//
+// parâmetros:
+//   - moduleName (string, obrigatório): nome de identificação do módulo (ex.: 'authController', 'orderService').
+//
+// retorno: nova instância de logger filha herdando as configurações globais com a propriedade fixa module = moduleName.
+// erros: nenhum.
+// efeitos colaterais: nenhum (função pura de instanciação de logger).
+//
+// passo a passo:
+// 1 - recebe moduleName (string) representando o contexto de execução.
+// 2 - deriva um novo logger filho a partir da instância principal do Pino vinculando a chave { module: moduleName }.
+// 3 - retorna a instância especializada do logger.
 export function childLogger(moduleName) {
+  // 2 e 3 - cria e retorna o logger filho contextualizado
   return logger.child({ module: moduleName });
 }
 
 export default logger;
-

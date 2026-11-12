@@ -1,13 +1,28 @@
+// arquivo responsável por padronizar a classe de erros operacionais e o middleware centralizado de tratamento de exceções HTTP.
+// atua na camada de utilitários e middleware de controle de erros do backend.
+// tecnologias principais: Express.js e Pino Logger.
+// usado por: index.js (registrado como último middleware) e por toda a aplicação via classe AppError.
+
+// importações de logging: logger registra eventos e falhas estruturadas com correlation ID e nível de criticidade.
 import { logger } from '../config/logger.js';
 
-// arquivo responsável por padronizar classes de erro operacionais e o tratamento centralizado de exceções HTTP no Express com Pino.
-
-// classe responsável por padronizar os erros operacionais da aplicação.
+// classe responsável por encapsular erros operacionais conhecidos da aplicação com código HTTP e mensagem amigável.
 //
-// 1 - recebe message (string) e statusCode (number opcional, padrão 500).
-// 2 - repassa a mensagem para a classe nativa Error.
-// 3 - define a propriedade statusCode na instância.
-// 4 - captura o stack trace para depuração interna via Error.captureStackTrace.
+// contexto: instanciada por serviços, middlewares e controladores quando uma validação ou regra de negócio falha intencionalmente.
+//
+// parâmetros:
+//   - message (string, obrigatório): mensagem clara do erro a ser exibida ao cliente.
+//   - statusCode (number, opcional, padrão 500): código de status HTTP correspondente (400, 401, 403, 404, 409 etc.).
+//
+// retorno: instância de AppError derivada da classe nativa Error.
+// erros: nenhum.
+// efeitos colaterais: captura o stack trace da execução via Error.captureStackTrace.
+//
+// passo a passo:
+// 1 - recebe message e statusCode.
+// 2 - invoca super(message) para inicializar a classe base Error.
+// 3 - atribui statusCode à instância.
+// 4 - captura a pilha de execução com Error.captureStackTrace para depuração.
 export class AppError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -16,18 +31,34 @@ export class AppError extends Error {
   }
 }
 
-// função responsável por interceptar erros nas rotas do Express, registrar logs estruturados e evitar vazamento de detalhes internos ao cliente.
+// função responsável por interceptar erros em todas as rotas do Express, registrar logs com requestId e responder com JSON seguro.
 //
-// 1 - recebe err (Error|AppError), req (Request), res (Response) e next (NextFunction).
-// 2 - normaliza status HTTP para erros do Multer (400), JSON malformado (400) e exceções conhecidas do Prisma (P2002/P2025/P2003).
-// 3 - monta metadados da requisição e do usuário autenticado (sem incluir senhas ou payloads sensíveis).
-// 4 - registra logger.error para falhas internas >= 500 e logger.warn para erros de cliente < 500.
-// 5 - oculta mensagens brutas de sistema em erros >= 500 não operacionais, enviando resposta JSON segura ao cliente.
+// contexto: registrado em index.js após todas as rotas; chamado automaticamente pelo Express sempre que next(err) é invocado.
+//
+// parâmetros:
+//   - err (Error|AppError, obrigatório): objeto de erro lançado na rota ou serviço.
+//   - req (Request, obrigatório): objeto da requisição HTTP do Express contendo method, url, requestId e user.
+//   - res (Response, obrigatório): objeto de resposta HTTP do Express para envio do status e corpo JSON.
+//   - next (NextFunction, obrigatório): função de encadeamento do Express.
+//
+// retorno: nenhum (envia a resposta HTTP final ao cliente com res.status().json()).
+// erros: nenhum.
+// efeitos colaterais: grava logs estruturados no Pino e envia resposta JSON com status HTTP correspondente ao cliente.
+//
+// passo a passo:
+// 1 - recebe err, req, res e next.
+// 2 - determina o status HTTP inicial a partir de err.statusCode, err.status ou 500.
+// 3 - normaliza mensagens para erros conhecidos de bibliotecas terceiras (Multer, JSON malformado e códigos P2002/P2025/P2003 do Prisma).
+// 4 - monta o objeto de metadados meta com método, caminho, requestId, dados do usuário e status HTTP.
+// 5 - registra log de erro crítico (logger.error) para status >= 500 ou log de aviso (logger.warn) para status < 500.
+// 6 - em caso de erro 500 não operacional, oculta detalhes técnicos e define mensagem genérica de segurança.
+// 7 - envia resposta JSON com o status HTTP e a chave { error: publicMessage }.
 export function errorHandler(err, req, res, next) {
+  // 2 - define status inicial e mensagem padrão
   let status = err.statusCode || err.status || 500;
   let publicMessage = err.message || 'Erro interno no servidor';
 
-  // 2 - trata erros de upload do Multer e corpo JSON inválido como 400
+  // 3 - mapeia erros conhecidos do Multer, parser JSON e Prisma
   if (err?.name === 'MulterError') {
     status = 400;
     publicMessage =
@@ -48,7 +79,7 @@ export function errorHandler(err, req, res, next) {
     publicMessage = 'Referência de relacionamento inválida.';
   }
 
-  // 3 - monta metadados de auditoria para registro interno
+  // 4 - monta metadados de auditoria e correlação
   const meta = {
     method: req.method,
     path: req.originalUrl || req.url,
@@ -57,18 +88,19 @@ export function errorHandler(err, req, res, next) {
     status,
   };
 
-  // 4 - registra erro completo nos logs privados conforme criticidade
+  // 5 - grava log estruturado de acordo com a severidade
   if (status >= 500) {
     logger.error({ err, stack: err.stack, ...meta }, `CRITICAL ERROR: ${err.message}`);
   } else {
     logger.warn({ ...meta, message: err.message }, err.message);
   }
 
-  // 5 - suprime mensagens brutas de banco/infraestrutura em erros 500 não operacionais
+  // 6 - suprime detalhes de banco em erros 500 não operacionais
   const isOperational = err instanceof AppError;
   if (status >= 500 && !isOperational) {
     publicMessage = 'Erro interno no servidor. Tente novamente mais tarde.';
   }
 
+  // 7 - despacha resposta JSON
   res.status(status).json({ error: publicMessage });
 }

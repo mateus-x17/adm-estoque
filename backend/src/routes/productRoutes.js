@@ -1,9 +1,21 @@
+// arquivo responsável por definir as rotas protegidas de catálogo de produtos, importação/exportação de planilhas e ajuste de estoque.
+// atua na camada de rotas HTTP do backend.
+// tecnologias principais: Express.js Router, Multer (armazenamento em disco e memória), authMiddleware, roleMiddleware e validationMiddleware.
+// usado por: index.js montado sob o prefixo /products.
+
+// importações da biblioteca web: express provê o construtor Router para registro das rotas.
 import express from "express";
+// importações de upload: multer cria instâncias para processar uploads de planilhas em memória.
 import multer from "multer";
+// importações de caminho: path extrai a extensão do arquivo enviado para validação de tipo.
 import path from "path";
+// importações de autenticação: authMiddleware assegura a presença de sessão JWT e tenant ativo.
 import { authMiddleware } from "../middlewares/authMiddleware.js";
+// importações de autorização: permit bloqueia acessos a operações de escrita e planilhas por perfil.
 import { permit } from "../middlewares/roleMiddleware.js";
+// importações de validação: validateRequest checa campos obrigatórios nos corpos das requisições.
 import { validateRequest } from "../middlewares/validationMiddleware.js";
+// importações dos controladores: métodos responsáveis por executar operações sobre produtos.
 import {
   createProduct,
   listProducts,
@@ -18,13 +30,15 @@ import {
   downloadImportTemplate,
   importProducts,
 } from "../controllers/productController.js";
+// importações de upload em disco: upload processa fotos de produtos direcionando para a pasta uploads/produtos.
 import { upload } from "../config/multerConfig.js";
+// importações de erros: AppError emite status HTTP 400 em caso de extensão de planilha incompatível.
 import { AppError } from "../utils/errorHandler.js";
 
-// arquivo de roteamento de produtos, planilhas em lote e movimentações de estoque por tenant
-
+// roteador Express para os endpoints de produtos
 const router = express.Router();
 
+// conjunto de MIME types oficiais e tolerados para upload de planilhas Excel e CSV
 const ALLOWED_SPREADSHEET_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "text/csv",

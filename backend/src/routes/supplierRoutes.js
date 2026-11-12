@@ -1,7 +1,17 @@
+// arquivo responsável por definir as rotas protegidas de gestão de fornecedores isolados por Organização e Loja.
+// atua na camada de rotas HTTP do backend.
+// tecnologias principais: Express.js Router, authMiddleware, roleMiddleware (permit) e validationMiddleware.
+// usado por: index.js montado sob o prefixo /suppliers.
+
+// importações da biblioteca web: express provê o construtor Router para registro das rotas.
 import express from "express";
+// importações de autenticação: authMiddleware valida a sessão JWT e o tenant ativo.
 import { authMiddleware } from "../middlewares/authMiddleware.js";
+// importações de autorização: permit restringe mutações a ADMIN e GERENTE e exclusões ao ADMIN.
 import { permit } from "../middlewares/roleMiddleware.js";
+// importações de validação: validateRequest checa a existência dos campos obrigatórios no body.
 import { validateRequest } from "../middlewares/validationMiddleware.js";
+// importações dos controladores: métodos responsáveis por processar cadastros e métricas de fornecedores.
 import {
   criarFornecedor,
   listarFornecedores,
@@ -13,13 +23,13 @@ import {
   obterFornecedor,
 } from "../controllers/supplierController.js";
 
-// arquivo de rotas para gestão de fornecedores isolados por estabelecimento
+// roteador Express para os endpoints de fornecedores
 const router = express.Router();
 
 // 1 - Autenticação obrigatória com validação de usuário/estabelecimento ativo e injeção de tenant
 router.use(authMiddleware);
 
-// 2 - Estatísticas agregadas (Deve vir antes das rotas dinâmicas com :id para evitar conflito de roteamento)
+// 2 - Estatísticas agregadas (declarada antes das rotas dinâmicas com :id para evitar conflito de roteamento)
 router.get("/stats", getSupplierStats);
 
 // 3 - Rotas de leitura acessíveis por colaboradores autenticados da loja

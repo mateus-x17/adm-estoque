@@ -1,7 +1,17 @@
+// arquivo responsável por definir as rotas protegidas para gestão de categorias de produtos isoladas por Organização e Loja.
+// atua na camada de rotas HTTP do backend.
+// tecnologias principais: Express.js Router, authMiddleware, roleMiddleware (permit) e validationMiddleware.
+// usado por: index.js montado sob o prefixo /categories.
+
+// importações da biblioteca web: express provê o construtor Router para registro dos endpoints.
 import express from "express";
+// importações de autenticação: authMiddleware assegura a presença e validade do token JWT e o tenant ativo.
 import { authMiddleware } from "../middlewares/authMiddleware.js";
+// importações de autorização: permit bloqueia o acesso para perfis que não possuam os papéis exigidos.
 import { permit } from "../middlewares/roleMiddleware.js";
+// importações de validação: validateRequest checa a existência dos campos obrigatórios no corpo da requisição.
 import { validateRequest } from "../middlewares/validationMiddleware.js";
+// importações dos controladores: métodos responsáveis por responder às operações de categorias.
 import {
   createCategory,
   listCategories,
@@ -11,7 +21,7 @@ import {
   countCategories,
 } from "../controllers/categoryController.js";
 
-// arquivo de rotas para o módulo de categorias do estabelecimento
+// roteador Express para os endpoints de categorias
 const router = express.Router();
 
 // 1 - Autenticação obrigatória com tenant e status ativo
