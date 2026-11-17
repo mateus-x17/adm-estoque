@@ -1,11 +1,19 @@
-# 📑 RELATÓRIO TÉCNICO 03 — MAPEAMENTO DE APIS, CONTRATOS E CADEIAS DE EXECUÇÃO
-## Projeto: Estoque.OS — Catálogo Completo de Endpoints (Sincronizado Fase H)
-**Data da Atualização:** 2026-11-11  
-**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
+# 📑 RELATÓRIO 03 — MAPEAMENTO DE APIS (AS 57 ROTAS DO SERVIDOR)
+**Projeto:** Estoque.OS — Catálogo Completo de Endpoints *(atualizado com a situação atual após Etapas 8 e 9)*  
+**Data da atualização:** 2026-11-17 *(catálogo verificado na branch `main`)*  
+**Documentos relacionados:** [Guia de Leitura e Glossário](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/00_GUIA_DE_LEITURA_E_GLOSSARIO.md) · [Relatório 11 — Catálogo Completo de Problemas](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md)
 
 ---
 
-## 1. Visão Geral da Superfície da API `[IMPLEMENTADO (verificado)]`
+## Resumo para quem não é técnico
+
+Uma **API** (e suas **rotas** ou **endpoints**) é o "cardápio de pedidos" que o site envia ao servidor pela internet. Cada vez que alguém faz login, abre a lista de produtos, fecha uma venda ou gera um relatório, o navegador chama um desses **57 endereços** abaixo.
+
+Apenas **4 endereços** são públicos (checar se o servidor está de pé, checar o banco, fazer login e cadastrar uma empresa nova). Todos os outros **53** exigem um crachá de login válido (`JWT`), conferem se a empresa, a loja e o funcionário estão ativos e impedem qualquer empresa de ver dados de outra.
+
+---
+
+## 1. Visão Geral da Superfície da API `[VERIFICADO]`
 
 A API do **Estoque.OS** expõe **57 rotas HTTP registradas no Express** (`55` em `src/routes/*.js` + `2` na raiz `index.js`, além de estáticos em `USE /uploads`):
 - **Camada Global (`index.js`):** `trust proxy = 1` (Render), `Helmet`, `CORS` com múltiplas origens normalizadas (`FRONTEND_URL`), parser JSON/urlencoded limitado a `1MB`, logger Pino + `X-Request-Id` e `apiLimiter` global (**400 req / 15 min / IP**).
@@ -20,9 +28,9 @@ A API do **Estoque.OS** expõe **57 rotas HTTP registradas no Express** (`55` em
 ## 2. Inventário Completo das 57 Rotas por Módulo
 
 ### 2.1 Raiz & Diagnóstico (`/`) — 2 rotas (+ `USE /uploads`)
-1. **`GET /`** ([`index.js#L65`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L65)) — Healthcheck básico de subida do servidor Express (`200 text/html`).
-2. **`GET /test-db`** ([`index.js#L68-L75`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L68-L75)) — Executa `SELECT NOW()` via Prisma contra o Neon PostgreSQL (`200 JSON` ou `500`).
-- **Estático:** `USE /uploads` ([`index.js#L59`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L59)) — Fallback local para mídias quando Cloudinary não está ativo.
+1. **`GET /`** ([`index.js#L115`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L115)) — Healthcheck básico de subida do servidor Express (`200 text/html`).
+2. **`GET /test-db`** ([`index.js#L118-L125`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L118-L125)) — Executa `SELECT NOW()` via Prisma contra o Neon PostgreSQL (`200 JSON` ou `500`, sem expor detalhes internos em produção).
+- **Estático:** `USE /uploads` ([`index.js#L99`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/index.js#L99)) — Fallback local para mídias quando Cloudinary não está ativo (`dotfiles: "ignore"`).
 
 ### 2.2 Autenticação & Portais (`/auth`) — 2 rotas
 *Arquivo: [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js) → [`authController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/authController.js)*

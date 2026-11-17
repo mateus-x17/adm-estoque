@@ -1,11 +1,19 @@
-# RELATÓRIO 02 — MAPEAMENTO DETALHADO DE MÓDULOS
+# 📑 RELATÓRIO 02 — MAPEAMENTO DETALHADO DE MÓDULOS
 **Projeto:** Estoque.OS  
-**Data da Auditoria:** 2026-11-10  
-**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
+**Data da atualização:** 2026-11-17 *(módulos verificados na branch `main`)*  
+**Documentos relacionados:** [Guia de Leitura e Glossário](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/00_GUIA_DE_LEITURA_E_GLOSSARIO.md) · [Relatório 11 — Catálogo Completo de Problemas](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md)
 
 ---
 
-## 1. Módulos de Domínio do Backend (`backend/src`) `[IMPLEMENTADO (verificado)]`
+## Resumo para quem não é técnico
+
+Um sistema grande é dividido em **módulos** (como departamentos de uma empresa): um módulo cuida do login, outro das lojas, outro da equipe, outro dos produtos, outro dos pedidos e outro dos relatórios.
+
+Este documento explica **o que cada departamento do código faz**, quais arquivos compõem cada área, quem tem permissão para usar cada parte (Administrador, Gerente ou Operador) e quais pontos exigem cuidado quando alguém faz manutenção.
+
+---
+
+## 1. Módulos de Domínio do Backend (`backend/src`) `[VERIFICADO]`
 
 ### 1.1 Autenticação, Portais e Abertura de Rede (`/auth`)
 - **Arquivos:** [`authRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/authRoutes.js), [`authController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/authController.js), [`authService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/authService.js).
@@ -25,7 +33,7 @@
 
 ### 1.3 Equipe, Matrícula Única, Situação Funcional, Transferência & Demissão (`/users`)
 - **Arquivos:** [`userRoutes.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/routes/userRoutes.js), [`userController.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/controllers/userController.js), [`userService.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/services/userService.js), [`matriculaHelper.js`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/backend/src/utils/matriculaHelper.js).
-- **Evolução Fase H + RH:**
+- **Evolução na Etapa 8 (Uma empresa com várias lojas, pedidos e gestão de funcionários):**
   - **Matrícula Determinística & Campos RH:** Todo colaborador recebe `matricula` única gerada do ID (`MAT-00001`), `telefone`, `situacao` (`ATIVO`, `SUSPENSO`, `FERIAS`) e `dataAdmissao`. `GET /users` suporta filtro por `search` (incluindo Matrícula), `role`, `situacao` (incl. `DESLIGADO` ou `todos`) e `lojaId`, listando também colaboradores desligados a partir de `RegistroDesligamento`.
   - **Alteração de Situação (`PATCH /users/:id/situation`):** `ADMIN` suspende, coloca em férias ou reativa qualquer colaborador da organização com limpeza imediata do `userCache` (suspensos/férias são bloqueados na hora com `403`, protegendo contra auto-suspensão e suspensão do último `ADMIN ATIVO`).
   - **Demissão com Exclusão Física, Data de Demissão & Relatório Mensal (`DELETE /users/:id` + `GET /users/:refId/dismissal-report`):** Aceita `{ dataDemissao, motivo }` opcionais, grava `RegistroDesligamento` e snapshots (`vendedorMatriculaSnapshot`, `vendedorDataAdmissaoSnapshot`, `vendedorDataDesligamentoSnapshot`), executa **exclusão física real** (`prisma.usuario.delete`) e devolve/reemite **`relatorioDesligamento`** mês a mês (`MAT-XXXXX (CANCELADA)`, `Data de Início` e `Data de Demissão`).
@@ -72,4 +80,4 @@
 
 ## 3. Pontos de Acoplamento Críticos `[INFERIDO DO CÓDIGO]`
 - **Dependência do Header `X-Loja-Id` no Admin:** Para operações de escrita (`POST /products`, `POST /orders`, `POST /products/import`), caso o `ADMIN` possua 2+ lojas ativas e esteja em visão consolidada (`"all"`), deve enviar `lojaId` no corpo/modal ou escolher uma loja no seletor (senão `resolveWriteStore` rejeita com HTTP `400`).
-- **Acoplamento Residual de `EditarItem.jsx`:** Diferente dos módulos novos, [`EditarItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/EditarItem.jsx) ainda realiza `fetch()` direto em duas linhas — devendo ser migrado para `apiClient` na manutenção futura (vide Relatório 08 / Falha B9).
+- **Acoplamento Residual de `EditarItem.jsx`:** Diferente dos módulos novos, [`EditarItem.jsx`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/frontend/src/components/forms/EditarItem.jsx#L365-L417) ainda realiza `fetch()` direto em duas linhas (`365` e `417`) — devendo ser migrado para `apiClient` na manutenção futura (ver [Relatório 08](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/08_melhorias_por_componente.md) e [`TELA-02`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md#tela-02)).

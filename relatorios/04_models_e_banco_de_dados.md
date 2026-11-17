@@ -1,11 +1,21 @@
-# 📑 RELATÓRIO TÉCNICO 04 — MODELS, ESTRUTURAS DE DADOS E BANCO DE DADOS
-## Projeto: Estoque.OS — Modelagem Multi-Organização, Multipedidos & Preservação Histórica (Fase H)
-**Data da Atualização:** 2026-11-11  
-**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
+# 📑 RELATÓRIO 04 — BANCO DE DADOS, TABELAS E RELAÇÕES
+**Projeto:** Estoque.OS — Modelagem Multi-Organização, Pedidos Multi-Item e Preservação Histórica  
+**Data da atualização:** 2026-11-17 *(estrutura verificada no `schema.prisma` e nas 9 migrações da branch `main`)*  
+**Documentos relacionados:** [Guia de Leitura e Glossário](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/00_GUIA_DE_LEITURA_E_GLOSSARIO.md) · [Relatório 11 — Catálogo Completo de Problemas](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md)
 
 ---
 
-## 1. Topologia do Banco de Dados e Histórico de Migrações `[IMPLEMENTADO (verificado)]`
+## Resumo para quem não é técnico
+
+O **banco de dados** é o grande arquivo digital onde tudo fica guardado de forma permanente — empresas, lojas, funcionários, produtos, vendas, comprovantes e desligamentos. Cada "gaveta" desse arquivo é chamada de **tabela** (ou *model*), e cada mudança planejada na estrutura das gavetas fica registrada numa **migração** (*migration*) numerada em ordem de data.
+
+Duas decisões importantes deixam esse banco muito seguro para o dia a dia:
+1. **Os preços das vendas ficam congelados:** mudar o preço de um produto hoje nunca altera quanto a loja faturou no mês passado.
+2. **Demitir um funcionário nunca apaga as vendas dele:** o acesso da pessoa é removido de verdade, mas um "retrato congelado" (*snapshot*) do nome, e-mail, matrícula e datas continua intacto nos relatórios e na tabela `RegistroDesligamento`.
+
+---
+
+## 1. Topologia do Banco de Dados e Histórico de Migrações `[VERIFICADO]`
 
 - **SGBD Primário:** PostgreSQL (Neon Cloud Database).
 - **ORM:** Prisma ORM (`@prisma/client` `^6.16.2`, client gerado em v6.19.2).

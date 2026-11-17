@@ -1,32 +1,41 @@
-# 📑 RELATÓRIO TÉCNICO 12 — ANÁLISE DE PRODUTO, POSICIONAMENTO E MERCADO
+# 📑 RELATÓRIO 12 — ANÁLISE DE PRODUTO, POSICIONAMENTO E MERCADO
+
 **Projeto:** Estoque.OS  
-**Data da Atualização:** 2026-11-10  
-**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
+**Data da atualização:** 2026-11-17 *(base de produto verificada em 2026-11-10/11 na branch `main`)*  
+**Documentos relacionados:** [Guia de Leitura e Glossário](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/00_GUIA_DE_LEITURA_E_GLOSSARIO.md) · [Relatório 14 — Valor de Mercado e Precificação](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/14_analise_minuciosa_de_valor_de_mercado.md)
 
 ---
 
-## 1. Análise de Produto e Proposta de Valor `[IMPLEMENTADO (verificado)]`
+## Resumo para quem não é técnico
 
-Com a entrega da **Fase H + UX/Comprovantes + Gestão RH**, o **Estoque.OS** consolidou-se como um **ERP / PDV leve Multi-Organização e Multi-Filial (SaaS B2B)** focado em redes varejistas e estabelecimentos em expansão:
+Este documento avalia o **Estoque.OS** não como código, mas como **produto comercial**: qual problema real de empresas ele resolve, quem seria o cliente ideal disposto a pagar por ele e o que ainda falta construir para competir de frente com grandes sistemas de gestão do mercado brasileiro.
 
-1. **Governança Corporativa Real (`Organizacao → Lojas`):** O proprietário (`ADMIN`) abre sua Organização em segundos (`/admin/login?mode=register`), cadastra filiais (`/dashboard/lojas`), alterna instantaneamente entre visão consolidada da rede (`"Todas as Lojas"`) ou filial isolada na barra lateral e move gerentes/vendedores entre lojas conforme necessidade operacional.
-2. **Operação Comercial sem Atraso & Rastreabilidade Antifraude (`/orders`):** Multipedidos previnem *deadlocks* e *lost updates* no PostgreSQL, congelam o valor histórico pago, registram **comprovação formal** (`PIX`/NSU/Recibo + recebedor + anexo Cloudinary em `PATCH /orders/:id/proof`) e permitem estorno supervisionado (`ADMIN`/`GERENTE`).
-3. **Gestão Completa de Ciclo de Equipe (Matrícula, Suspensão, Data de Demissão & Relatório Mensal):** Cada colaborador possui matrícula única (`MAT-00001`), telefone, admissão e status funcional (`Atuando`, `Suspenso`, `Em Férias` ou `Desligado`). A partir do botão singelo `Info` na página de Usuários, gestores reativam ou demitem com registro da **Data de Demissão**, cancelamento visual (`MAT-XXXXX (CANCELADA)`) e filtro específico de desligados — gerando e permitindo reabrir a qualquer momento o **Relatório Final em PDF** com todas as vendas mês a mês entre Início e Demissão.
-4. **Zero Barreira de Migração:** Lojistas trazem até `5.000` produtos de sistemas antigos via planilha `.xlsx`/`.csv` validada em tela antes de gravar no banco.
+Em resumo: após a **Etapa 8 (uma empresa com várias lojas, pedidos com vários itens e gestão de funcionários)** e a **Etapa 9 (reforço final de segurança)**, o Estoque.OS já é um sistema leve de gestão e frente de caixa pronto para redes de pequenas e médias lojas. Para virar um produto de massa com cobrança automática, os próximos grandes passos de negócio são emissão de nota fiscal eletrônica e cobrança recorrente por assinatura.
 
 ---
 
-## 2. Segmentos-Alvo Ideais
+## 1. O que o produto entrega hoje e seus diferenciais `[VERIFICADO]`
 
-- **Redes de Varejo de 2 a 15 Filiais** (informática, eletrônicos, vestuário, cosméticos, cultura geek, autopeças).
-- **Distribuidores com Equipe de Balcão** que precisam medir ranking real de vendedores, evitar acesso de balconistas ao faturamento de colegas (`OPERADOR` cego para terceiros) e controlar estornos sem planilhas manuais.
-- **Software Houses / Consultorias** buscando plataforma Multi-Tenant White-Label em Node.js + React + PostgreSQL pronto para customização fiscal (NFC-e / NF-e).
+O **Estoque.OS** posiciona-se como um sistema de gestão (**ERP**, sistema integrado de controle empresarial) e ponto de venda leve (**PDV**, tela de registrar vendas no balcão), oferecido como serviço na nuvem para empresas (**SaaS B2B** — *Software como Serviço vendido para empresas*), focado em redes varejistas e estabelecimentos em expansão:
+
+1. **Controle real de redes com várias filiais (`Organizacao → Lojas`):** o proprietário (`ADMIN`) abre sua empresa em segundos (`/admin/login?mode=register`), cadastra novas lojas (`/dashboard/lojas`), alterna instantaneamente entre a visão somada da rede inteira (`"Todas as Lojas"`) ou de uma única loja no menu lateral e transfere gerentes ou vendedores de uma unidade para outra quando precisa.
+2. **Vendas rápidas com proteção antifraude e comprovantes (`/orders`):** o carrinho de múltiplos itens impede furo de estoque em vendas simultâneas, congela o preço praticado no dia da venda, guarda **comprovantes formais** (`PIX`, código NSU, recibo, quem recebeu e anexo de foto no Cloudinary em `PATCH /orders/:id/proof`) e permite estorno controlado apenas por `ADMIN` ou `GERENTE`.
+3. **Gestão completa da equipe (RH integrado ao estoque):** cada funcionário recebe matrícula única (`MAT-00001`), telefone, data de admissão e situação funcional (`Atuando`, `Suspenso`, `Em Férias` ou `Desligado`). Pelo botão `Info` na tela de Usuários, o administrador suspende, reativa ou demite registrando a **Data de Demissão**, marca a matrícula como `MAT-XXXXX (CANCELADA)` e pode gerar ou reabrir a qualquer momento o **Relatório Final de Desligamento em PDF** mostrando todas as vendas mês a mês entre a admissão e a demissão.
+4. **Migração fácil sem redigitar produtos:** lojistas que saem de planilhas ou de sistemas antigos conseguem importar até `5.000` produtos de uma vez usando arquivos `.xlsx` ou `.csv`, conferindo os dados na tela antes de gravar no banco.
 
 ---
 
-## 3. Lacunas Funcionais para Adoção Massiva (Próximos Passos de Produto) `[INEXISTENTE]`
+## 2. Quem são os clientes ideais
 
-Para competir diretamente com ERPs comerciais maduros (como Bling, Tiny ou Omie) em escala massiva:
-- Emissão fiscal nativa (NFC-e / NF-e / SAT via provedor externo).
-- Gateways de cobrança recorrente SaaS integrados (Stripe / Asaas) para cobrança automática por plano/quantidade de lojas.
-- Controle de estoque reservado, múltiplos preços (tabela atacado/varejo), código de barras (`SKU`/`EAN`) com leitor USB no modal de multipedidos e aplicativo offline-first.
+- **Redes de varejo com 2 a 15 filiais** (lojas de informática, eletrônicos, roupas, cosméticos, cultura geek, autopeças).
+- **Distribuidores e lojas com equipe de balcão** que precisam medir o ranking real de vendedores, impedir que um balconista veja o faturamento dos colegas (operadores veem apenas as próprias vendas) e controlar estornos sem depender de planilhas soltas.
+- **Software houses e consultorias** que buscam uma base multi-empresa **White-Label** (sistema pronto para receber a marca e a identidade visual de outro cliente) em Node.js + React + PostgreSQL, já pronta para acoplar módulos fiscais.
+
+---
+
+## 3. O que ainda falta no produto para competir em escala massiva `[INEXISTENTE]`
+
+Para disputar diretamente com grandes ERPs comerciais maduros do Brasil (como Bling, Tiny ou Omie):
+1. **Emissão fiscal nativa:** integração com provedores para emitir nota fiscal ao consumidor (**NFC-e**), nota fiscal eletrônica (**NF-e**) ou cupom **SAT**.
+2. **Cobrança automática de assinaturas:** integração com gateways de pagamento recorrente (como Stripe ou Asaas) para cobrar mensalidades conforme o plano e o número de lojas.
+3. **Recursos avançados de varejo:** controle de estoque reservado, tabelas de preço diferentes (atacado vs. varejo), leitura de código de barras (**SKU** — código interno do item / **EAN** — código de barras comercial) via leitor USB na tela de pedidos e funcionamento sem internet (*offline-first*).

@@ -1,14 +1,22 @@
-# RELATÓRIO 01 — VISÃO GERAL E INVENTÁRIO DO PROJETO
+# 📑 RELATÓRIO 01 — VISÃO GERAL E INVENTÁRIO DO PROJETO
 **Projeto:** Estoque.OS  
-**Data da Auditoria:** 2026-11-11  
-**Branch Auditada:** `main` (sincronizada com `feature/multitenant`)  
-**Nível de Classificação Detectado:** **MEDIUM / PRODUCTION-READY CORE** *(Plataforma SaaS Multi-Organização / Multi-Filial com Multipedidos Atômicos & Comprovantes, Estornos, Matrícula/Situação Funcional e Demissão com Relatório Mensal)*
+**Data da atualização:** 2026-11-17 *(inventário medido em 2026-11-11 e verificado na branch `main`)*  
+**Nível de complexidade:** **Intermediário (`MEDIUM`) — Pronto para produção** *(plataforma para múltiplas empresas com várias lojas, pedidos de vários itens, comprovantes, estornos, matrícula/RH e demissão com histórico preservado)*  
+**Documentos relacionados:** [Guia de Leitura e Glossário](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/00_GUIA_DE_LEITURA_E_GLOSSARIO.md) · [Relatório 11 — Catálogo Completo de Problemas](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md)
 
 ---
 
-## 1. Visão Geral Executiva do Projeto `[IMPLEMENTADO (verificado)]`
+## Resumo para quem não é técnico
 
-O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varejistas e estabelecimentos comerciais multi-filiais**, estruturada sob o modelo **Organização (Rede/Empresa) → múltiplas Lojas (Unidades/Filiais)**. O sistema organiza autenticação em dois portais dedicados (**Portal do Administrador** em `/admin/login` e **Portal da Loja** em `/login`), controle de acesso baseado em papéis (**RBAC**: `ADMIN`, `GERENTE` e `OPERADOR`), gestão de catálogo e fornecedores por filial (com suporte explícito a ativos e inativos), importação/exportação nativa de planilhas (`.xlsx` e `.csv`), **Multipedidos atômicos** (`Pedido` + `ItemPedido`) com **preço congelado**, **comprovação de pagamento/recebimento** (`PIX`, `NSU`, anexo no Cloudinary) e estorno transacional, **matrícula determinística (`MAT-00001`), gestão de situação trabalhista (`ATIVO` / `SUSPENSO` / `FERIAS`) e desligamento com exclusão física real preservando snapshots (`MAT-XXXXX (CANCELADA)`) e gerando relatório mensal do período trabalhado**, além de relatórios PDF A4 e painel de desempenho (`1m`, `6m`, `1y`, consulta por Matrícula/ID).
+O **Estoque.OS** é um sistema web completo para **lojas e redes de lojas** controlarem estoque, vendas, fornecedores e equipe num único lugar pela internet.
+
+Cada empresa cadastrada pode ter **várias filiais**, separar o acesso de **Administradores**, **Gerentes** e **Operadores**, fechar vendas com vários produtos no mesmo pedido, anexar comprovantes de pagamento, cancelar/estornar vendas erradas, importar planilhas do Excel e emitir relatórios de desempenho em PDF — sem perder o histórico mesmo quando um funcionário é demitido. As seções abaixo detalham as tecnologias escolhidas e o mapa completo de pastas e arquivos do projeto.
+
+---
+
+## 1. Visão Geral Executiva do Projeto `[VERIFICADO]`
+
+O **Estoque.OS** é uma aplicação web completa (**Full-Stack** — site visual + servidor + banco de dados) voltada a empresas (**B2B**) e redes varejistas com várias filiais, estruturada no modelo **Organização (Rede/Empresa) → múltiplas Lojas (Unidades/Filiais)**. O sistema separa o login em dois portais dedicados (**Portal do Administrador** em `/admin/login` e **Portal da Loja** em `/login`), controla permissões por cargo (**RBAC**: `ADMIN`, `GERENTE` e `OPERADOR`), gerencia catálogo e fornecedores por filial (com suporte explícito a ativos e inativos), importa e exporta planilhas nativas (`.xlsx` e `.csv`), registra **pedidos com vários itens em transação segura** (`Pedido` + `ItemPedido`) com **preço congelado**, **comprovação de pagamento/recebimento** (`PIX`, `NSU`, anexo no Cloudinary) e estorno controlado, gera **matrícula única (`MAT-00001`), controla situação funcional (`ATIVO` / `SUSPENSO` / `FERIAS`) e faz demissão real preservando retratos históricos (`MAT-XXXXX (CANCELADA)`) e relatório mensal**, além de gerar relatórios em PDF A4 e painel de desempenho (`1m`, `6m`, `1y`, busca por Matrícula/ID).
 
 ---
 
@@ -86,7 +94,7 @@ O **Estoque.OS** é uma aplicação web Full-Stack B2B destinada a **redes varej
 
 ---
 
-## 5. Avaliação de Complexidade & Arquitetura `[IMPLEMENTADO (verificado)]`
+## 5. Avaliação de Complexidade & Arquitetura `[VERIFICADO]`
 
-- **Classificação:** `MEDIUM` com arquitetura SaaS Multi-Organização / Multi-Filial coerente, lock pessimista ordenado no PostgreSQL (`ORDER BY id ASC FOR UPDATE`) em multipedidos, isolamento estrito por `organizacaoId` / `lojaId`, RH completo (Matrícula + Situação + Relatório Mensal de Desligamento) e trilha contábil imutável (`vendedorRefId` + snapshots).
-- **Atenção Pós-Build Frontend:** O bundle `vite build` compilou **2.418 módulos** sem erros, porém emitiu aviso de chunk único (`dist/assets/index-PuhSpkQw.js` = **1.011,83 kB**, gzip `281,91 kB`), recomendando *code-splitting* por rotas (`React.lazy`).
+- **Classificação:** `MEDIUM` com arquitetura para múltiplas empresas e filiais bem definida, trava ordenada no PostgreSQL (`ORDER BY id ASC FOR UPDATE`) em pedidos multi-item, isolamento estrito por `organizacaoId` / `lojaId`, gestão completa de RH (matrícula, situação e relatório mensal de desligamento) e trilha contábil imutável (`vendedorRefId` + snapshots).
+- **Atenção no peso do site (`vite build` medido em 11/11/2026):** o empacotador compilou **2.420 módulos** sem erros em `1m 42s`, porém emitiu aviso de arquivo único grande (`index-HtmucMcS.js` = **1.020,48 kB**, gzip `284,61 kB`, além de CSS `48,39 kB`), recomendando divisão de código por página (`React.lazy` — ver [`DESEMPENHO-08`](file:///c:/Users/Ique%20Santana/Desktop/Mateus/vscode/projetos/portifolio/Estoque.OS/relatorios/11_matriz_consolidada_de_falhas.md#desempenho-08)).

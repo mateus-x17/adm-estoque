@@ -16,18 +16,19 @@
 
 | # | Arquivo | Conteúdo | Template |
 |---|---|---|---|
-| 00 | `00_REGISTRO_DE_PROGRESSO.md` | Estado do trabalho | 2.10 |
+| 00a | `00_GUIA_DE_LEITURA_E_GLOSSARIO.md` | Ordem de leitura, etapas, equivalência de IDs e glossário | 1.1 |
+| 00b | `00_REGISTRO_DE_PROGRESSO.md` | Estado do trabalho e linha do tempo descritiva | 2.10 |
 | 01 | `01_visao_geral_e_inventario.md` | Identificação, nível, stack, árvore | 2.2 |
 | 02 | `02_mapeamento_de_modulos.md` | Módulo → arquivo → função | 2.3 e 2.4 |
 | 03 | `03_mapeamento_de_apis.md` | Endpoints e cadeias de execução | 2.5 |
 | 04 | `04_models_e_banco_de_dados.md` | Entidades, relações, porquês, consultas | 2.6 e 2.7 |
 | 05 | `05_jornadas_de_uso.md` | Sistema funcionando, por perfil | 2.8 |
 | 06 | `06_regras_de_negocio.md` | Catálogo `RN-xxx` | 2.9 |
-| 07 | `07_diagnostico_auditoria_e_performance.md` | Problemas, evidências, performance | 2.11 |
-| 08 | `08_melhorias_por_componente.md` | Melhorias detalhadas | 2.1 |
-| 09 | `09_arquitetura_e_system_design.md` | Atual × recomendada | 2.12 |
-| 10 | `10_plano_consolidado_de_implementacao.md` | Fases A–F | 2.13 |
-| 11 | `11_matriz_consolidada_de_falhas.md` | Status de cada falha | Parte 4 |
+| 07 | `07_diagnostico_auditoria_e_performance.md` | Problemas por tema (cartões), evidências e performance didática | 1.1 e 2.11 |
+| 08 | `08_melhorias_por_componente.md` | Melhorias detalhadas ligadas ao nome do problema | 2.1 |
+| 09 | `09_arquitetura_e_system_design.md` | Atual × recomendada (com explicação de cada bloco) | 2.12 |
+| 10 | `10_plano_consolidado_de_implementacao.md` | Etapas descritivas e fila priorizada | 2.13 |
+| 11 | `11_matriz_consolidada_de_falhas.md` | Índice rápido + cartões completos de todos os problemas | Parte 4 |
 | 12 | `12_analise_de_produto.md` | Opcional (Modo Produto) | 2.14 |
 
 **Convenções de rótulo (usar em todo o texto):**
@@ -36,6 +37,43 @@
 - Severidade: `Crítica` (exploração, perda de dados, indisponibilidade) · `Alta` · `Média` · `Baixa`
 - Prioridade: `P0` (agora) · `P1` (próxima entrega) · `P2` (planejado) · `P3` (oportunidade)
 - Complexidade: `Baixa` (horas) · `Média` (dias) · `Alta` (semanas) — *estimativa de esforço relativa, não promessa de prazo*
+
+---
+
+## 1.1 Regras de redação didática (obrigatórias em todos os relatórios)
+
+Todo relatório deve ser compreensível até por alguém **não técnico que se esforce para ler**, sem perder o detalhe técnico que o desenvolvedor precisa. **Relatório grande não é problema; relatório criptografado em siglas é.**
+
+1. **Proibido usar código do catálogo sozinho (`B3`, `I1`, `A5`…):** todo problema recebe um **ID amigável por tema** (`ACESSO`, `ENTRADA`, `DADOS`, `DESEMPENHO`, `OPERACAO`, `TELA`, `QUALIDADE` — formato `TEMA-NN`) e um **título que descreve o sintoma no dia a dia** (ex.: *"Duas vendas ao mesmo tempo podiam deixar o estoque com número errado"*). O código original (`B3`, `I1`…) aparece **apenas** na linha discreta `Código no catálogo original:` dentro do cartão e na tabela de equivalência de `00_GUIA_DE_LEITURA_E_GLOSSARIO.md`.
+2. **Proibido citar "Fase X" sem dizer o que a fase fez:** sempre usar nome descritivo da etapa (ex.: *"Etapa 8 — Uma empresa com várias lojas, pedidos com vários itens e gestão de funcionários"*).
+3. **Leitura em camadas:** todo relatório começa com um **Resumo para quem não é técnico** (5 a 10 linhas sem jargão), seguido do mapa do documento e só depois o detalhamento técnico.
+4. **Um problema = um cartão:** nunca agrupar 3 ou 4 problemas diferentes num mesmo parágrafo. Listas longas de medidas viram lista numerada (1 medida por linha: o que é + o que protege).
+5. **Termos técnicos explicados na primeira ocorrência** (entre parênteses ou frase curta) e reunidos no **Glossário** de `00_GUIA_DE_LEITURA_E_GLOSSARIO.md`.
+6. **Situação sempre em linguagem clara:**
+   - ✅ **Resolvido** — correção existe no código e há evidência verificada.
+   - 🟡 **Resolvido em parte** — melhorou, mas sobrou pendência (obrigatório dizer o que falta).
+   - 🔴 **Ainda em aberto** — identificado e ainda não corrigido.
+   - ⚪ **Risco aceito** — decisão consciente de não corrigir agora (obrigatório explicar o motivo).
+
+### Modelo obrigatório de Cartão de Problema (usado nos Relatórios 07 e 11)
+
+```markdown
+### <Ícone> <TEMA-NN> — <Título descritivo do problema no dia a dia>
+
+**Situação atual:** ✅ Resolvido | 🟡 Resolvido em parte | 🔴 Ainda em aberto | ⚪ Risco aceito
+**Gravidade original:** <Crítica/Alta/Média/Baixa> — *o que isso significa:* <explicação prática>
+**Código no catálogo original:** <B1..A8>
+
+#### 1. Em uma frase
+#### 2. Qual era o problema *(com exemplo concreto; sinalizar se for ilustrativo)*
+#### 3. Por que isso era um risco
+#### 4. Por que acontecia (a causa)
+#### 5. Como foi resolvido *(lista numerada se houver várias medidas)*
+#### 6. Como era × como ficou *(tabela curta comparativa)*
+#### 7. Como sabemos que funciona *(evidência real e data)*
+#### 8. O que ainda falta *(lacunas remanescentes ou "Nada pendente identificado.")*
+#### 9. Detalhe técnico (para desenvolvedores) *(arquivos, funções, endpoints, commits)*
+```
 
 ---
 
@@ -568,17 +606,19 @@ Fluxo: **usuário → resolução de DNS → (CDN) → (proxy/gateway) → (bala
 
 ---
 
-# PARTE 4 — MATRIZ CONSOLIDADA DE FALHAS (template e regras)
+# PARTE 4 — MATRIZ CONSOLIDADA DE FALHAS / CATÁLOGO DE PROBLEMAS (template e regras)
+
+O Relatório 11 deve abrir com um **Resumo para quem não é técnico**, seguido por uma **tabela-índice simples** e logo abaixo pelos **cartões completos** (modelo da Seção 1.1) organizados por tema (`ACESSO`, `ENTRADA`, `DADOS`, `DESEMPENHO`, `OPERACAO`, `TELA`, `QUALIDADE`):
 
 ```markdown
-| ID | Classe (B/I/A) | Área | Arquivo/Função | Falha | Severidade | Impacto | Status | Evidência da verificação |
+| ID | Problema (título descritivo do sintoma) | Situação atual | Ficha completa |
 ```
 
-**Status permitidos e regra de uso:**
-- `ABERTO` — identificado, sem correção.
-- `PARCIAL` — corrigido o sintoma, **mas há lacuna remanescente** listada na própria linha (ex.: log removido, segredo não rotacionado).
-- `CORRIGIDO` — **só** com evidência: teste automatizado, execução reproduzível ou revisão de código com a lacuna típica checada. *Sem evidência, o status máximo é `PARCIAL`.*
-- `ACEITO` — risco aceito, com justificativa e responsável.
+**Situações permitidas e regra de uso:**
+- 🔴 **Ainda em aberto** (`ABERTO`) — identificado, sem correção.
+- 🟡 **Resolvido em parte** (`PARCIAL`) — corrigido o sintoma principal, **mas há lacuna remanescente** descrita explicitamente no campo *"O que ainda falta"* (ex.: log removido, segredo não rotacionado).
+- ✅ **Resolvido** (`CORRIGIDO`) — **só** com evidência: teste automatizado, execução reproduzível ou revisão de código com a lacuna típica checada. *Sem evidência, a situação máxima é `🟡 Resolvido em parte`.*
+- ⚪ **Risco aceito** (`ACEITO`) — risco aceito conscientemente, com justificativa e responsável.
 - `NÃO VERIFICÁVEL` — faltou acesso; descrever como verificar.
 
 **Quadro de lacunas recorrentes (revisar em toda correção declarada como "feita")**
